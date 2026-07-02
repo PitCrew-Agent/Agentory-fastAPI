@@ -1,0 +1,68 @@
+# 로컬 개발 스택 (INFRA01_DOCKER01)
+# TODO(안민호): 배포용 구성 확장
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: agentory
+      POSTGRES_PASSWORD: agentory
+      POSTGRES_DB: agentory
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentory"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      MCP_REALTIME_URL: http://mcp-realtime:8101/mcp
+      MCP_KNOWLEDGE_URL: http://mcp-knowledge:8102/mcp
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp-realtime:
+    build: .
+    command: ["mcp-realtime"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+    ports:
+      - "8101:8101"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp-knowledge:
+    build: .
+    command: ["mcp-knowledge"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+    ports:
+      - "8102:8102"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # TODO(안민호): Keycloak (IdP) 구성 (BE_AUTH01_OAUTH01)
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:26.0
+  #   command: ["start-dev"]
+  #   environment:
+  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  #     KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+  #   ports:
+  #     - "8080:8080"
+
+volumes:
+  pgdata:
