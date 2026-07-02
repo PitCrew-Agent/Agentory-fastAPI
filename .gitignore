@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 가상환경
+.venv/
+venv/
+
+# 환경 변수 (비밀정보는 절대 커밋 금지)
+.env
+.env.*
+!.env.example
+
+# 테스트·린트 캐시
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# 로그
+*.log

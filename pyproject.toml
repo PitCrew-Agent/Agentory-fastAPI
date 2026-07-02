@@ -1,0 +1,68 @@
+[project]
+name = "agentory"
+version = "0.1.0"
+description = "자율형 제조 데이터 분석 및 MCP 에이전트 시스템 — 백엔드"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "pgvector>=0.3",
+    "mcp>=1.9",
+    "langgraph>=0.4",
+    "langchain-core>=0.3",
+    "httpx>=0.27",
+    "sse-starlette>=2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "pre-commit>=3.8",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+agentory-api = "agentory.main:run"
+mcp-realtime = "mcp_realtime.server:run"
+mcp-knowledge = "mcp_knowledge.server:run"
+simulator = "simulator.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/agentory",
+    "src/mcp_realtime",
+    "src/mcp_knowledge",
+    "src/simulator",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
