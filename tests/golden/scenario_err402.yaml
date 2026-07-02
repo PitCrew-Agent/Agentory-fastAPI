@@ -1,0 +1,10 @@
+# 요구사항 정의서 §3.2 대표 시나리오, B라인 ERR-402 이상 진단
+id: GOLDEN-001
+title: B라인 이상 설비 진단 및 조치 안내 (ERR-402)
+seed_scenario: err402_temp_rise
+query: "최근 1시간 동안 B라인에서 가장 불안정하거나 이상 징후가 보이는 설비가 있는지 찾아보고, 원인이랑 조치 방법 좀 알려줘."
+expect:
+  tools_called_any: [get_sensor_logs, get_alarm_history]
+  answer_contains_any: ["EQP-003", "ERR-402"]
+  citations_include: [MAN-ETC-042]
+  rag_hit_docs: [MAN-ETC-042]
