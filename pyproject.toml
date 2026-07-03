@@ -68,3 +68,8 @@ select = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# llm 마커는 실 LLM 호출이라 비용·비결정, 기본 제외하고 `pytest -m llm`으로만 실행
+addopts = "-m 'not llm'"
+markers = [
+    "llm: 실 LLM 호출이 필요한 테스트 (OPENAI_API_KEY·DB 필요, 기본 opt-in)",
+]

@@ -1,6 +1,32 @@
-# e2e: 골든 시나리오 E2E (3주차)
+# e2e: 골든 시나리오 E2E (TEST_HARNESS)
 
-흐름: 시뮬레이터로 시나리오 주입 → 채팅 API 질의 → 응답/도구 호출/인용 검증
+실 LLM + 실 DB + 실 도구로 전체 파이프라인을 검증하는 최상위 하네스.
 
-- 케이스는 `tests/golden/*.yaml` 에서 로드한다 (`conftest.load_golden_cases()`).
-- 감지 규칙(워처 임계치·쿨다운) 테스트도 이 레이어에 추가 예정.
+## 흐름 (AAA)
+
+- Arrange: 픽스처가 설비 마스터 보강 + 대상 설비(EQP-003)에 최근 이상 텔레메트리 주입
+- Act: golden 케이스의 query로 에이전트 그래프 실행 (실 LLM)
+- Assert: golden `expect`와 속성 대조 (도구 호출 / 답변 키워드 / 인용)
+
+도구는 repository를 감싼 in-process LangChain 도구로 붙여 MCP 서버 기동 없이 실행한다.
+MCP HTTP 전송 계층은 contracts·integration 레이어가 별도 검증한다.
+
+## 실행
+
+```bash
+# 실 LLM 호출이라 기본 pytest에서는 제외됨, 명시적으로 실행
+uv run pytest -m llm
+
+# 선행 조건: OPENAI_API_KEY 설정 + DB 연결 가능 (미충족 시 자동 skip)
+docker compose up -d db && uv run alembic upgrade head
+```
+
+## 케이스 추가
+
+`tests/golden/*.yaml`에 케이스를 추가하면 자동으로 파라미터화되어 실행된다
+(포맷은 tests/golden/README.md 참고).
+
+## 지식(RAG) 의존 검증
+
+`citations_include`·매뉴얼 인용 검증은 knowledge 도구가 연동될 때만 활성화된다.
+현재는 knowledge 워커 미연동이라 해당 검증은 skip되며, 김건 RAG 연동 후 자동 활성화된다.
