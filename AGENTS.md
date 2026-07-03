@@ -36,7 +36,8 @@ uv run alembic upgrade head      # DB 마이그레이션 (docker compose up -d d
 
 ## Git 규칙
 
-- default 브랜치 `develop`, 직접 푸시 금지, 작업은 `feature/<기능ID>` 브랜치에서 PR로 머지
+- default 브랜치 `develop`, 직접 푸시 금지, 작업은 PR로 머지
+- 작업 브랜치명: `feature/<이슈번호>-<기능명>` (예: `feature/12-db-schema`)
 - 커밋 메시지: `<타입>: <내용> (<기능ID>)`, 타입은 feat / fix / refactor / test / docs / chore
 - 커밋·푸시·이슈 생성·PR 생성은 반드시 사용자에게 계획(파일 단위 분할 + 메시지)을 먼저 보여주고 승인 후 실행
 - AI를 협업자로 추가 금지: Co-Authored-By, Generated-by 등 AI 서명·크레딧 라인 절대 삽입 금지
