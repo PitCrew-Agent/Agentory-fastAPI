@@ -1,4 +1,4 @@
-# AGENTS.md — 코딩 에이전트 지침
+# AGENTS.md: 코딩 에이전트 지침
 
 자율형 제조 데이터 분석 및 MCP 에이전트 시스템 백엔드. Codex·Claude Code 등
 코딩 에이전트는 작업 전 이 문서를 따른다.
@@ -30,7 +30,7 @@ uv run alembic upgrade head      # DB 마이그레이션 (docker compose up -d d
 ## 주석 규칙 (필수)
 
 - 간단하게, 명사형 어미로 작성
-- 온점(.) 금지, `—`(em dash) 금지
+- 온점(.) 금지, em dash(긴 줄표) 문자 금지 (코드·문서·주석·커밋 등 산출물 전체 적용)
 - 담당자 표기는 `TODO(담당자명)` 형태로만 작성, `담당: 이름` 같은 표기 금지
 - 기능 ID(예: BE_MCP02_TELEMETRY01)를 괄호로 병기해 기능명세서와 추적 연결
 
