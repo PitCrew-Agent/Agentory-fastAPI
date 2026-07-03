@@ -63,5 +63,6 @@ docs/                    # ADR·SSE 계약 문서
 ## 문서
 
 - 요구사항 정의서·기능명세서: 팀 Google Drive
+- 데이터베이스 설계: [docs/database.md](docs/database.md)
 - SSE 이벤트 계약: [docs/sse-events.md](docs/sse-events.md)
 - 골든 질의 셋 포맷: [tests/golden/README.md](tests/golden/README.md)
