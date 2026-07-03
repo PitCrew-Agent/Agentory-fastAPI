@@ -185,15 +185,18 @@ modules/agent/
 │   └── graph.py        # 전체 조립 build_agent_graph()
 ├── workers/
 │   ├── base.py         # build_react_worker 팩토리 (ReAct 직접 구현)
-│   ├── registry.py     # WorkerSpec 등록부
-│   └── data_analysis.py / knowledge.py / rediagnosis.py
+│   └── registry.py     # WorkerSpec 등록부 (워커 추가 지점)
 ├── mcp_client/client.py  # langchain-mcp-adapters로 서버별 도구 로드
+├── llm/base.py         # 챗 모델 팩토리 (라우터/워커 이원화)
 ├── context.py          # 엔티티 추출·컨텍스트 장부 (AI_AGENT02_CHAIN01)
-├── streaming.py        # astream_events → SSEEvent 변환기
-└── prompts/            # supervisor.py + 워커별 프롬프트 (각 담당)
+├── streaming.py        # astream_events → SSEEvent 변환기 (3단계)
+└── prompts/            # supervisor.py + 워커별 프롬프트 (각 담당 소유 파일)
 ```
 
-추가 의존성: `langchain-anthropic`(ChatAnthropic), `langchain-mcp-adapters`(MCP 도구 로드)
+추가 의존성: `langchain-openai`(ChatOpenAI), `langchain-mcp-adapters`(MCP 도구 로드)
+
+LLM은 OpenAI를 사용하며, 역할별로 모델을 분리 선택합니다(LLM_MODEL·LLM_ROUTER_MODEL·
+LLM_FINALIZER_MODEL). 미설정 역할은 LLM_MODEL로 폴백합니다.
 
 ## 6. 시나리오 3.2 워크스루
 
