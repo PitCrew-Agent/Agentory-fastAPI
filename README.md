@@ -55,7 +55,7 @@ docs/                    # ADR·SSE 계약 문서
 ## 협업 규칙 (DEV_SETUP)
 
 - **default 브랜치: `develop`** — 직접 푸시 금지, PR로만 머지 (리뷰 1인 이상)
-- 작업 브랜치: `feature/<기능ID>` (예: `feature/BE_MCP02_TELEMETRY01`) — 기능명세서 ID와 매핑
+- 작업 브랜치: `feature/<이슈번호>-<기능명>` (예: `feature/12-db-schema`)
 - 배포 브랜치: `main` (develop → main 머지는 배포 시점에)
 - 커밋 메시지: `<타입>: <내용> (<기능ID>)` — 타입: feat / fix / refactor / test / docs / chore
 - SSE 이벤트 스키마(`common/events.py`) 변경은 프론트와 합의 후 계약 테스트와 함께 PR
@@ -63,5 +63,6 @@ docs/                    # ADR·SSE 계약 문서
 ## 문서
 
 - 요구사항 정의서·기능명세서: 팀 Google Drive
+- 데이터베이스 설계: [docs/database.md](docs/database.md)
 - SSE 이벤트 계약: [docs/sse-events.md](docs/sse-events.md)
 - 골든 질의 셋 포맷: [tests/golden/README.md](tests/golden/README.md)

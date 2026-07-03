@@ -14,6 +14,7 @@ from agentory.core.config import get_settings
 from agentory.core.db import Base
 
 # --- 모델 등록 (autogenerate 감지용) ---
+from agentory.modules.chat import models as chat_models  # noqa: F401
 from agentory.modules.rag.store import models as rag_models  # noqa: F401
 from agentory.modules.telemetry import models as telemetry_models  # noqa: F401
 

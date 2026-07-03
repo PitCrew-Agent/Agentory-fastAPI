@@ -34,9 +34,16 @@ uv run alembic upgrade head      # DB 마이그레이션 (docker compose up -d d
 - 담당자 표기는 `TODO(담당자명)` 형태로만 작성, `담당: 이름` 같은 표기 금지
 - 기능 ID(예: BE_MCP02_TELEMETRY01)를 괄호로 병기해 기능명세서와 추적 연결
 
+## 문서(docs/·README) 작성 규칙
+
+- 설명문(문장)은 모두 격식체(~합니다)로, 누군가에게 설명하듯 자연스럽게 작성
+- 표 셀·목록 라벨 등 문장이 아닌 항목은 명사형으로 간단히 작성 가능
+- 이 규칙은 docs/ 문서와 README 본문에 적용 (코드 주석은 위 주석 규칙을 따름)
+
 ## Git 규칙
 
-- default 브랜치 `develop`, 직접 푸시 금지, 작업은 `feature/<기능ID>` 브랜치에서 PR로 머지
+- default 브랜치 `develop`, 직접 푸시 금지, 작업은 PR로 머지
+- 작업 브랜치명: `feature/<이슈번호>-<기능명>` (예: `feature/12-db-schema`)
 - 커밋 메시지: `<타입>: <내용> (<기능ID>)`, 타입은 feat / fix / refactor / test / docs / chore
 - 커밋·푸시·이슈 생성·PR 생성은 반드시 사용자에게 계획(파일 단위 분할 + 메시지)을 먼저 보여주고 승인 후 실행
 - AI를 협업자로 추가 금지: Co-Authored-By, Generated-by 등 AI 서명·크레딧 라인 절대 삽입 금지
