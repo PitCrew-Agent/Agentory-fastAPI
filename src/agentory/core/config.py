@@ -18,9 +18,14 @@ class Settings(BaseSettings):
     # Database (PostgreSQL + pgvector)
     database_url: str = "postgresql+asyncpg://agentory:agentory@localhost:5432/agentory"
 
-    # LLM
-    anthropic_api_key: str = ""
-    llm_model: str = "claude-sonnet-5"
+    # LLM (OpenAI), 역할별 모델 선택: 비우면 llm_model 사용
+    openai_api_key: str = ""
+    llm_model: str = "gpt-5-mini"  # 기본(워커) 모델
+    llm_router_model: str = ""  # Supervisor 라우팅용 경량 모델
+    llm_finalizer_model: str = ""  # 최종 답변 합성용 고성능 모델 (3단계)
+
+    # Agent
+    agent_max_steps: int = 10  # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
 
     # 임베딩
     embedding_model: str = ""
