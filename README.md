@@ -1,4 +1,4 @@
-# Agentory — 자율형 제조 데이터 분석 및 MCP 에이전트 시스템 (Backend)
+# Agentory: 자율형 제조 데이터 분석 및 MCP 에이전트 시스템 (Backend)
 
 자연어 질의 → Supervisor+ReAct 자율 추론 → MCP 도구 호출(실시간 데이터·RAG) → 종합 답변.
 
@@ -54,10 +54,10 @@ docs/                    # ADR·SSE 계약 문서
 
 ## 협업 규칙 (DEV_SETUP)
 
-- **default 브랜치: `develop`** — 직접 푸시 금지, PR로만 머지 (리뷰 1인 이상)
+- **default 브랜치: `develop`**, 직접 푸시 금지, PR로만 머지 (리뷰 1인 이상)
 - 작업 브랜치: `feature/<이슈번호>-<기능명>` (예: `feature/12-db-schema`)
 - 배포 브랜치: `main` (develop → main 머지는 배포 시점에)
-- 커밋 메시지: `<타입>: <내용> (<기능ID>)` — 타입: feat / fix / refactor / test / docs / chore
+- 커밋 메시지: `<타입>: <내용> (<기능ID>)`, 타입: feat / fix / refactor / test / docs / chore
 - SSE 이벤트 스키마(`common/events.py`) 변경은 프론트와 합의 후 계약 테스트와 함께 PR
 
 ## 문서

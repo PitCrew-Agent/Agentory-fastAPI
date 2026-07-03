@@ -1,7 +1,7 @@
 [project]
 name = "agentory"
 version = "0.1.0"
-description = "자율형 제조 데이터 분석 및 MCP 에이전트 시스템 — 백엔드"
+description = "자율형 제조 데이터 분석 및 MCP 에이전트 시스템 백엔드"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
