@@ -1,27 +1,24 @@
-"""LLM 프로바이더 포트, 교체 가능 지점 ① (비기능: 확장성)
+"""LLM 챗 모델 팩토리, 역할별 모델 선택 지원 (설계 문서 §4.7)
 
-에이전트 코드는 이 인터페이스에만 의존
-구체 프로바이더(Anthropic 등)는 현재 패키지에 어댑터 파일로 추가, 교체 시 에이전트 코드 수정 불필요
+에이전트 역할마다 필요한 성능이 달라 모델을 분리 선택
+  router: 짧은 구조화 판단, 매 턴 호출되어 경량·저지연 모델 적합
+  worker: 도구 인자 구성·데이터 해석, 균형형 모델
+  finalizer: 최종 답변 합성, 고성능 모델 (3단계에서 사용)
+환경 변수 미설정 역할은 LLM_MODEL로 폴백
 """
 
-from typing import Any, Protocol
+from langchain_core.language_models import BaseChatModel
+from langchain_openai import ChatOpenAI
+
+from agentory.core.config import get_settings
 
 
-class LLMClient(Protocol):
-    async def chat(
-        self,
-        messages: list[dict[str, Any]],
-        *,
-        tools: list[dict[str, Any]] | None = None,
-        system: str | None = None,
-    ) -> dict[str, Any]:
-        """메시지 목록으로 LLM 호출 후 응답(텍스트 또는 tool_call) 반환"""
-        ...
-
-
-def get_llm_client() -> LLMClient:
-    """설정(LLM_MODEL)에 따라 프로바이더 어댑터 반환
-
-    TODO(주희정): Anthropic 어댑터 구현 후 연결
-    """
-    raise NotImplementedError
+def get_chat_model(role: str = "worker") -> BaseChatModel:
+    # role: worker | router | finalizer
+    settings = get_settings()
+    by_role = {
+        "router": settings.llm_router_model,
+        "finalizer": settings.llm_finalizer_model,
+    }
+    model = by_role.get(role) or settings.llm_model
+    return ChatOpenAI(model=model, api_key=settings.openai_api_key)

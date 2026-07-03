@@ -1,15 +1,35 @@
-"""MCP 클라이언트, 에이전트가 MCP 서버 도구를 로드·호출하는 진입점
+"""MCP 클라이언트, 서버별 도구를 LangChain 도구로 로드 (BE_MCP01_SERVER01 연동)
 
-연결 대상 (core.config 참조):
-  - MCP_REALTIME_URL  (mcp-realtime 서버, streamable-http)
-  - MCP_KNOWLEDGE_URL (mcp-knowledge 서버, streamable-http)
+langchain-mcp-adapters로 realtime·knowledge 서버의 도구 목록을 발견·변환
+워커 레지스트리의 WorkerSpec.server 키와 서버명이 매핑됨
 """
 
+from langchain_core.tools import BaseTool
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
-async def load_tools() -> list:
-    """두 MCP 서버 접속 후 사용 가능 도구 목록 로드
+from agentory.core.config import get_settings
 
-    TODO(주희정): mcp SDK streamablehttp_client + ClientSession으로
-    list_tools/call_tool 래핑 후 LangGraph 도구 형태로 변환
-    """
-    raise NotImplementedError
+SERVER_NAMES = ("realtime", "knowledge")
+
+
+def _build_client() -> MultiServerMCPClient:
+    # 설정의 서버 URL로 MCP 멀티서버 클라이언트 구성
+    settings = get_settings()
+    return MultiServerMCPClient(
+        {
+            "realtime": {"url": settings.mcp_realtime_url, "transport": "streamable_http"},
+            "knowledge": {"url": settings.mcp_knowledge_url, "transport": "streamable_http"},
+        }
+    )
+
+
+async def load_tools_by_server() -> dict[str, list[BaseTool]]:
+    # 서버별 도구 목록 로드, 서버 미기동 시 해당 서버만 빈 목록으로 격리
+    client = _build_client()
+    tools: dict[str, list[BaseTool]] = {}
+    for name in SERVER_NAMES:
+        try:
+            tools[name] = await client.get_tools(server_name=name)
+        except Exception:
+            tools[name] = []
+    return tools

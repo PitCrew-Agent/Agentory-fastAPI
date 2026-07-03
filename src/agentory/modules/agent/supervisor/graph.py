@@ -1,20 +1,54 @@
-"""Supervisor + ReAct 공통 루프 (AI_AGENT01_REACT01)
+"""Agent 그래프 조립 (AI_AGENT01_REACT01)
 
-구조:
-    Supervisor가 질의 분석 후 워커(data_analysis / knowledge / rediagnosis)에 위임,
-    각 워커는 MCP 도구를 ReAct 루프로 호출
-    최대 반복 제한·폴백은 AI_AGENT03_FALLBACK01 참고
+Supervisor 라우팅 + 워커별 ReAct 서브루프(agent↔tool)를 직접 구성
+상세 설계는 docs/agent/architecture.md 참조
+Finalizer·Grounding 노드는 3단계에서 FINISH 경로에 삽입 예정
 """
 
-MAX_STEPS = 10  # 무한 루프 방지 기본값 (AI_AGENT03_FALLBACK01)
+from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import BaseTool
+from langgraph.graph import END, StateGraph
+
+from agentory.modules.agent.llm.base import get_chat_model
+from agentory.modules.agent.mcp_client.client import load_tools_by_server
+from agentory.modules.agent.supervisor.router import FINISH, make_supervisor_node
+from agentory.modules.agent.supervisor.state import AgentState
+from agentory.modules.agent.workers.base import build_react_worker
+from agentory.modules.agent.workers.registry import WORKERS
 
 
-def build_supervisor_graph():
-    """LangGraph Supervisor 그래프 조립 후 반환
+async def build_agent_graph(
+    router_llm: BaseChatModel | None = None,
+    worker_llm: BaseChatModel | None = None,
+    tools_by_server: dict[str, list[BaseTool]] | None = None,
+):
+    # 인자 주입은 테스트용, 미지정 시 설정 기반 LLM과 MCP 도구 사용
+    router_llm = router_llm or get_chat_model("router")
+    worker_llm = worker_llm or get_chat_model("worker")
+    if tools_by_server is None:
+        tools_by_server = await load_tools_by_server()
 
-    TODO(주희정):
-      1. MCP 클라이언트에서 도구 로드 (agent.mcp_client)
-      2. 워커 서브그래프 조립 (agent.workers.*)
-      3. Supervisor 라우팅 노드 + 이벤트 스트리밍(SSEEvent 변환) 연결
-    """
-    raise NotImplementedError("AI_AGENT01_REACT01 미구현")
+    graph = StateGraph(AgentState)
+    graph.add_node("supervisor", make_supervisor_node(router_llm))
+
+    # 레지스트리의 워커마다 ReAct 노드쌍(agent·tool) 생성·배선
+    for name, spec in WORKERS.items():
+        agent_node, tool_node, route_fn = build_react_worker(
+            name, worker_llm, tools_by_server.get(spec.server, []), spec.prompt
+        )
+        graph.add_node(name, agent_node)
+        graph.add_node(f"{name}_tools", tool_node)
+        # ReAct 루프: agent에서 도구 호출 요청 시 tool로, 아니면 supervisor 복귀
+        graph.add_conditional_edges(
+            name, route_fn, {"tools": f"{name}_tools", "supervisor": "supervisor"}
+        )
+        graph.add_edge(f"{name}_tools", name)
+
+    # Supervisor 라우팅: 워커 위임 또는 종료
+    graph.add_conditional_edges(
+        "supervisor",
+        lambda state: state["next"],
+        {**{name: name for name in WORKERS}, FINISH: END},
+    )
+    graph.set_entry_point("supervisor")
+    return graph.compile()
