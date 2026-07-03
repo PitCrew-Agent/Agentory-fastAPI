@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # Agent
     agent_max_steps: int = 10  # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
+    agent_grounding_enabled: bool = True  # Grounding 자가 검증 on/off (NEW_TRUST02)
 
     # 임베딩
     embedding_model: str = ""
