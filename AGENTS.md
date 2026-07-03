@@ -50,6 +50,7 @@ uv run alembic upgrade head      # DB 마이그레이션 (docker compose up -d d
 
 ## 이슈·PR 작성 규칙
 
+- 제목: `[작업유형] 기능명 (기능ID)` 형식, 작업유형은 Feature / Fix / Docs / Chore / Refactor / Test (커밋 타입과 대응), 기능ID는 뒤 괄호
 - 템플릿 사용: `.github/ISSUE_TEMPLATE/작업-이슈.md`, `.github/PULL_REQUEST_TEMPLATE.md`
 - "작업 개요"는 격식체로 사람이 쓴 것처럼 자연스러운 어투로 서술
 - 기술 선택은 대안과의 정량 비교 표 + 선택 근거 필수
