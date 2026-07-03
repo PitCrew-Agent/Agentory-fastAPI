@@ -65,5 +65,6 @@ docs/                    # ADR·SSE 계약 문서
 - 요구사항 정의서·기능명세서: 팀 Google Drive
 - 데이터베이스 설계: [docs/database.md](docs/database.md)
 - 센서 데이터 시뮬레이터: [docs/simulator.md](docs/simulator.md)
+- MCP 서버: [docs/mcp/](docs/mcp/)
 - SSE 이벤트 계약: [docs/sse-events.md](docs/sse-events.md)
 - 골든 질의 셋 포맷: [tests/golden/README.md](tests/golden/README.md)
