@@ -54,6 +54,17 @@ services:
       db:
         condition: service_healthy
 
+  simulator:
+    build: .
+    command: ["simulator"]  # 기본 normal 시나리오, 5초 주기 무한 적재
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped  # equipment_master 시드 전이면 대기 후 자동 적재
+
   # TODO(안민호): Keycloak (IdP) 구성 (BE_AUTH01_OAUTH01)
   # keycloak:
   #   image: quay.io/keycloak/keycloak:26.0
