@@ -17,14 +17,12 @@ mcp = FastMCP("agentory-realtime", host="0.0.0.0", port=8101)
 
 
 def _parse_time(value: str, field: str) -> datetime:
-    """ISO 8601 문자열을 tz-aware datetime으로 파싱, 실패 시 ValueError
-
-    타임존 정보가 없으면 UTC로 간주 (timestamptz 컬럼 비교 안전성)
-    """
+    # ISO 8601 문자열을 tz-aware datetime으로 파싱, 실패 시 ValueError
     try:
         parsed = datetime.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"{field} 시간 형식 오류(ISO 8601 필요): {value}") from exc
+    # 타임존 정보 없으면 UTC로 간주 (timestamptz 컬럼 비교 안전성)
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
@@ -40,11 +38,14 @@ async def get_sensor_logs(
     (BE_MCP02_TELEMETRY01) equipment_id 또는 line_name 중 하나 필수
     결과 없음 시 빈 배열 반환
     """
+    # 필수 식별자 검증
     if not equipment_id and not line_name:
         raise ValueError("equipment_id 또는 line_name 중 하나는 필수")
+    # 문자열 시간 인자 파싱
     start = _parse_time(start_time, "start_time")
     end = _parse_time(end_time, "end_time")
 
+    # 세션 열어 레포지토리 조회
     async with SessionLocal() as session:
         return await repository.fetch_sensor_logs(
             session,
@@ -66,9 +67,11 @@ async def get_alarm_history(
 
     (BE_MCP02_TELEMETRY02) 반환: [{alarm_code, count, first_seen, last_seen}]
     """
+    # 문자열 시간 인자 파싱
     start = _parse_time(start_time, "start_time")
     end = _parse_time(end_time, "end_time")
 
+    # 세션 열어 레포지토리 집계 조회
     async with SessionLocal() as session:
         return await repository.fetch_alarm_history(
             session,
@@ -88,9 +91,11 @@ async def get_equipment_metadata(
 
     (BE_MCP03_MASTER01) 존재하지 않는 설비면 빈 배열 반환
     """
+    # 필수 식별자 검증
     if not equipment_id and not line_name:
         raise ValueError("equipment_id 또는 line_name 중 하나는 필수")
 
+    # 세션 열어 레포지토리 조회
     async with SessionLocal() as session:
         return await repository.fetch_equipment_metadata(
             session, equipment_id=equipment_id, line_name=line_name
@@ -98,5 +103,5 @@ async def get_equipment_metadata(
 
 
 def run() -> None:
-    """MCP realtime 서버를 streamable-http 트랜스포트로 기동"""
+    # MCP realtime 서버를 streamable-http 트랜스포트로 기동
     mcp.run(transport="streamable-http")

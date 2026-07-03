@@ -16,12 +16,12 @@ from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetr
 
 
 def _num(value: Decimal | None) -> float | None:
-    """Decimal을 float로 변환, None은 그대로 유지"""
+    # Decimal을 JSON 친화적인 float로 변환, None은 유지
     return float(value) if value is not None else None
 
 
 def _telemetry_to_dict(row: EquipmentTelemetry) -> dict[str, Any]:
-    """텔레메트리 행 하나를 JSON 직렬화용 dict로 변환"""
+    # 텔레메트리 행 하나를 JSON 직렬화용 dict로 변환
     return {
         "equipment_id": row.equipment_id,
         "timestamp": row.timestamp.isoformat(),
@@ -41,10 +41,8 @@ async def fetch_sensor_logs(
     equipment_id: str | None = None,
     line_name: str | None = None,
 ) -> list[dict[str, Any]]:
-    """지정 기간 내 센서 로그를 시간순 조회 (BE_MCP02_TELEMETRY01)
-
-    equipment_id 우선, 없으면 line_name으로 소속 설비를 조인해 조회
-    """
+    # 센서 로그 조회 (BE_MCP02_TELEMETRY01)
+    # 지정 기간 필터 + 시간순 정렬
     stmt = (
         select(EquipmentTelemetry)
         .where(
@@ -54,14 +52,17 @@ async def fetch_sensor_logs(
         .order_by(EquipmentTelemetry.timestamp)
     )
     if equipment_id:
+        # 단일 설비로 좁힘
         stmt = stmt.where(EquipmentTelemetry.equipment_id == equipment_id)
     elif line_name:
+        # 라인 소속 설비 id 서브쿼리로 필터
         line_equipment = select(EquipmentMaster.equipment_id).where(
             EquipmentMaster.line_name == line_name
         )
         stmt = stmt.where(EquipmentTelemetry.equipment_id.in_(line_equipment))
 
     rows = await session.scalars(stmt)
+    # 결과 없으면 빈 목록 반환
     return [_telemetry_to_dict(r) for r in rows]
 
 
@@ -73,7 +74,8 @@ async def fetch_alarm_history(
     end_time: datetime,
     alarm_code: str | None = None,
 ) -> list[dict[str, Any]]:
-    """지정 기간 내 알람 코드별 발생 횟수·최초/최근 시각 집계 (BE_MCP02_TELEMETRY02)"""
+    # 알람 이력 집계 (BE_MCP02_TELEMETRY02)
+    # 알람 코드별 발생 횟수·최초/최근 시각 집계, 다발 순 정렬 (NULL 알람 제외)
     stmt = (
         select(
             EquipmentTelemetry.alarm_code,
@@ -91,9 +93,11 @@ async def fetch_alarm_history(
         .order_by(func.count().desc())
     )
     if alarm_code:
+        # 특정 알람 코드로 좁힘
         stmt = stmt.where(EquipmentTelemetry.alarm_code == alarm_code)
 
     rows = await session.execute(stmt)
+    # 코드별 집계 행을 dict로 변환
     return [
         {
             "alarm_code": code,
@@ -111,14 +115,17 @@ async def fetch_equipment_metadata(
     equipment_id: str | None = None,
     line_name: str | None = None,
 ) -> list[dict[str, Any]]:
-    """설비 메타데이터 조회 (BE_MCP03_MASTER01)"""
+    # 설비 메타데이터 조회 (BE_MCP03_MASTER01)
     stmt = select(EquipmentMaster)
     if equipment_id:
+        # 특정 설비 한 건
         stmt = stmt.where(EquipmentMaster.equipment_id == equipment_id)
     elif line_name:
+        # 특정 라인 소속 전체
         stmt = stmt.where(EquipmentMaster.line_name == line_name)
 
     rows = await session.scalars(stmt)
+    # 존재하지 않으면 빈 목록 반환
     return [
         {
             "equipment_id": e.equipment_id,
