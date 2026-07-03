@@ -98,4 +98,5 @@ async def get_equipment_metadata(
 
 
 def run() -> None:
+    """MCP realtime 서버를 streamable-http 트랜스포트로 기동"""
     mcp.run(transport="streamable-http")

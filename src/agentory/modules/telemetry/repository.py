@@ -16,10 +16,12 @@ from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetr
 
 
 def _num(value: Decimal | None) -> float | None:
+    """Decimal을 float로 변환, None은 그대로 유지"""
     return float(value) if value is not None else None
 
 
 def _telemetry_to_dict(row: EquipmentTelemetry) -> dict[str, Any]:
+    """텔레메트리 행 하나를 JSON 직렬화용 dict로 변환"""
     return {
         "equipment_id": row.equipment_id,
         "timestamp": row.timestamp.isoformat(),
