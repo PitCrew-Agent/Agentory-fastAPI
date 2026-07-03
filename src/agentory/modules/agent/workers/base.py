@@ -64,12 +64,20 @@ def build_react_worker(
 
     async def tool_node(state: AgentState) -> dict[str, Any]:
         # Observation 단계: 도구 실행 결과를 ToolMessage로 추가, 엔티티 추출·병합
+        import json
+
         last = state["messages"][-1]
         results: list[ToolMessage] = []
         entities = dict(state.get("entities", {}))
+        history = state.get("tool_history", [])
+        new_sigs: list[str] = []
         for call in getattr(last, "tool_calls", []):
+            sig = f"{call['name']}:{json.dumps(call['args'], sort_keys=True, ensure_ascii=False)}"
             tool = tools_by_name.get(call["name"])
-            if tool is None:
+            if sig in history or sig in new_sigs:
+                # 반복 차단(AI_AGENT03_FALLBACK01): 동일 호출은 실행하지 않고 피드백만 주입
+                content = "이미 동일 조건으로 조회함, 파라미터를 바꾸거나 다음 단계로 진행하라"
+            elif tool is None:
                 content = f"오류: 미등록 도구 {call['name']}"
             else:
                 try:
@@ -78,9 +86,10 @@ def build_react_worker(
                     # 도구 폴백(AI_AGENT03_FALLBACK01): 실패를 Observation으로 주입해 대안 유도
                     log.warning("[agent:%s] 도구 %s 실행 실패: %s", name, call["name"], exc)
                     content = f"오류: 도구 실행 실패 ({exc})"
+            new_sigs.append(sig)
             entities = merge_entities(entities, extract_entities(content))
             results.append(ToolMessage(content=content, tool_call_id=call["id"], name=call["name"]))
-        return {"messages": results, "entities": entities}
+        return {"messages": results, "entities": entities, "tool_history": new_sigs}
 
     def route_after_agent(state: AgentState) -> str:
         # 도구 호출 요청이 있으면 tool 노드로, 없으면 보고 완료로 Supervisor 복귀

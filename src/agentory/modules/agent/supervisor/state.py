@@ -3,6 +3,7 @@
 설계 문서 docs/agent/architecture.md §3 기준
 """
 
+import operator
 from typing import Annotated, Any
 
 from langgraph.graph.message import add_messages
@@ -16,6 +17,8 @@ class AgentState(TypedDict):
     entities: dict[str, Any]
     # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
     step_count: int
+    # 실행된 도구 호출 시그니처 누적, 동일 호출 반복 차단용 (AI_AGENT03_FALLBACK01)
+    tool_history: Annotated[list[str], operator.add]
     # Supervisor 라우팅 결과: 워커명 또는 FINISH
     next: str
     # Supervisor가 워커에 전달하는 구체 지시
@@ -24,3 +27,5 @@ class AgentState(TypedDict):
     route_reason: str
     # 답변 근거 (doc_id·데이터 기준 시각) (NEW_TRUST01_CITE01)
     citations: list[dict[str, Any]]
+    # Grounding 자가 검증 결과 (NEW_TRUST02_GROUND01)
+    grounded: bool | None

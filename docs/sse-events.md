@@ -6,9 +6,11 @@
 ## 엔드포인트
 
 ```
-GET /api/v1/chat/stream/{session_id}   (text/event-stream)
+POST /api/v1/chat/stream    (text/event-stream)
+  body: { "message": "...", "session_id": "<uuid>" }
 ```
 
+비스트리밍 응답은 `POST /api/v1/chat/query` (동일 body)로 전체 답변을 한 번에 반환한다.
 SSE의 `event` 필드에 이벤트 타입, `data` 필드에 JSON 페이로드가 실린다.
 
 ## 이벤트 흐름

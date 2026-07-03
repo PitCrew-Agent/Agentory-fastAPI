@@ -89,13 +89,10 @@ async def get_equipment_metadata(
 ) -> list[dict[str, Any]]:
     """설비 설치 위치·담당 부서·공정 단계 메타데이터 조회
 
-    (BE_MCP03_MASTER01) 존재하지 않는 설비면 빈 배열 반환
+    (BE_MCP03_MASTER01) equipment_id·line_name 모두 생략하면 전체 설비 목록 반환(설비/라인 탐색용)
+    존재하지 않는 설비면 빈 배열 반환
     """
-    # 필수 식별자 검증
-    if not equipment_id and not line_name:
-        raise ValueError("equipment_id 또는 line_name 중 하나는 필수")
-
-    # 세션 열어 레포지토리 조회
+    # 세션 열어 레포지토리 조회 (인자 없으면 전체 목록)
     async with SessionLocal() as session:
         return await repository.fetch_equipment_metadata(
             session, equipment_id=equipment_id, line_name=line_name
