@@ -112,8 +112,11 @@ async def test_router_failure_falls_back_deterministically():
 
 
 def test_extract_and_merge_entities():
-    # 도구 결과 텍스트에서 설비·알람 추출 및 장부 병합
-    found = extract_entities("EQP-003 ERR-402 EQP-001")
-    assert found == {"equipment_ids": ["EQP-001", "EQP-003"], "alarm_codes": ["ERR-402"]}
+    # 도구 결과 텍스트에서 설비·알람 추출 및 장부 병합 (ERR·WRN 알람 모두 인식)
+    found = extract_entities("EQP-003 ERR-402 WRN-702 EQP-001")
+    assert found == {
+        "equipment_ids": ["EQP-001", "EQP-003"],
+        "alarm_codes": ["ERR-402", "WRN-702"],
+    }
     merged = merge_entities({"equipment_ids": ["EQP-002"]}, found)
     assert merged["equipment_ids"] == ["EQP-001", "EQP-002", "EQP-003"]
