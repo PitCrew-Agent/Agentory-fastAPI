@@ -1,19 +1,29 @@
-"""정형 RDB 모델 (DEV_DATABASE), 요구사항 정의서 §8 스키마 기준
-
-rf_power·gas_flow는 에칭 장비 특성 반영 확장 컬럼 (ERD v2)
+"""
+정형 RDB 모델 (DEV_DATABASE)
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, Numeric, String, func
+from sqlalchemy import (
+    BigInteger,
+    Date,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Numeric,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from agentory.core.db import Base
 
 
 class EquipmentMaster(Base):
-    """설비 마스터 (§8.1)"""
+    """설비 마스터 (§8.1)
+    """
 
     __tablename__ = "equipment_master"
 
@@ -21,14 +31,16 @@ class EquipmentMaster(Base):
     line_name: Mapped[str] = mapped_column(String(50), nullable=False)
     process_type: Mapped[str] = mapped_column(String(50), nullable=False)
     location: Mapped[str | None] = mapped_column(String(50))
-    manager_dept: Mapped[str | None] = mapped_column(String(50))
+    manager_dept: Mapped[str | None] = mapped_column(String(50))  # 책임 부서
+    manager_name: Mapped[str | None] = mapped_column(String(50))  # 책임자 이름
+    last_inspection_at: Mapped[date | None] = mapped_column(Date)  # 마지막 점검일
 
 
 class EquipmentTelemetry(Base):
     """설비 로그·센서 (§8.2)
 
-    (equipment_id, timestamp) 복합 인덱스로 설비별 기간 조회 대응
-    (BE_MCP02_TELEMETRY01 / BE_MCP02_TELEMETRY02)
+    - (equipment_id, timestamp) 복합 인덱스로 설비별 기간 조회 대응
+    - (BE_MCP02_TELEMETRY01 / BE_MCP02_TELEMETRY02)
     """
 
     __tablename__ = "equipment_telemetry"

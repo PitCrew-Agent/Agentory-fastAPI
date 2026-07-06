@@ -133,6 +133,10 @@ async def fetch_equipment_metadata(
             "process_type": e.process_type,
             "location": e.location,
             "manager_dept": e.manager_dept,
+            "manager_name": e.manager_name,
+            "last_inspection_at": (
+                e.last_inspection_at.isoformat() if e.last_inspection_at else None
+            ),
         }
         for e in rows
     ]
