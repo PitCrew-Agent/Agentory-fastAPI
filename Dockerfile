@@ -8,6 +8,7 @@ WORKDIR /app
 
 # 의존성 레이어 캐시 분리
 COPY pyproject.toml uv.lock ./
+COPY README.md ./
 RUN uv sync --frozen --no-install-project --no-dev
 
 COPY src ./src
