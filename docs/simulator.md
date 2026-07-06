@@ -7,13 +7,13 @@
 본 시스템은 제조 설비의 실시간 센서 데이터를 분석해 이상을 진단합니다. 그러나 실제 설비
 연동은 과제 범위 밖이며, 요구사항은 제공된 샘플 스키마를 기반으로 데이터를 모사하도록
 규정합니다(§11). 시뮬레이터는 실제 장비를 대신하여 온도·압력 등 센서값을 주기적으로
-생성하고 `equipment_telemetry` 테이블에 적재하는 역할을 담당합니다. 이 데이터가 있어야
+생성하고 `equipment_telemetries` 테이블에 적재하는 역할을 담당합니다. 이 데이터가 있어야
 MCP 실시간 조회 도구와 에이전트가 진단할 대상이 생깁니다.
 
 ## 전체 흐름에서의 위치
 
 ```
-[시뮬레이터]  →  equipment_telemetry 적재
+[시뮬레이터]  →  equipment_telemetries 적재
                      ↓
 [MCP 실시간 도구]  →  DB 조회
                      ↓
@@ -105,7 +105,7 @@ uv run simulator --scenario err402_temp_rise --iterations 5 --target EQP-003
 docker compose up -d          # db·api·mcp와 함께 시뮬레이터도 기동
 ```
 
-시뮬레이터가 시드보다 먼저 기동되어도 종료되지 않고, `equipment_master`가 채워질 때까지
+시뮬레이터가 시드보다 먼저 기동되어도 종료되지 않고, `equipment_masters`가 채워질 때까지
 대기한 뒤 적재를 시작합니다. 따라서 기동 순서와 무관하게 동작합니다.
 
 ## 동작 특성
