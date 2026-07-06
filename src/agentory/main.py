@@ -7,6 +7,8 @@ from fastapi import FastAPI
 
 from agentory.core.config import get_settings
 from agentory.core.logging import setup_logging
+from agentory.modules.auth.middleware import oidc_auth_middleware
+from agentory.modules.auth.router import router as auth_router
 from agentory.modules.chat.router import router as chat_router
 from agentory.modules.telemetry.router import router as telemetry_router
 
@@ -31,6 +33,9 @@ def create_app() -> FastAPI:
     # TODO(안민호): OIDC/JWT 검증 미들웨어 등록 (BE_AUTH01_OAUTH01)
     # app.middleware("http")(...)
 
+    app.middleware("http")(oidc_auth_middleware)
+
+    app.include_router(auth_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(telemetry_router, prefix="/api/v1")
 

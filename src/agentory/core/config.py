@@ -37,9 +37,29 @@ class Settings(BaseSettings):
     mcp_realtime_url: str = "http://localhost:8101/mcp"
     mcp_knowledge_url: str = "http://localhost:8102/mcp"
 
+    redis_url: str = "redis://localhost:6379/0"
+    redis_key_prefix: str = "agentory"
+    refresh_token_ttl_seconds: int = 60 * 60 * 24 * 14
+    audit_log_db_enabled: bool = True
+    audit_log_redis_enabled: bool = False
+    audit_log_redis_ttl_seconds: int = 60 * 60 * 24 * 30
+    audit_log_redis_max_stream_length: int = 10000
+
     # 인증 / OIDC
+    oidc_provider: str = "oidc"
     oidc_issuer_url: str = ""
     oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_uri: str = "http://localhost:8000/api/v1/auth/callback"
+    oidc_post_logout_redirect_uri: str = "http://localhost:8000/docs"
+    oidc_scopes: str = "openid profile email offline_access"
+    oidc_password_reset_url: str = ""
+    azure_ad_tenant_id: str = ""
+    azure_ad_client_id: str = ""
+    azure_ad_client_secret: str = ""
+    auth_state_ttl_seconds: int = 300
+    auth_auto_provision_enabled: bool = False
+    auth_default_role: str = "field_engineer"
 
 
 @lru_cache

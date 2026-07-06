@@ -17,17 +17,33 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: .
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
       MCP_REALTIME_URL: http://mcp-realtime:8101/mcp
       MCP_KNOWLEDGE_URL: http://mcp-knowledge:8102/mcp
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   mcp-realtime:
@@ -36,6 +52,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8101:8101"
     depends_on:
@@ -48,6 +65,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8102:8102"
     depends_on:
@@ -60,6 +78,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
@@ -77,3 +96,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
