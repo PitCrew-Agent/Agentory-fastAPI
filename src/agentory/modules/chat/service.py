@@ -65,6 +65,7 @@ async def stream_chat(
     trace_steps: list[dict] = []
     citations: list[dict] = []
     grounded = None
+    suggested: list[str] = []
 
     async for event in stream_agent_events(
         graph, state, config={"recursion_limit": RECURSION_LIMIT}
@@ -76,6 +77,7 @@ async def stream_chat(
         elif event.type == "done":
             citations = [c.model_dump() for c in event.citations]
             grounded = event.grounded
+            suggested = event.suggested_questions
         yield event
 
     # 최종 답변·추론 기록 저장 (trace jsonb)
@@ -85,7 +87,12 @@ async def stream_chat(
                 session_id=sid,
                 role="assistant",
                 content="".join(answer_parts),
-                trace={"steps": trace_steps, "citations": citations, "grounded": grounded},
+                trace={
+                    "steps": trace_steps,
+                    "citations": citations,
+                    "grounded": grounded,
+                    "suggested_questions": suggested,
+                },
             )
         )
         await db.commit()
@@ -101,6 +108,7 @@ async def run_query(
     answer_parts: list[str] = []
     steps: list[ReasoningStep] = []
     citations = []
+    suggested: list[str] = []
     async for event in stream_chat(session_factory, session_id, message, user_sub):
         if event.type == "answer":
             answer_parts.append(event.delta)
@@ -114,4 +122,10 @@ async def run_query(
             steps.append(ReasoningStep(step=event.step, tool=event.tool, observation=event.content))
         elif event.type == "done":
             citations = event.citations
-    return ChatResponse(answer="".join(answer_parts), reasoning_steps=steps, citations=citations)
+            suggested = event.suggested_questions
+    return ChatResponse(
+        answer="".join(answer_parts),
+        reasoning_steps=steps,
+        citations=citations,
+        suggested_questions=suggested,
+    )
