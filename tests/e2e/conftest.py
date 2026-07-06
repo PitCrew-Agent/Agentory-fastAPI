@@ -140,6 +140,7 @@ async def e2e_runner():
         finalizer_llm=get_chat_model("finalizer"),
         tools_by_server=tools,
         grounding_enabled=False,
+        suggestions_enabled=False,
     )
 
     async def run(query: str) -> dict:

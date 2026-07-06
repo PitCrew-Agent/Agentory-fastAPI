@@ -26,3 +26,4 @@ class ChatResponse(BaseModel):
     answer: str
     reasoning_steps: list[ReasoningStep] = []
     citations: list[Citation] = []
+    suggested_questions: list[str] = []  # 후속 추천 질문 (BE_CHAT02_SUGGEST01)

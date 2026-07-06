@@ -62,6 +62,7 @@ async def _build(router_script, worker_script):
         router_llm=FakeRouterLLM(router_script),
         worker_llm=FakeWorkerLLM(worker_script),
         tools_by_server={"realtime": [get_sensor_logs], "knowledge": []},
+        suggestions_enabled=False,
     )
 
 

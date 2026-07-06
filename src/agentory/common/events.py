@@ -75,11 +75,15 @@ class Citation(BaseModel):
 
 
 class DoneEvent(BaseModel):
-    """스트림 종료, grounded는 Grounding 자가 검증 결과 (NEW_TRUST02_GROUND01)"""
+    """스트림 종료, grounded는 Grounding 자가 검증 결과 (NEW_TRUST02_GROUND01)
+
+    suggested_questions는 후속 추천 질문 (BE_CHAT02_SUGGEST01)
+    """
 
     type: Literal["done"] = "done"
     citations: list[Citation] = []
     grounded: bool | None = None
+    suggested_questions: list[str] = []
 
 
 SSEEvent = Annotated[

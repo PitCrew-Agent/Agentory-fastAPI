@@ -29,3 +29,5 @@ class AgentState(TypedDict):
     citations: list[dict[str, Any]]
     # Grounding 자가 검증 결과 (NEW_TRUST02_GROUND01)
     grounded: bool | None
+    # 후속 추천 질문 (BE_CHAT02_SUGGEST01)
+    suggested_questions: list[str]

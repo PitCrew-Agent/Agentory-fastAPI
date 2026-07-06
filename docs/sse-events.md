@@ -29,10 +29,11 @@ thought → action → observation → (반복) → answer(delta 스트림) → 
 | `observation` | `{step, agent, tool, content}` | 도구 실행 결과 |
 | `answer` | `{delta}` | 최종 답변 토큰 조각 (누적 렌더링) |
 | `error` | `{code, message}` | 사용자 친화적 오류 |
-| `done` | `{citations[], grounded?}` | 종료. `citations`=출처 인용(NEW_TRUST01), `grounded`=자가 검증 결과(NEW_TRUST02) |
+| `done` | `{citations[], grounded?, suggested_questions[]}` | 종료. `citations`=출처 인용(NEW_TRUST01), `grounded`=자가 검증 결과(NEW_TRUST02), `suggested_questions`=후속 추천 질문(BE_CHAT02_SUGGEST01) |
 
 - `agent` 값: `supervisor` \| `data_analysis` \| `knowledge` \| `rediagnosis`
 - `citations[]` 항목: `{doc_id, snippet?, data_as_of?}`
+- `suggested_questions[]` 항목: 후속 추천 질문 문자열, 프론트 퀵 리플라이 칩용 (없으면 빈 배열)
 
 ## 예시
 
@@ -41,5 +42,5 @@ event: action
 data: {"type":"action","step":1,"agent":"data_analysis","tool":"get_sensor_logs","tool_input":{"line_name":"B-Line"},"reason":"이상 설비 특정을 위해 최근 센서 로그 필요"}
 
 event: done
-data: {"type":"done","citations":[{"doc_id":"MAN-ETC-042","data_as_of":"2026-07-02T10:00:00+09:00"}],"grounded":true}
+data: {"type":"done","citations":[{"doc_id":"MAN-ETC-042","data_as_of":"2026-07-02T10:00:00+09:00"}],"grounded":true,"suggested_questions":["ERR-402 원인이 뭐야?","EQP-002 조치 방법 알려줘","유사 사례가 있었어?"]}
 ```
