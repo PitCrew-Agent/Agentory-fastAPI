@@ -31,6 +31,11 @@ VALID_PAYLOADS = [
         "type": "done",
         "citations": [{"doc_id": "MAN-ETC-042", "data_as_of": "2026-07-02T10:00:00+09:00"}],
         "grounded": True,
+        "suggested_questions": [
+            "ERR-402 원인이 뭐야?",
+            "EQP-002 조치 방법 알려줘",
+            "유사 사례가 있었어?",
+        ],
     },
 ]
 
