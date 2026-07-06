@@ -1,6 +1,6 @@
-"""Alembic 비동기 마이그레이션 환경
+﻿"""Alembic 鍮꾨룞湲?留덉씠洹몃젅?댁뀡 ?섍꼍
 
-신규 모델 작성 시 아래 import 블록에 추가해야 autogenerate 감지 가능
+?좉퇋 紐⑤뜽 ?묒꽦 ???꾨옒 import 釉붾줉??異붽??댁빞 autogenerate 媛먯? 媛??
 """
 
 import asyncio
@@ -14,6 +14,7 @@ from agentory.core.config import get_settings
 from agentory.core.db import Base
 
 # --- 모델 등록 (autogenerate 감지용) ---
+from agentory.modules.auth import models as auth_models  # noqa: F401
 from agentory.modules.chat import models as chat_models  # noqa: F401
 from agentory.modules.rag.store import models as rag_models  # noqa: F401
 from agentory.modules.telemetry import models as telemetry_models  # noqa: F401

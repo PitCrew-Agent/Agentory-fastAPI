@@ -1,15 +1,20 @@
-"""디지털 트윈용 텔레메트리 REST (NEW_TWIN01_SYNC01 데이터 백엔드)
+﻿"""?붿????몄쐢???붾젅硫뷀듃由?REST (NEW_TWIN01_SYNC01 ?곗씠??諛깆뿏??
 
-프론트 3D 뷰가 주기 폴링 또는 SSE로 구독
+?꾨줎??3D 酉곌? 二쇨린 ?대쭅 ?먮뒗 SSE濡?援щ룆
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from agentory.modules.auth.dependencies import require_user_types
+from agentory.modules.auth.schemas import UserResponse
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
 
 @router.get("/equipment/status")
-async def equipment_status() -> list[dict]:
-    """설비별 최신 상태(정상/경고/이상) 목록, 3D 뷰 색상 매핑용"""
-    # TODO(주희정): 최신 텔레메트리 기준 상태 판정 로직 구현
-    raise HTTPException(status_code=501, detail="NEW_TWIN01_SYNC01 미구현")
+async def equipment_status(
+    current_user: UserResponse = Depends(require_user_types("ADMIN", "FIELD_ENGINEER")),
+) -> list[dict]:
+    """Return latest equipment status."""
+    # TODO(二쇳씗??: 理쒖떊 ?붾젅硫뷀듃由?湲곗? ?곹깭 ?먯젙 濡쒖쭅 援ы쁽
+    raise HTTPException(status_code=501, detail="NEW_TWIN01_SYNC01 not implemented")

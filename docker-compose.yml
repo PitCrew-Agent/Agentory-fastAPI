@@ -3,12 +3,13 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    platform: linux/amd64
     environment:
       POSTGRES_USER: agentory
       POSTGRES_PASSWORD: agentory
       POSTGRES_DB: agentory
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,11 +18,17 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   api:
     build: .
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
       MCP_REALTIME_URL: http://mcp-realtime:8101/mcp
       MCP_KNOWLEDGE_URL: http://mcp-knowledge:8102/mcp
     ports:
@@ -29,6 +36,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   mcp-realtime:
     build: .
