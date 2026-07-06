@@ -34,6 +34,8 @@ erDiagram
         varchar process_type
         varchar location
         varchar manager_dept
+        varchar manager_name
+        date last_inspection_at
     }
     equipment_telemetry {
         bigint log_id PK
@@ -75,7 +77,8 @@ erDiagram
 ### equipment_master (§8.1)
 
 이 테이블은 설비의 고유 정보와 메타데이터를 담당합니다. 설비 ID를 기준으로 라인, 공정 단계,
-설치 위치, 담당 부서를 관리하며, 설비 메타데이터 조회 도구(BE_MCP03_MASTER01)의 기준 데이터가 됩니다.
+설치 위치, 담당 부서, 책임자, 마지막 점검일을 관리하며, 설비 메타데이터 조회 도구(BE_MCP03_MASTER01)의 기준 데이터가 됩니다.
+책임자와 마지막 점검일은 대시보드 상세 표기용 확장 컬럼(ERD v2)이며, 마지막 점검일은 점검 이후 센서 추세 변화를 질의할 때 분석 기준점으로도 활용됩니다.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 | --- | --- | --- | --- |
@@ -84,6 +87,8 @@ erDiagram
 | process_type | varchar(50) | NN | 공정 단계 (예: Etching) |
 | location | varchar(50) |  | 설치 위치 |
 | manager_dept | varchar(50) |  | 담당 부서 |
+| manager_name | varchar(50) |  | 책임자 이름 (ERD v2 신규) |
+| last_inspection_at | date |  | 마지막 점검일 (ERD v2 신규) |
 
 ### equipment_telemetry (§8.2)
 
@@ -174,3 +179,4 @@ uv run python scripts/seed_data.py   # §8 샘플 데이터 적재 (멱등)
 - 신규 모델을 작성하면 `alembic/env.py`의 import 블록에 등록한 뒤 마이그레이션을 생성합니다.
 - pgvector 확장, HNSW 인덱스, CHECK 제약은 autogenerate가 감지하지 못하므로 수동으로 보완합니다.
 - 초기 스키마는 `alembic/versions/20260703_0001_initial_schema.py`에 정의되어 있습니다.
+- `equipment_master`의 `manager_name`·`last_inspection_at` 컬럼은 `20260706_0002_equipment_meta.py`에서 추가되었습니다.

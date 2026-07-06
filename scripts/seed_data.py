@@ -5,7 +5,7 @@
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -13,10 +13,11 @@ from sqlalchemy import select
 from agentory.core.db import SessionLocal
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 
+# (id, line, process, location, 책임 부서, 책임자, 마지막 점검일)
 EQUIPMENT = [
-    ("EQP-001", "A-Line", "Deposition", "Zone-A", "Main-Tech 1"),
-    ("EQP-002", "A-Line", "Etching", "Zone-A", "Main-Tech 1"),
-    ("EQP-003", "B-Line", "Etching", "Zone-B", "Main-Tech 2"),
+    ("EQP-001", "A-Line", "Deposition", "Zone-A", "Main-Tech 1", "정도현", date(2026, 6, 28)),
+    ("EQP-002", "A-Line", "Etching", "Zone-A", "Main-Tech 1", "김억산", date(2026, 6, 30)),
+    ("EQP-003", "B-Line", "Etching", "Zone-B", "Main-Tech 2", "박승우", date(2026, 6, 25)),
 ]
 
 # §8.2 샘플 기반 EQP-003 이상 추이, (분, 온도, 압력, rf_power, gas_flow, 알람)
@@ -45,8 +46,10 @@ async def seed() -> None:
                 process_type=proc,
                 location=loc,
                 manager_dept=dept,
+                manager_name=mgr,
+                last_inspection_at=inspected,
             )
-            for eid, line, proc, loc, dept in EQUIPMENT
+            for eid, line, proc, loc, dept, mgr, inspected in EQUIPMENT
         )
 
         base = datetime(2026, 6, 19, 7, 0, 0, tzinfo=UTC)
