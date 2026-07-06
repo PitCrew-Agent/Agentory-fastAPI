@@ -1,7 +1,7 @@
 """Agent 그래프 조립 (AI_AGENT01_REACT01)
 
 Supervisor 라우팅 + 워커별 ReAct 서브루프(agent↔tool)를 직접 구성
-FINISH 경로에 Finalizer(답변 합성) → Grounding(자가 검증) 노드 삽입
+FINISH 경로에 Finalizer(답변 합성) → Grounding(자가 검증) → Suggest(후속 추천) 노드 삽입
 상세 설계는 docs/agent/architecture.md 참조
 """
 
@@ -18,28 +18,36 @@ from agentory.modules.agent.supervisor.finalizer import (
 )
 from agentory.modules.agent.supervisor.router import FINISH, make_supervisor_node
 from agentory.modules.agent.supervisor.state import AgentState
+from agentory.modules.agent.supervisor.suggest import make_suggest_node
 from agentory.modules.agent.workers.base import build_react_worker
 from agentory.modules.agent.workers.registry import WORKERS
 
 FINALIZER = "finalizer"
 GROUNDING = "grounding"
+SUGGEST = "suggest"
 
 
 async def build_agent_graph(
     router_llm: BaseChatModel | None = None,
     worker_llm: BaseChatModel | None = None,
     finalizer_llm: BaseChatModel | None = None,
+    suggest_llm: BaseChatModel | None = None,
     tools_by_server: dict[str, list[BaseTool]] | None = None,
     grounding_enabled: bool | None = None,
+    suggestions_enabled: bool | None = None,
 ):
     # 인자 주입은 테스트용, 미지정 시 설정 기반 LLM과 MCP 도구 사용
     router_llm = router_llm or get_chat_model("router")
     worker_llm = worker_llm or get_chat_model("worker")
     finalizer_llm = finalizer_llm or get_chat_model("finalizer")
+    # 후속 추천은 경량 판단이라 router 모델 재사용
+    suggest_llm = suggest_llm or get_chat_model("router")
     if tools_by_server is None:
         tools_by_server = await load_tools_by_server()
     if grounding_enabled is None:
         grounding_enabled = get_settings().agent_grounding_enabled
+    if suggestions_enabled is None:
+        suggestions_enabled = get_settings().agent_suggestions_enabled
 
     graph = StateGraph(AgentState)
     graph.add_node("supervisor", make_supervisor_node(router_llm))
@@ -65,13 +73,17 @@ async def build_agent_graph(
         {**{name: name for name in WORKERS}, FINISH: FINALIZER},
     )
 
-    # 종료 경로: Finalizer → (선택) Grounding → END
+    # 종료 경로: Finalizer → (선택) Grounding → (선택) Suggest → END, 마지막 노드에서만 END 연결
+    last = FINALIZER
     if grounding_enabled:
         graph.add_node(GROUNDING, make_grounding_node(finalizer_llm))
-        graph.add_edge(FINALIZER, GROUNDING)
-        graph.add_edge(GROUNDING, END)
-    else:
-        graph.add_edge(FINALIZER, END)
+        graph.add_edge(last, GROUNDING)
+        last = GROUNDING
+    if suggestions_enabled:
+        graph.add_node(SUGGEST, make_suggest_node(suggest_llm))
+        graph.add_edge(last, SUGGEST)
+        last = SUGGEST
+    graph.add_edge(last, END)
 
     graph.set_entry_point("supervisor")
     return graph.compile()
