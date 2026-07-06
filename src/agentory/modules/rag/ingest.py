@@ -1,6 +1,7 @@
-"""매뉴얼 인제스트 파이프라인 (AI_RAG01_PREP01)
+"""매뉴얼 인제스트 파이프라인 (AI_RAG01_PREP01 / AI_RAG01_CHUNK01)
 
-파싱 → 정규화, 후속 단계(청킹·임베딩·적재)는 AI_RAG01_CHUNK01
+파싱 → 정규화 → 청킹 → 임베딩 → 적재
+실행은 scripts/ingest_manuals.py에서 이 파이프라인 호출
 PDF·DOCX는 Docling 변환으로 마크다운 추출, txt·md는 평문 디코드
 Docling 선정 근거: 표 구조 보존·러닝 헤더/푸터 자동 제외·알람코드 무손실 (P1/P2 비교 실측)
 """
@@ -8,6 +9,14 @@ Docling 선정 근거: 표 구조 보존·러닝 헤더/푸터 자동 제외·�
 import re
 import unicodedata
 from pathlib import Path
+from typing import Any
+
+from agentory.modules.rag.embedding.base import Embedder
+from agentory.modules.rag.store.base import VectorStore
+
+# 문자 기반 청킹 기본값, 임베딩 토큰 한계 여유
+DEFAULT_CHUNK_SIZE = 800
+DEFAULT_CHUNK_OVERLAP = 100
 
 # 지원 입력 형식, 그 외 확장자는 파라미터 오류
 SUPPORTED_SUFFIXES = frozenset({".pdf", ".docx", ".txt", ".md"})
@@ -102,3 +111,77 @@ def _collapse_whitespace(text: str) -> str:
     lines = [re.sub(r"[ \t]+", " ", line).rstrip() for line in text.split("\n")]
     collapsed = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     return collapsed.strip()
+
+
+def chunk_text(
+    text: str,
+    *,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> list[str]:
+    """정규화 텍스트를 고정 문자 크기+overlap 청크로 분할, 순수 함수 (AI_RAG01_CHUNK01)"""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size는 양수여야 함")
+    if not 0 <= overlap < chunk_size:
+        raise ValueError("overlap은 0 이상 chunk_size 미만이어야 함")
+    chunks: list[str] = []
+    step = chunk_size - overlap
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        if end >= len(text):
+            break
+        start += step
+    return chunks
+
+
+def build_chunks(
+    text: str,
+    *,
+    doc_id: str,
+    equipment_type: str | None = None,
+    alarm_code: str | None = None,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> list[dict[str, Any]]:
+    """청크 목록 → KnowledgeChunk 적재용 dict 목록, embedding 키는 임베딩 단계에서 부착"""
+    return [
+        {
+            "doc_id": doc_id,
+            "chunk_index": index,
+            "equipment_type": equipment_type,
+            "alarm_code": alarm_code,
+            "content": piece,
+        }
+        for index, piece in enumerate(chunk_text(text, chunk_size=chunk_size, overlap=overlap))
+    ]
+
+
+async def ingest_document(
+    path: Path,
+    *,
+    doc_id: str,
+    equipment_type: str | None = None,
+    alarm_code: str | None = None,
+    embedder: Embedder,
+    store: VectorStore,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> int:
+    """파싱→정규화→청킹→임베딩→적재, 반환: 적재 청크 수"""
+    text = parse_and_normalize(path)
+    chunks = build_chunks(
+        text,
+        doc_id=doc_id,
+        equipment_type=equipment_type,
+        alarm_code=alarm_code,
+        chunk_size=chunk_size,
+        overlap=overlap,
+    )
+    if not chunks:
+        return 0
+    embeddings = await embedder.embed([chunk["content"] for chunk in chunks])
+    for chunk, embedding in zip(chunks, embeddings, strict=True):
+        chunk["embedding"] = embedding
+    return await store.upsert(chunks)
