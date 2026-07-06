@@ -8,8 +8,9 @@ import re
 from typing import Any
 
 # 도메인 식별자 패턴 (요구사항 정의서 §8 샘플 기준)
+# 알람 코드는 급성(ERR-\d{3})과 드리프트/PM·SPC 확장(WRN-\d{3}) 모두 인식 (시뮬레이터 참고서 §10)
 EQUIPMENT_PATTERN = re.compile(r"EQP-\d{3}")
-ALARM_PATTERN = re.compile(r"ERR-\d{3}")
+ALARM_PATTERN = re.compile(r"(?:ERR|WRN)-\d{3}")
 
 
 def extract_entities(text: str) -> dict[str, Any]:

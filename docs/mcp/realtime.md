@@ -10,7 +10,7 @@ MCP(Model Context Protocol)는 AI 에이전트가 외부 도구·데이터를 �
 
 ## 이 서버의 역할
 
-시뮬레이터가 `equipment_telemetry`에 적재한 정형 데이터를 에이전트가 조회할 수 있도록 도구로
+시뮬레이터가 `equipment_telemetries`에 적재한 정형 데이터를 에이전트가 조회할 수 있도록 도구로
 추상화합니다. 별도 프로세스로 실행되며 streamable-http 트랜스포트(포트 8101)로 통신합니다.
 
 ```

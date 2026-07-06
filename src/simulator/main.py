@@ -1,9 +1,11 @@
 """센서 데이터 시뮬레이터 (BE_SIM01_GEN01)
 
-실행: uv run simulator [--scenario ...] [--interval N] [--iterations N] [--target EQP-003]
-equipment_master의 설비 목록을 대상으로 주기적으로 센서값을 생성해 equipment_telemetry에 적재
-시나리오 모드(err402_temp_rise) 활성 시 대상 설비에 온도 상승·ERR-402를 주입
-골든 E2E 테스트(3주차)는 --iterations 유한 모드로 시나리오를 결정론적으로 주입
+실행: uv run simulator [--scenario ...] [--interval N] [--iterations N]
+      [--target EQP-003] [--drift-start N]
+equipment_masters의 설비 목록을 대상으로 주기적으로 센서값을 생성해 equipment_telemetries에 적재
+시나리오는 대상 설비에만 적용, 나머지 설비는 normal로 생성
+1 tick 스파이크는 대표 알람 보류, 연속 2 tick 이상 지속한 후보만 알람으로 저장 (참고서 §7)
+골든 E2E 테스트는 --iterations 유한 모드로 시나리오를 결정론적으로 주입
 """
 
 import argparse
@@ -20,25 +22,27 @@ from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 from simulator.generator import SensorReading, generate_reading
+from simulator.scenarios import NORMAL, SCENARIOS
 
 log = logging.getLogger("simulator")
 
-ANOMALY_SCENARIO = "err402_temp_rise"
 PERSIST_RETRY = 1  # DB 실패 시 재시도 횟수
+DRIFT_START_DEFAULT = 10  # 드리프트 시작 tick (참고서 §2)
 
 
 @dataclass
 class ScenarioConfig:
-    """시뮬레이터 실행 설정, name은 골든 질의 셋 seed_scenario 키와 매핑"""
+    """시뮬레이터 실행 설정, name은 SCENARIOS 키·골든 질의 셋 seed_scenario와 매핑"""
 
-    name: str = "normal"  # normal | err402_temp_rise
+    name: str = "normal"
     interval_seconds: float = 5.0
     iterations: int | None = None  # None이면 무한 반복
-    target_equipment_id: str = "EQP-003"  # 이상 시나리오 대상
+    target_equipment_id: str = "EQP-003"  # 시나리오 적용 대상
+    drift_start_tick: int = DRIFT_START_DEFAULT
 
 
 async def _load_equipment(session_factory: async_sessionmaker) -> list[tuple[str, str]]:
-    """equipment_master에서 (equipment_id, process_type) 목록 로드
+    """equipment_masters에서 (equipment_id, process_type) 목록 로드
 
     DB 미준비·조회 실패 시 빈 목록 반환, 도커에서 시드 전에 떠도 죽지 않게 처리
     """
@@ -77,16 +81,28 @@ async def _persist(session_factory: async_sessionmaker, readings: list[SensorRea
     return 0
 
 
+def _confirm_persistence(reading: SensorReading, prev_candidate: dict[str, str | None]) -> None:
+    # 연속 2 tick 지속 규칙: 직전 tick과 같은 후보만 대표 알람으로 확정, 1 tick 스파이크는 보류
+    candidate = reading.alarm_code
+    reading.alarm_code = (
+        candidate
+        if candidate is not None and candidate == prev_candidate.get(reading.equipment_id)
+        else None
+    )
+    prev_candidate[reading.equipment_id] = candidate
+
+
 async def run_simulation(
     config: ScenarioConfig, session_factory: async_sessionmaker = SessionLocal
 ) -> None:
     rng = random.Random()
-    steps: dict[str, int] = {}  # 이상 시나리오 대상 설비별 진행 step
+    scenario = SCENARIOS[config.name]
+    prev_candidate: dict[str, str | None] = {}  # 설비별 직전 tick 후보 알람
     tick = 0
     while config.iterations is None or tick < config.iterations:
         equipment = await _load_equipment(session_factory)
         if not equipment:
-            log.warning("[simulator] equipment_master 비어 있음(또는 DB 미준비), 대기")
+            log.warning("[simulator] equipment_masters 비어 있음(또는 DB 미준비), 대기")
             if config.iterations is not None:
                 return  # 유한 모드는 즉시 종료
             await asyncio.sleep(config.interval_seconds)
@@ -94,17 +110,18 @@ async def run_simulation(
 
         readings = []
         for equipment_id, process_type in equipment:
-            anomaly = config.name == ANOMALY_SCENARIO and equipment_id == config.target_equipment_id
+            # 시나리오는 대상 설비에만 적용, 나머지는 정상
+            spec = scenario if equipment_id == config.target_equipment_id else NORMAL
             reading = generate_reading(
                 equipment_id,
                 process_type,
-                anomaly=anomaly,
-                step=steps.get(equipment_id, 0),
+                scenario=spec,
+                tick=tick,
+                drift_start_tick=config.drift_start_tick,
                 rng=rng,
             )
+            _confirm_persistence(reading, prev_candidate)
             readings.append(reading)
-            if anomaly:
-                steps[equipment_id] = steps.get(equipment_id, 0) + 1
 
         inserted = await _persist(session_factory, readings)
         log.info("[simulator] tick %d, %d건 적재 (scenario=%s)", tick, inserted, config.name)
@@ -116,16 +133,20 @@ async def run_simulation(
 
 def _parse_args() -> ScenarioConfig:
     parser = argparse.ArgumentParser(description="센서 데이터 시뮬레이터 (BE_SIM01_GEN01)")
-    parser.add_argument("--scenario", default="normal", choices=["normal", ANOMALY_SCENARIO])
+    parser.add_argument("--scenario", default="normal", choices=list(SCENARIOS))
     parser.add_argument("--interval", type=float, default=5.0, help="생성 주기 초")
     parser.add_argument("--iterations", type=int, default=None, help="반복 횟수, 미지정 시 무한")
-    parser.add_argument("--target", default="EQP-003", help="이상 시나리오 대상 설비")
+    parser.add_argument("--target", default="EQP-003", help="시나리오 적용 대상 설비")
+    parser.add_argument(
+        "--drift-start", type=int, default=DRIFT_START_DEFAULT, help="드리프트 시작 tick"
+    )
     args = parser.parse_args()
     return ScenarioConfig(
         name=args.scenario,
         interval_seconds=args.interval,
         iterations=args.iterations,
         target_equipment_id=args.target,
+        drift_start_tick=args.drift_start,
     )
 
 

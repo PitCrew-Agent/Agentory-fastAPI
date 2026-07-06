@@ -20,15 +20,15 @@ EQUIPMENT = [
     ("EQP-003", "B-Line", "Etching", "Zone-B", "Main-Tech 2", "박승우", date(2026, 6, 25)),
 ]
 
-# §8.2 샘플 기반 EQP-003 이상 추이, (분, 온도, 압력, rf_power, gas_flow, 알람)
-# temperature·pressure·alarm_code는 문서 §8.2 원본값
-# rf_power(kW)·gas_flow(sccm)는 ERD v2 신규 컬럼이라 문서 근거 없는 합성값
-# ERR-402 원인은 냉각수 밸브 압력 저하이므로 공정 파라미터(RF·가스)는 정상 범위 유지로 구성
+# EQP-003 ERR-402(냉각 이상) 추이, (분, 온도°C, 압력mTorr, rf_power kW, gas_flow sccm, 알람)
+# 시뮬레이터 참고서 §2 Etching 운영 프로파일 스케일 기준
+# 온도가 하드리밋 상단(USL=61.50) 도달 + 압력이 초기 밴드 하단 아래로 하강하면 ERR-402
+# RF·가스는 냉각 계통과 무관하므로 정상 밴드 유지
 TELEMETRY_EQP003 = [
-    (0, "42.10", "1.20", "2.00", "150.00", None),
-    (15, "53.50", "1.15", "2.04", "149.20", "ERR-402"),
-    (30, "61.20", "0.98", "1.98", "151.30", "ERR-402"),
-    (45, "65.00", "0.85", "2.06", "148.70", "ERR-402"),
+    (0, "60.05", "42.00", "2.79", "606.00", None),
+    (15, "60.90", "41.20", "2.80", "605.00", None),
+    (30, "61.60", "39.50", "2.78", "607.00", "ERR-402"),
+    (45, "62.40", "38.10", "2.79", "604.00", "ERR-402"),
 ]
 
 
@@ -36,7 +36,7 @@ async def seed() -> None:
     async with SessionLocal() as session:
         existing = await session.scalar(select(EquipmentMaster).limit(1))
         if existing is not None:
-            print("[seed] equipment_master 데이터 존재, 스킵")
+            print("[seed] equipment_masters 데이터 존재, 스킵")
             return
 
         session.add_all(

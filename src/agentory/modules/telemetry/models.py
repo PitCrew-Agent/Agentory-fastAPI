@@ -22,10 +22,9 @@ from agentory.core.db import Base
 
 
 class EquipmentMaster(Base):
-    """설비 마스터 (§8.1)
-    """
+    """설비 마스터 (§8.1)"""
 
-    __tablename__ = "equipment_master"
+    __tablename__ = "equipment_masters"
 
     equipment_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     line_name: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -43,12 +42,12 @@ class EquipmentTelemetry(Base):
     - (BE_MCP02_TELEMETRY01 / BE_MCP02_TELEMETRY02)
     """
 
-    __tablename__ = "equipment_telemetry"
+    __tablename__ = "equipment_telemetries"
     __table_args__ = (Index("ix_telemetry_equipment_time", "equipment_id", "timestamp"),)
 
     log_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     equipment_id: Mapped[str] = mapped_column(
-        ForeignKey("equipment_master.equipment_id"), nullable=False
+        ForeignKey("equipment_masters.equipment_id"), nullable=False
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

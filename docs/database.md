@@ -12,8 +12,8 @@
 
 | 테이블 | 담당 역할 | 관련 기능 ID |
 | --- | --- | --- |
-| `equipment_master` | 설비 고유 정보와 메타데이터 관리 | DEV_DATABASE, BE_MCP03_MASTER01 |
-| `equipment_telemetry` | 설비 센서 수치와 알람 로그 적재 | DEV_DATABASE, BE_MCP02_TELEMETRY01/02 |
+| `equipment_masters` | 설비 고유 정보와 메타데이터 관리 | DEV_DATABASE, BE_MCP03_MASTER01 |
+| `equipment_telemetries` | 설비 센서 수치와 알람 로그 적재 | DEV_DATABASE, BE_MCP02_TELEMETRY01/02 |
 | `knowledge_collection` | 매뉴얼 청크와 임베딩 벡터 저장·검색 | DEV_VECTORDB, BE_MCP04_RAG01 |
 | `chat_session` | 사용자 대화 세션 관리 | BE_CHAT01_QUERY01 |
 | `chat_message` | 대화 메시지와 추론 기록 저장 | BE_CHAT01_QUERY01 |
@@ -25,10 +25,10 @@
 
 ```mermaid
 erDiagram
-    equipment_master ||--o{ equipment_telemetry : "1:N 센서 로그"
+    equipment_masters ||--o{ equipment_telemetries : "1:N 센서 로그"
     chat_session ||--o{ chat_message : "1:N 발화 이력"
 
-    equipment_master {
+    equipment_masters {
         varchar equipment_id PK
         varchar line_name
         varchar process_type
@@ -37,7 +37,7 @@ erDiagram
         varchar manager_name
         date last_inspection_at
     }
-    equipment_telemetry {
+    equipment_telemetries {
         bigint log_id PK
         varchar equipment_id FK
         timestamptz timestamp
@@ -74,7 +74,7 @@ erDiagram
 
 ## 테이블 상세
 
-### equipment_master (§8.1)
+### equipment_masters (§8.1)
 
 이 테이블은 설비의 고유 정보와 메타데이터를 담당합니다. 설비 ID를 기준으로 라인, 공정 단계,
 설치 위치, 담당 부서, 책임자, 마지막 점검일을 관리하며, 설비 메타데이터 조회 도구(BE_MCP03_MASTER01)의 기준 데이터가 됩니다.
@@ -90,7 +90,7 @@ erDiagram
 | manager_name | varchar(50) |  | 책임자 이름 (ERD v2 신규) |
 | last_inspection_at | date |  | 마지막 점검일 (ERD v2 신규) |
 
-### equipment_telemetry (§8.2)
+### equipment_telemetries (§8.2)
 
 이 테이블은 설비에서 발생하는 센서 수치와 알람 로그를 담당합니다. 실시간 원격 측정 도구와
 알람 이력 집계 도구(BE_MCP02_TELEMETRY01/02)가 이 테이블을 조회하며, 시뮬레이터가 데이터를 적재합니다.
@@ -98,16 +98,18 @@ erDiagram
 | 컬럼 | 타입 | 제약 | 설명 |
 | --- | --- | --- | --- |
 | log_id | bigint | PK, identity | 로그 ID |
-| equipment_id | varchar(50) | FK, NN | equipment_master 참조 |
+| equipment_id | varchar(50) | FK, NN | equipment_masters 참조 |
 | timestamp | timestamptz | NN, default now | 수집 시각 |
 | temperature | decimal(5,2) |  | 온도 °C |
-| pressure | decimal(5,2) |  | 압력 |
+| pressure | decimal(5,2) |  | 압력 mTorr |
 | rf_power | decimal(6,2) |  | RF 파워 kW (ERD v2 신규) |
 | gas_flow | decimal(7,2) |  | 가스 유량 sccm (ERD v2 신규) |
-| alarm_code | varchar(20) |  | 알람 코드 (예: ERR-402) |
+| alarm_code | varchar(20) |  | 알람 코드 (예: ERR-402, WRN-702) |
 
 `(equipment_id, timestamp)` 복합 인덱스(`ix_telemetry_equipment_time`)로 설비별 기간 조회에
-대응합니다. rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼이며, §8.2 샘플에는 값이 없습니다.
+대응합니다. rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다. 압력은 시뮬레이터
+구현 참고서 §2 기준으로 mTorr 단위를 사용합니다. 알람 코드는 급성 이상 `ERR-\d{3}`과
+드리프트/PM·SPC 확장 `WRN-\d{3}`을 함께 사용하며, 에이전트는 두 접두어를 모두 인식합니다.
 
 ### knowledge_collection (§8.3)
 
@@ -179,4 +181,5 @@ uv run python scripts/seed_data.py   # §8 샘플 데이터 적재 (멱등)
 - 신규 모델을 작성하면 `alembic/env.py`의 import 블록에 등록한 뒤 마이그레이션을 생성합니다.
 - pgvector 확장, HNSW 인덱스, CHECK 제약은 autogenerate가 감지하지 못하므로 수동으로 보완합니다.
 - 초기 스키마는 `alembic/versions/20260703_0001_initial_schema.py`에 정의되어 있습니다.
-- `equipment_master`의 `manager_name`·`last_inspection_at` 컬럼은 `20260706_0002_equipment_meta.py`에서 추가되었습니다.
+- `equipment_masters`의 `manager_name`·`last_inspection_at` 컬럼은 `20260706_0002_equipment_meta.py`에서 추가되었습니다.
+- telemetry 도메인 테이블명 복수화(`equipment_masters`·`equipment_telemetries`)는 `20260706_0003_pluralize_telemetry.py`에서 적용되었습니다.
