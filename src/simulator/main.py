@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import logging
 import random
+from collections import deque
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -98,6 +99,7 @@ async def run_simulation(
     rng = random.Random()
     scenario = SCENARIOS[config.name]
     prev_candidate: dict[str, str | None] = {}  # 설비별 직전 tick 후보 알람
+    history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
     tick = 0
     while config.iterations is None or tick < config.iterations:
         equipment = await _load_equipment(session_factory)
@@ -112,14 +114,17 @@ async def run_simulation(
         for equipment_id, process_type in equipment:
             # 시나리오는 대상 설비에만 적용, 나머지는 정상
             spec = scenario if equipment_id == config.target_equipment_id else NORMAL
+            window = history.setdefault(equipment_id, deque(maxlen=8))
             reading = generate_reading(
                 equipment_id,
                 process_type,
                 scenario=spec,
                 tick=tick,
                 drift_start_tick=config.drift_start_tick,
+                history=list(window),
                 rng=rng,
             )
+            window.append(reading)
             _confirm_persistence(reading, prev_candidate)
             readings.append(reading)
 
