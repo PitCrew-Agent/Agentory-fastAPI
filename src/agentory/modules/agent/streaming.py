@@ -19,7 +19,7 @@ from agentory.common.events import (
     ThoughtEvent,
 )
 from agentory.modules.agent.supervisor.finalizer import make_finalizer_node  # noqa: F401
-from agentory.modules.agent.supervisor.graph import FINALIZER, GROUNDING
+from agentory.modules.agent.supervisor.graph import FINALIZER, GROUNDING, SUGGEST
 
 _WORKER_AGENTS = {a.value for a in AgentName}
 
@@ -78,6 +78,7 @@ async def stream_agent_events(
     counter = itertools.count(1)
     citations: list[dict] = []
     grounded: bool | None = None
+    suggested: list[str] = []
 
     async for mode, chunk in graph.astream(
         state, config=config, stream_mode=["updates", "messages"]
@@ -92,7 +93,13 @@ async def stream_agent_events(
                 citations = update.get("citations", citations)
             elif node == GROUNDING:
                 grounded = update.get("grounded", grounded)
+            elif node == SUGGEST:
+                suggested = update.get("suggested_questions", suggested)
         for event in map_updates_chunk(chunk, next(counter)):
             yield event
 
-    yield DoneEvent(citations=[Citation(**c) for c in citations], grounded=grounded)
+    yield DoneEvent(
+        citations=[Citation(**c) for c in citations],
+        grounded=grounded,
+        suggested_questions=suggested,
+    )
