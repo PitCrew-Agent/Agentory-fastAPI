@@ -8,7 +8,20 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.store.pgvector import PgVectorStore
+
 mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
+
+# 코사인 유사도 임계값, 미달 결과 제외로 환각 방지 (실 매뉴얼·골든셋 확보 후 튜닝)
+MIN_SCORE = 0.2
+
+
+def _above_threshold(
+    results: list[dict[str, Any]], threshold: float = MIN_SCORE
+) -> list[dict[str, Any]]:
+    # 임계값 이상만 유지, 전부 미달이면 빈 목록(관련 문서 없음)
+    return [item for item in results if item["score"] >= threshold]
 
 
 @mcp.tool()
@@ -20,10 +33,15 @@ async def search_manuals(
     """자연어 질문 임베딩 후 매뉴얼 벡터 컬렉션에서 유사도 Top-K 검색
 
     (BE_MCP04_RAG01) 반환: [{doc_id, content, score}]
-    유사도 임계값 미달 시 "관련 문서 없음" 반환 (환각 방지)
+    유사도 임계값 미달 시 빈 배열 반환 (관련 문서 없음, 환각 방지)
     """
-    # TODO(김건): rag.embedding + rag.store 연동
-    raise NotImplementedError
+    if not query.strip():
+        raise ValueError("query는 비어있을 수 없음")
+    embedder = get_embedder()
+    store = PgVectorStore()
+    [embedding] = await embedder.embed([query])
+    results = await store.search(embedding, top_k=top_k, equipment_type=equipment_type)
+    return _above_threshold(results)
 
 
 @mcp.tool()
