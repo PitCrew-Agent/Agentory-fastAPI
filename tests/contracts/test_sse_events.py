@@ -6,7 +6,7 @@
 
 import pytest
 
-from agentory.common.events import sse_event_adapter
+from agentory.common.events import notification_event_adapter, sse_event_adapter
 
 VALID_PAYLOADS = [
     {"type": "thought", "step": 1, "agent": "supervisor", "content": "B라인 로그부터 수집한다"},
@@ -49,3 +49,28 @@ def test_valid_event_parses(payload):
 def test_unknown_event_type_rejected():
     with pytest.raises(ValueError):
         sse_event_adapter.validate_python({"type": "unknown", "data": 1})
+
+
+# 알림 스트림 이벤트 계약 (NEW_PROACT01_ALERT01), 챗 스트림과 별개 어댑터
+NOTIFICATION_PAYLOAD = {
+    "type": "notification",
+    "id": 42,
+    "occurred_at": "2026-07-06T10:02:00+09:00",
+    "equipment_id": "EQP-003",
+    "alarm_code": "ERR-402",
+    "message": "EQP-003 냉각 이상 (온도 상승·압력 하강)",
+    "is_read": False,
+}
+
+
+def test_notification_event_parses():
+    event = notification_event_adapter.validate_python(NOTIFICATION_PAYLOAD)
+    assert event.type == "notification"
+    assert event.id == 42
+    assert event.alarm_code == "ERR-402"
+
+
+def test_notification_event_requires_fields():
+    # 필수 필드 누락 시 거부 (프론트 계약 보증)
+    with pytest.raises(ValueError):
+        notification_event_adapter.validate_python({"type": "notification", "id": 1})

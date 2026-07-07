@@ -92,3 +92,21 @@ SSEEvent = Annotated[
 ]
 
 sse_event_adapter: TypeAdapter[SSEEvent] = TypeAdapter(SSEEvent)
+
+
+class NotificationEvent(BaseModel):
+    """알림 스트림 이벤트 (NEW_PROACT01_ALERT01)
+
+    챗 스트림(SSEEvent)과 별개 계약, GET /notifications/stream에서 신규 알림당 1건 방출
+    """
+
+    type: Literal["notification"] = "notification"
+    id: int
+    occurred_at: str  # 발생 시각 (ISO 8601)
+    equipment_id: str
+    alarm_code: str
+    message: str
+    is_read: bool
+
+
+notification_event_adapter: TypeAdapter[NotificationEvent] = TypeAdapter(NotificationEvent)
