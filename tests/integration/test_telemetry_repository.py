@@ -4,7 +4,7 @@
 테스트 데이터는 세션 내에서 flush만 하고 teardown에서 rollback하여 DB를 오염시키지 않음
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from agentory.core.config import get_settings
-from agentory.modules.telemetry import repository
+from agentory.modules.telemetry import repository, service
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
+from agentory.modules.telemetry.schemas import StatusLevel
 
 # 실데이터와 겹치지 않는 테스트 전용 식별자·시간대
 LINE = "ZZZ-TEST-LINE"
@@ -42,6 +43,8 @@ async def seeded_session():
                 process_type="Etching",
                 location="Zone-Z",
                 manager_dept="Test-Dept",
+                manager_name="Test-Mgr",
+                last_inspection_at=date(2026, 6, 20),
             )
         )
         await session.flush()
@@ -115,3 +118,73 @@ async def test_fetch_equipment_metadata(seeded_session):
 async def test_fetch_equipment_metadata_not_found(seeded_session):
     rows = await repository.fetch_equipment_metadata(seeded_session, equipment_id="NO-SUCH")
     assert rows == []
+
+
+async def test_get_equipment_detail_merges_meta_and_latest(seeded_session):
+    # 상세 = 마스터 메타 + 최신 텔레메트리 병합 (대시보드 상세 패널용)
+    detail = await service.get_equipment_detail(seeded_session, EQP)
+    assert detail is not None
+    # 메타 병합
+    assert detail.process_type == "Etching"
+    assert detail.manager_name == "Test-Mgr"
+    assert detail.last_inspection_at == date(2026, 6, 20)
+    # 최신 텔레메트리 병합 (마지막 로그 = 61.0 / ERR-402 → 위험)
+    assert detail.status == StatusLevel.CRITICAL
+    assert detail.alarm_code == "ERR-402"
+    assert detail.temperature == 61.0
+    assert detail.updated_at is not None
+    # 위험이면 조치 체크리스트 존재
+    assert detail.checklist
+
+
+async def test_get_equipment_detail_not_found(seeded_session):
+    # 미존재 설비는 None (라우터 404)
+    assert await service.get_equipment_detail(seeded_session, "NO-SUCH") is None
+
+
+async def test_fetch_lines_counts_equipment_per_line(seeded_session):
+    # 라인 목록에 테스트 라인이 설비 수 1로 포함
+    lines = await repository.fetch_lines(seeded_session)
+    by_name = {row["line_name"]: row["equipment_count"] for row in lines}
+    assert by_name.get(LINE) == 1
+
+
+async def test_fetch_latest_status_rows_line_filter(seeded_session):
+    # 테스트 라인으로 좁히면 해당 설비만
+    rows = await repository.fetch_latest_status_rows(seeded_session, line_name=LINE)
+    assert [r["equipment_id"] for r in rows] == [EQP]
+    # 다른 라인으로 조회하면 테스트 설비 제외
+    other = await repository.fetch_latest_status_rows(seeded_session, line_name="NO-SUCH-LINE")
+    assert EQP not in [r["equipment_id"] for r in other]
+
+
+async def test_get_sensor_series_explicit_window(seeded_session):
+    # 지정 기간 시계열, 시간순 정렬
+    series = await service.get_sensor_series(
+        seeded_session, EQP, start=T0, end=T0.replace(minute=59)
+    )
+    assert len(series) == 3
+    assert series[0].timestamp < series[-1].timestamp
+    assert series[0].temperature == 42.0
+
+
+async def test_get_sensor_series_default_window(seeded_session):
+    # 기간 미지정 시 최신 텔레메트리 기준 최근 window (3건 모두 포함)
+    series = await service.get_sensor_series(seeded_session, EQP)
+    assert len(series) == 3
+
+
+async def test_get_sensor_series_empty_window(seeded_session):
+    # 데이터 없는 기간은 빈 목록 (설비는 존재)
+    series = await service.get_sensor_series(
+        seeded_session,
+        EQP,
+        start=datetime(2019, 1, 1, tzinfo=UTC),
+        end=datetime(2019, 1, 2, tzinfo=UTC),
+    )
+    assert series == []
+
+
+async def test_get_sensor_series_not_found(seeded_session):
+    # 미존재 설비는 None (라우터 404)
+    assert await service.get_sensor_series(seeded_session, "NO-SUCH") is None
