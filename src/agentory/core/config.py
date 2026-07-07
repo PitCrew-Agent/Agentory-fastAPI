@@ -66,4 +66,14 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    # Azure AD 편의: AZURE_AD_* 만 채워도 동작하도록 OIDC_* 로 유도 (BE_AUTH01_OAUTH01)
+    if not settings.oidc_issuer_url and settings.azure_ad_tenant_id:
+        settings.oidc_issuer_url = (
+            f"https://login.microsoftonline.com/{settings.azure_ad_tenant_id}/v2.0"
+        )
+    if not settings.oidc_client_id:
+        settings.oidc_client_id = settings.azure_ad_client_id
+    if not settings.oidc_client_secret:
+        settings.oidc_client_secret = settings.azure_ad_client_secret
+    return settings
