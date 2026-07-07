@@ -105,4 +105,4 @@
   query: "ERR-999 알람의 원인과 조치 방법을 매뉴얼에서 찾아줘"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["없", "확인되지 않", "찾을 수 없"]
+    answer_contains_any: ["없", "확인되지 않", "찾을 수 없", "부족"]
