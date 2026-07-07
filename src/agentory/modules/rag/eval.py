@@ -70,10 +70,12 @@ async def evaluate_retrieval(
     embedder: Embedder,
     store: VectorStore,
     k: int = 3,
+    min_score: float | None = None,
 ) -> dict[str, Any]:
     """골든 케이스로 검색 랭킹 품질 평가, rag_hit_docs 있는 케이스만 대상
 
     각 케이스: query 임베딩, store.search(top_k=k), doc_id 추출, 지표 계산
+    min_score 지정 시 미달 결과 제외 후 평가 (search_manuals의 운영 임계값 재현)
     반환: aggregate 결과 + per_case 상세
     """
     _validate_k(k)
@@ -85,6 +87,8 @@ async def evaluate_retrieval(
             continue
         embeddings = await embedder.embed([case["query"]])
         results = await store.search(embeddings[0], top_k=k)
+        if min_score is not None:
+            results = [item for item in results if item["score"] >= min_score]
         retrieved = [str(item["doc_id"]) for item in results]
         per_case.append(
             {

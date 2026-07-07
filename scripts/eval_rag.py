@@ -59,6 +59,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="RAG 검색 품질 평가")
     parser.add_argument("--k", type=int, default=3, help="Top-K 검색 개수")
     parser.add_argument(
+        "--min-score",
+        type=float,
+        default=None,
+        help="유사도 임계값, 미지정 시 필터 없음 (운영 재현은 RAG_SEARCH_MIN_SCORE 값 지정)",
+    )
+    parser.add_argument(
         "--golden-dir",
         type=Path,
         default=DEFAULT_GOLDEN_DIR,
@@ -79,7 +85,10 @@ async def main() -> None:
         embedder=get_embedder(),
         store=PgVectorStore(),
         k=args.k,
+        min_score=args.min_score,
     )
+    if args.min_score is not None:
+        print(f"min_score: {args.min_score}")
     _print_report(report)
 
 
