@@ -21,4 +21,8 @@ def get_chat_model(role: str = "worker") -> BaseChatModel:
         "finalizer": settings.llm_finalizer_model,
     }
     model = by_role.get(role) or settings.llm_model
-    return ChatOpenAI(model=model, api_key=settings.openai_api_key)
+    kwargs: dict = {"model": model, "api_key": settings.openai_api_key}
+    # 라우팅은 짧은 구조화 판단, reasoning 강도 낮춰 매 턴 지연 단축
+    if role == "router" and settings.llm_router_reasoning_effort:
+        kwargs["reasoning_effort"] = settings.llm_router_reasoning_effort
+    return ChatOpenAI(**kwargs)

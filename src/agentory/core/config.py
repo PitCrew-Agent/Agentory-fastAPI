@@ -21,8 +21,10 @@ class Settings(BaseSettings):
     # LLM (OpenAI), 역할별 모델 선택: 비우면 llm_model 사용
     openai_api_key: str = ""
     llm_model: str = "gpt-5-mini"  # 기본(워커) 모델
-    llm_router_model: str = ""  # Supervisor 라우팅용 경량 모델
+    llm_router_model: str = ""  # Supervisor 라우팅용 모델
     llm_finalizer_model: str = ""  # 최종 답변 합성용 고성능 모델 (3단계)
+    # 라우팅 reasoning 강도, 짧은 구조화 판단이라 최소화로 지연 단축
+    llm_router_reasoning_effort: str = "minimal"
 
     # Agent
     agent_max_steps: int = 10  # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
