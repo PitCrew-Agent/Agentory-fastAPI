@@ -109,6 +109,54 @@ async def fetch_alarm_history(
     ]
 
 
+async def fetch_latest_telemetry(session: AsyncSession, equipment_id: str) -> dict[str, Any] | None:
+    # 설비 최신 텔레메트리 1건, 없으면 None (NEW_LOOP01_CHECK01 상태 판정용)
+    stmt = (
+        select(EquipmentTelemetry)
+        .where(EquipmentTelemetry.equipment_id == equipment_id)
+        .order_by(EquipmentTelemetry.timestamp.desc())
+        .limit(1)
+    )
+    row = await session.scalar(stmt)
+    return _telemetry_to_dict(row) if row else None
+
+
+async def fetch_latest_status_rows(
+    session: AsyncSession, *, line_name: str | None = None
+) -> list[dict[str, Any]]:
+    # 전체 설비의 최신 alarm_code (NEW_TWIN01_SYNC01), 텔레메트리 없는 설비도 포함
+    # line_name 지정 시 해당 라인 설비만 (3D 뷰 라인 전환용)
+    # 설비별 최신 텔레메트리를 DISTINCT ON으로 한 건씩 추림
+    latest = (
+        select(EquipmentTelemetry.equipment_id, EquipmentTelemetry.alarm_code)
+        .distinct(EquipmentTelemetry.equipment_id)
+        .order_by(EquipmentTelemetry.equipment_id, EquipmentTelemetry.timestamp.desc())
+        .subquery()
+    )
+    # 마스터 기준 좌외부조인, 로그 없는 설비는 alarm_code NULL(정상)
+    stmt = (
+        select(EquipmentMaster.equipment_id, latest.c.alarm_code)
+        .outerjoin(latest, EquipmentMaster.equipment_id == latest.c.equipment_id)
+        .order_by(EquipmentMaster.equipment_id)
+    )
+    if line_name:
+        # 특정 라인 소속으로 좁힘
+        stmt = stmt.where(EquipmentMaster.line_name == line_name)
+    rows = await session.execute(stmt)
+    return [{"equipment_id": eid, "alarm_code": code} for eid, code in rows]
+
+
+async def fetch_lines(session: AsyncSession) -> list[dict[str, Any]]:
+    # 라인 목록 + 라인별 설비 수 (라인 선택 드롭다운·3D 뷰 전환용), 라인명순 정렬
+    stmt = (
+        select(EquipmentMaster.line_name, func.count(EquipmentMaster.equipment_id))
+        .group_by(EquipmentMaster.line_name)
+        .order_by(EquipmentMaster.line_name)
+    )
+    rows = await session.execute(stmt)
+    return [{"line_name": name, "equipment_count": count} for name, count in rows]
+
+
 async def fetch_equipment_metadata(
     session: AsyncSession,
     *,
