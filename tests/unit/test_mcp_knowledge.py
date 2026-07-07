@@ -7,7 +7,7 @@ import pytest
 
 from agentory.core.config import Settings
 from mcp_knowledge import server
-from mcp_knowledge.server import _above_threshold, search_manuals
+from mcp_knowledge.server import MAX_TOP_K, _above_threshold, mcp, search_manuals
 
 
 def _result(doc_id: str, score: float) -> dict:
@@ -76,6 +76,21 @@ async def test_search_manuals_rejects_top_k_below_one(monkeypatch):
     _patch_pipeline(monkeypatch, store, Settings(_env_file=None))
     with pytest.raises(ValueError):
         await search_manuals(query="ERR-402 조치", top_k=0)
+
+
+async def test_search_manuals_rejects_top_k_above_max(monkeypatch):
+    # LLM이 과대 top_k를 넣는 것 차단
+    store = _FakeStore([])
+    _patch_pipeline(monkeypatch, store, Settings(_env_file=None))
+    with pytest.raises(ValueError):
+        await search_manuals(query="ERR-402 조치", top_k=MAX_TOP_K + 1)
+
+
+async def test_stub_tool_not_exposed():
+    # 미구현 스텁은 tool binding에 노출하지 않음 (NEW_CASE01_SEARCH01 구현 전)
+    names = [tool.name for tool in await mcp.list_tools()]
+    assert "search_manuals" in names
+    assert "search_similar_cases" not in names
 
 
 async def test_search_manuals_uses_settings_defaults(monkeypatch):
