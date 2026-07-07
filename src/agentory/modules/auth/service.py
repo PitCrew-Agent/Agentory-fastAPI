@@ -1,3 +1,4 @@
+import logging
 from secrets import token_urlsafe
 from typing import Any
 from urllib.parse import urlencode
@@ -16,6 +17,8 @@ from agentory.modules.auth.redis_store import (
     store_refresh_token,
 )
 from agentory.modules.auth.schemas import AuthTokenResponse, AuthUrlResponse, AuthUserResponse
+
+log = logging.getLogger(__name__)
 
 
 def _client_secret() -> str:
@@ -190,6 +193,12 @@ async def _post_token_request(token_endpoint: str, form: dict[str, str]) -> dict
         )
 
     if response.status_code >= 400:
+        # Azure 실제 오류(AADSTS)는 서버 로그만 남기고 응답 본문엔 노출 금지
+        log.warning(
+            "OIDC token exchange failed status=%s body=%s",
+            response.status_code,
+            response.text,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="OIDC token exchange failed",
