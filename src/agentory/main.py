@@ -10,6 +10,7 @@ from agentory.core.logging import setup_logging
 from agentory.modules.auth.middleware import oidc_auth_middleware
 from agentory.modules.auth.router import router as auth_router
 from agentory.modules.chat.router import router as chat_router
+from agentory.modules.notification.router import router as notification_router
 from agentory.modules.telemetry.router import router as telemetry_router
 
 
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(telemetry_router, prefix="/api/v1")
+    app.include_router(notification_router, prefix="/api/v1")
 
     @app.get("/health", tags=["system"])
     async def health() -> dict:

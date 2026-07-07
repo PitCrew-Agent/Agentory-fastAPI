@@ -44,3 +44,25 @@ data: {"type":"action","step":1,"agent":"data_analysis","tool":"get_sensor_logs"
 event: done
 data: {"type":"done","citations":[{"doc_id":"MAN-ETC-042","data_as_of":"2026-07-02T10:00:00+09:00"}],"grounded":true,"suggested_questions":["ERR-402 원인이 뭐야?","EQP-002 조치 방법 알려줘","유사 사례가 있었어?"]}
 ```
+
+## 알림 실시간 스트림 (NEW_PROACT01_ALERT01)
+
+챗 스트림과 별개 계약입니다. 상단 알림 벨·알림 이력의 실시간 갱신용이며, 신규 알림 1건당 이벤트 1개를 방출합니다.
+
+```
+GET /api/v1/notifications/stream?after_id=<마지막으로 받은 알림 id>    (text/event-stream)
+```
+
+`after_id` 이후 id의 알림만 오름차순으로 방출하며, 커넥션 유지 중 서버가 주기(약 3초)로 신규 알림을 감지해 밀어줍니다.
+
+| type | 페이로드 | 용도 |
+| --- | --- | --- |
+| `notification` | `{id, occurred_at, equipment_id, alarm_code, message, is_read}` | 신규 알림 1건 (NEW_PROACT01_ALERT01) |
+
+- `occurred_at`: 알림 발생 시각 (ISO 8601)
+- `id`: 알림 식별자, 다음 재연결 시 `after_id`로 사용
+
+```
+event: notification
+data: {"type":"notification","id":42,"occurred_at":"2026-07-06T10:02:00+09:00","equipment_id":"EQP-003","alarm_code":"ERR-402","message":"EQP-003 냉각 이상 (온도 상승·압력 하강)","is_read":false}
+```
