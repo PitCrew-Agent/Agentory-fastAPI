@@ -335,10 +335,9 @@ async def oidc_auth_middleware(request: Request, call_next) -> Response:
 
 
 async def get_current_user(request: Request) -> dict[str, Any]:
-    """JWT 검증 후 사용자 정보 반환, 미인가 시 401
+    """미들웨어가 검증해 넣은 사용자 정보 반환, 미인가 시 401
 
-    TODO(안민호): OIDC issuer JWKS 서명 검증, 만료/audience 체크 구현
-    현재는 인증 미적용 플레이스홀더
+    JWKS 서명·만료·audience 검증은 oidc_auth_middleware 의 verify_oidc_jwt 에서 수행
     """
     user = getattr(request.state, "user", None)
     if not user:
