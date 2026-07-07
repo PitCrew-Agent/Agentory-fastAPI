@@ -66,6 +66,20 @@ select = [
     "UP",  # pyupgrade
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI 의존성 주입(Depends·Query 등)은 인자 기본값 호출이 정상 패턴이라 B008 예외 등록
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Body",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

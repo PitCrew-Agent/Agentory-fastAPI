@@ -38,6 +38,15 @@ class FakeWorkerLLM:
         return next(self._script)
 
 
+class FakeFinalizerLLM:
+    # 최종 답변 합성·grounding 판정 겸용, 호출마다 고정 AIMessage 반환으로 실 API 호출 제거
+    def __init__(self, content="최종 답변"):
+        self._content = content
+
+    async def ainvoke(self, messages):
+        return AIMessage(content=self._content)
+
+
 @tool
 def get_sensor_logs(line_name: str) -> str:
     """테스트용 센서 로그 조회 도구"""
@@ -61,6 +70,9 @@ async def _build(router_script, worker_script):
     return await build_agent_graph(
         router_llm=FakeRouterLLM(router_script),
         worker_llm=FakeWorkerLLM(worker_script),
+        finalizer_llm=FakeFinalizerLLM(),
+        # suggest 노드는 비활성이나 그래프 빌드 시 LLM이 선생성되므로 실 API 차단 위해 주입
+        suggest_llm=FakeFinalizerLLM(),
         tools_by_server={"realtime": [get_sensor_logs], "knowledge": []},
         suggestions_enabled=False,
     )
