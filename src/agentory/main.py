@@ -32,9 +32,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # TODO(안민호): OIDC/JWT 검증 미들웨어 등록 (BE_AUTH01_OAUTH01)
-    # app.middleware("http")(...)
-
     app.middleware("http")(oidc_auth_middleware)
 
     app.include_router(auth_router, prefix="/api/v1")
