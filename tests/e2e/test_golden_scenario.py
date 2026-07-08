@@ -11,6 +11,9 @@ from tests.conftest import load_golden_cases
 
 GOLDEN_CASES = load_golden_cases()
 
+# knowledge MCP 소속 도구, 미배선 환경에서 해당 케이스만 skip 판단용 (BE_MCP04_RAG01)
+KNOWLEDGE_TOOLS = {"search_manuals"}
+
 
 def _called_tools(state: dict) -> set[str]:
     # 실행 중 호출된 도구명 집합 (AIMessage.tool_calls 수집)
@@ -34,8 +37,14 @@ def _final_answer(state: dict) -> str:
 @pytest.mark.parametrize("case", GOLDEN_CASES, ids=[c["id"] for c in GOLDEN_CASES])
 async def test_golden_scenario(e2e_runner, case):
     run, ctx = e2e_runner
-    result = await run(case["query"])
     expect = case.get("expect", {})
+
+    # 기대 도구가 전부 knowledge 소속인데 미배선이면 이 케이스만 skip (나머지는 기존대로 부분 검증)
+    expected_tools = set(expect.get("tools_called_any") or [])
+    if expected_tools and expected_tools <= KNOWLEDGE_TOOLS and not ctx["knowledge_available"]:
+        pytest.skip("knowledge 도구 미배선, 매뉴얼 검색 케이스 skip")
+
+    result = await run(case["query"])
 
     # 도구 호출 검증: 기대 도구 중 하나 이상 호출
     if expect.get("tools_called_any"):

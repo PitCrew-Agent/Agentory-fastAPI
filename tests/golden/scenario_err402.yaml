@@ -1,10 +1,57 @@
 # 요구사항 정의서 §3.2 대표 시나리오, B라인 ERR-402 이상 진단
-id: GOLDEN-001
-title: B라인 이상 설비 진단 및 조치 안내 (ERR-402)
-seed_scenario: err402_temp_rise
-query: "최근 1시간 동안 B라인에서 가장 불안정하거나 이상 징후가 보이는 설비가 있는지 찾아보고, 원인이랑 조치 방법 좀 알려줘."
-expect:
-  tools_called_any: [get_sensor_logs, get_alarm_history]
-  answer_contains_any: ["EQP-003", "ERR-402"]
-  citations_include: [MAN-ETC-042]
-  rag_hit_docs: [MAN-ETC-042]
+# GOLDEN-023~027은 E2E 워크플로우 추가분 (TEST_HARNESS)
+# e2e conftest 고정 시드 전제: EQP-001·002(A라인 텔레메트리 무주입), EQP-003(B라인, 온도 상승+ERR-402)
+# TODO(김건) 3계층 분리 시 seed_scenario 키 실해석(케이스별 시드 주입) 도입과 함께 agent/e2e 계층으로 이관
+- id: GOLDEN-001
+  title: B라인 이상 설비 진단 및 조치 안내 (ERR-402)
+  seed_scenario: err402_temp_rise
+  query: "최근 1시간 동안 B라인에서 가장 불안정하거나 이상 징후가 보이는 설비가 있는지 찾아보고, 원인이랑 조치 방법 좀 알려줘."
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history]
+    answer_contains_any: ["EQP-003", "ERR-402"]
+    citations_include: [MAN-ETC-042]
+    rag_hit_docs: [MAN-ETC-042]
+
+- id: GOLDEN-023
+  title: EQP-003 최근 1시간 알람 이력 조회
+  seed_scenario: err402_temp_rise
+  query: "EQP-003 설비에서 최근 1시간 동안 어떤 알람이 발생했는지 알려줘"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs]
+    answer_contains_any: ["ERR-402"]
+
+- id: GOLDEN-024
+  title: EQP-003 위치와 담당 부서 조회
+  seed_scenario: err402_temp_rise
+  query: "EQP-003 설비가 어디에 있고 담당 부서가 어디야?"
+  expect:
+    tools_called_any: [get_equipment_metadata]
+    answer_contains_any: ["Zone-B", "Main-Tech 2"]
+
+# A라인은 텔레메트리 무주입 상태, 과잉 경보 없이 이상 없음 보고 검증
+- id: GOLDEN-025
+  title: 정상 라인 과잉 경보 방지 (A라인 무이상)
+  seed_scenario: err402_temp_rise
+  query: "A라인 설비들은 최근 1시간 동안 이상 없었어?"
+  expect:
+    tools_called_any: [get_sensor_logs]
+    answer_contains_any: ["없", "정상"]
+
+# 센서 상황 인지 상태에서 매뉴얼 근거 조치 안내, 검색 결과 밖 조치 창작 방지 목적
+- id: GOLDEN-026
+  title: ERR-402 발생 설비 즉시 조치 안내 (센서+매뉴얼 결합)
+  seed_scenario: err402_temp_rise
+  query: "EQP-003 온도가 계속 올라가면서 ERR-402가 떴어. SOP 근거로 지금 당장 뭘 해야 해?"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["중지", "냉각", "홀드"]
+    citations_include: [MAN-ETC-042]
+
+# 미존재 설비 질의, 빈 조회 결과의 정직 보고 검증
+- id: GOLDEN-027
+  title: 미존재 설비 정직 보고 (EQP-999)
+  seed_scenario: err402_temp_rise
+  query: "EQP-999 설비 상태 좀 확인해줘"
+  expect:
+    tools_called_any: [get_equipment_metadata, get_sensor_logs, get_alarm_history]
+    answer_contains_any: ["없", "확인되지 않", "찾을 수 없"]

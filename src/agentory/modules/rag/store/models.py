@@ -2,7 +2,8 @@
 
 pgvector 확장 필요 (docker-compose의 pgvector 이미지 사용)
 embedding 차원은 settings.embedding_dim과 일치 필수
-TODO(김건): 임베딩 모델 선정 후 EMBEDDING_DIM 확정, 불일치 시 적재 실패
+EMBEDDING_DIM은 text-embedding-3-small 기준 1536으로 확정
+임베딩 모델 변경 시 컬럼 차원 마이그레이션과 전체 재적재 필요
 """
 
 from datetime import datetime

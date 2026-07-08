@@ -144,3 +144,22 @@ async def test_evaluate_retrieval_scores_only_cases_with_rag_hit_docs():
             "rr": 0.5,
         }
     ]
+
+
+async def test_evaluate_retrieval_applies_min_score_filter():
+    # 운영 search_manuals의 임계값 필터를 평가에 재현 (BE_MCP04_RAG01)
+    embedder = FakeEmbedder()
+    store = FakeStore(
+        [
+            {"doc_id": "MAN-2", "content": "다른 문서", "score": 0.9},
+            {"doc_id": "MAN-1", "content": "기대 문서", "score": 0.3},
+        ]
+    )
+    cases = [{"id": "GOLDEN-001", "query": "평가 질의", "expect": {"rag_hit_docs": ["MAN-1"]}}]
+
+    unfiltered = await evaluate_retrieval(cases, embedder=embedder, store=store, k=2)
+    filtered = await evaluate_retrieval(cases, embedder=embedder, store=store, k=2, min_score=0.5)
+
+    assert unfiltered["hit@k"] == 1.0
+    assert filtered["hit@k"] == 0.0
+    assert filtered["per_case"][0]["retrieved"] == ["MAN-2"]

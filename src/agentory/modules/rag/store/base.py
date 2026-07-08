@@ -1,6 +1,6 @@
 """벡터 스토어 포트, 교체 가능 지점 ③ (비기능: 확장성)
 
-TODO(김건): pgvector 기본 구현 추가, 필요 시 Chroma/FAISS 어댑터로 교체 가능
+기본 구현은 store/pgvector.py의 PgVectorStore, 필요 시 Chroma/FAISS 어댑터로 교체 가능
 """
 
 from typing import Any, Protocol

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     embedding_model: str = ""
     embedding_dim: int = 1536
 
+    # RAG 매뉴얼 검색 (BE_MCP04_RAG01)
+    rag_search_top_k: int = 3  # 검색 기본 Top-K
+    rag_search_min_score: float = 0.2  # 유사도 임계값, 미달 결과 제외로 환각 방지
+
     # MCP 서버
     mcp_realtime_url: str = "http://localhost:8101/mcp"
     mcp_knowledge_url: str = "http://localhost:8102/mcp"

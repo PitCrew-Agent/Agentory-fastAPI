@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 from langchain_core.tools import tool
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -18,8 +18,12 @@ from agentory.core.config import get_settings
 from agentory.modules.agent.llm.base import get_chat_model
 from agentory.modules.agent.runner import RECURSION_LIMIT, initial_state
 from agentory.modules.agent.supervisor.graph import build_agent_graph
+from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.store.models import KnowledgeChunk
+from agentory.modules.rag.store.pgvector import PgVectorStore
 from agentory.modules.telemetry import repository
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
+from mcp_knowledge.server import _above_threshold
 from mcp_realtime.server import _parse_time
 
 # 시나리오 대상 설비·정상 마스터 (요구사항 §8.1)
@@ -79,6 +83,31 @@ def _realtime_tools(maker: async_sessionmaker) -> list:
     return [get_sensor_logs, get_alarm_history, get_equipment_metadata]
 
 
+def _knowledge_tools(maker: async_sessionmaker) -> list:
+    # MCP knowledge 서버의 search_manuals와 이름·의미 동일한 in-process 도구 (BE_MCP04_RAG01)
+    @tool
+    async def search_manuals(
+        query: str, top_k: int | None = None, equipment_type: str | None = None
+    ) -> list:
+        """자연어 질문으로 매뉴얼 벡터 컬렉션 유사도 Top-K 검색, [{doc_id, content, score}] 반환"""
+        settings = get_settings()
+        resolved_top_k = settings.rag_search_top_k if top_k is None else top_k
+        [embedding] = await get_embedder().embed([query])
+        results = await PgVectorStore(maker).search(
+            embedding, top_k=resolved_top_k, equipment_type=equipment_type
+        )
+        return _above_threshold(results, threshold=settings.rag_search_min_score)
+
+    return [search_manuals]
+
+
+async def _knowledge_ready(maker: async_sessionmaker) -> bool:
+    # 매뉴얼 청크 적재 여부 프로브, 미적재 시 knowledge 도구 미배선 유지
+    async with maker() as s:
+        count = await s.scalar(select(func.count()).select_from(KnowledgeChunk))
+    return bool(count)
+
+
 async def _seed_scenario(maker: async_sessionmaker) -> list[int]:
     # 설비 마스터 보강 + 대상 설비 최근 이상 텔레메트리 주입, 삽입 log_id 반환(정리용)
     async with maker() as s:
@@ -133,7 +162,8 @@ async def e2e_runner():
         pytest.skip("DB 연결 불가, E2E 스킵")
 
     log_ids = await _seed_scenario(maker)
-    tools = {"realtime": _realtime_tools(maker), "knowledge": []}
+    knowledge_tools = _knowledge_tools(maker) if await _knowledge_ready(maker) else []
+    tools = {"realtime": _realtime_tools(maker), "knowledge": knowledge_tools}
     graph = await build_agent_graph(
         router_llm=get_chat_model("router"),
         worker_llm=get_chat_model("worker"),

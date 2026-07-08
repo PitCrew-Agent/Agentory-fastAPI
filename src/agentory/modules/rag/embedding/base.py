@@ -1,6 +1,6 @@
 """임베딩 포트, 교체 가능 지점 ② (비기능: 확장성)
 
-TODO(김건): 구체 모델(OpenAI·Voyage·오픈소스 등) 어댑터를 이 패키지에 추가
+기본 구현은 embedding/openai.py의 OpenAIEmbedder, 다른 모델 어댑터도 이 패키지에 추가
 """
 
 from typing import Protocol
