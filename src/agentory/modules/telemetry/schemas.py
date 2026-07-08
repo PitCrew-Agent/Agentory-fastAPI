@@ -24,11 +24,25 @@ class LineItem(BaseModel):
     equipment_count: int
 
 
+class ScenePosition(BaseModel):
+    # 3D 장비 좌표 (NEW_TWIN01_SCENE01), y는 현재 0
+    x: float
+    y: float
+    z: float
+
+
 class EquipmentStatusItem(BaseModel):
-    # 전체 설비 상태 목록 항목 (3D 뷰 색상 매핑용)
+    # 전체 설비 상태 목록 항목 (3D 뷰 색상 매핑 + 배치 렌더용)
     equipment_id: str
+    line_name: str
     status: StatusLevel
     alarm_code: str | None = None
+    # 3D 배치값 (NEW_TWIN01_SCENE01), 프론트가 위치·회전을 그대로 재현
+    display_order: int | None = None
+    shape: str | None = None
+    bay_zone: str | None = None
+    position: ScenePosition | None = None
+    rotation_y: float | None = None
 
 
 class EquipmentDetail(BaseModel):

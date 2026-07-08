@@ -15,6 +15,7 @@ from agentory.modules.telemetry.schemas import (
     EquipmentDetail,
     EquipmentStatusItem,
     LineItem,
+    ScenePosition,
     SensorPoint,
     StatusLevel,
 )
@@ -40,11 +41,28 @@ async def list_equipment_status(
     return [
         EquipmentStatusItem(
             equipment_id=row["equipment_id"],
+            line_name=row["line_name"],
             status=assess_status(row["alarm_code"]),
             alarm_code=row["alarm_code"],
+            display_order=row["display_order"],
+            shape=row["shape"],
+            bay_zone=row["bay_zone"],
+            position=_scene_position(row),
+            rotation_y=row["rotation_y"],
         )
         for row in rows
     ]
+
+
+def _scene_position(row: dict) -> ScenePosition | None:
+    # 배치 좌표가 하나라도 있으면 3D 위치 구성, 미설정 설비는 None
+    if row["position_x"] is None and row["position_y"] is None and row["position_z"] is None:
+        return None
+    return ScenePosition(
+        x=row["position_x"] or 0.0,
+        y=row["position_y"] or 0.0,
+        z=row["position_z"] or 0.0,
+    )
 
 
 async def list_lines(session: AsyncSession) -> list[LineItem]:

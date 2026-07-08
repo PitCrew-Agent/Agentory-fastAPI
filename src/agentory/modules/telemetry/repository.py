@@ -134,16 +134,43 @@ async def fetch_latest_status_rows(
         .subquery()
     )
     # 마스터 기준 좌외부조인, 로그 없는 설비는 alarm_code NULL(정상)
+    # 3D 배치값(위치·회전·shape 등)을 함께 반환해 프론트가 상태 색상과 배치를 한 번에 렌더
+    m = EquipmentMaster
     stmt = (
-        select(EquipmentMaster.equipment_id, latest.c.alarm_code)
-        .outerjoin(latest, EquipmentMaster.equipment_id == latest.c.equipment_id)
-        .order_by(EquipmentMaster.equipment_id)
+        select(
+            m.equipment_id,
+            m.line_name,
+            latest.c.alarm_code,
+            m.display_order,
+            m.shape,
+            m.bay_zone,
+            m.position_x,
+            m.position_y,
+            m.position_z,
+            m.rotation_y,
+        )
+        .outerjoin(latest, m.equipment_id == latest.c.equipment_id)
+        .order_by(m.line_name, m.display_order, m.equipment_id)
     )
     if line_name:
         # 특정 라인 소속으로 좁힘
-        stmt = stmt.where(EquipmentMaster.line_name == line_name)
+        stmt = stmt.where(m.line_name == line_name)
     rows = await session.execute(stmt)
-    return [{"equipment_id": eid, "alarm_code": code} for eid, code in rows]
+    return [
+        {
+            "equipment_id": row.equipment_id,
+            "line_name": row.line_name,
+            "alarm_code": row.alarm_code,
+            "display_order": row.display_order,
+            "shape": row.shape,
+            "bay_zone": row.bay_zone,
+            "position_x": _num(row.position_x),
+            "position_y": _num(row.position_y),
+            "position_z": _num(row.position_z),
+            "rotation_y": _num(row.rotation_y),
+        }
+        for row in rows
+    ]
 
 
 async def fetch_lines(session: AsyncSession) -> list[dict[str, Any]]:
