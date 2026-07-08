@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Index,
+    Integer,
     Numeric,
     String,
     func,
@@ -33,6 +34,15 @@ class EquipmentMaster(Base):
     manager_dept: Mapped[str | None] = mapped_column(String(50))  # 책임 부서
     manager_name: Mapped[str | None] = mapped_column(String(50))  # 책임자 이름
     last_inspection_at: Mapped[date | None] = mapped_column(Date)  # 마지막 점검일
+
+    # 3D 트윈 뷰 배치값 (NEW_TWIN01_SCENE01), 프론트가 라인·설비 위치를 그대로 재현
+    display_order: Mapped[int | None] = mapped_column(Integer)  # 라인 내 표시 순서
+    shape: Mapped[str | None] = mapped_column(String(30))  # 3D 모델 형태, 식각은 etch
+    bay_zone: Mapped[str | None] = mapped_column(String(10))  # 공정 bay 구역, north 또는 south
+    position_x: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))  # 3D X 좌표
+    position_y: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))  # 3D Y 좌표, 현재는 0
+    position_z: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))  # 3D Z 좌표
+    rotation_y: Mapped[Decimal | None] = mapped_column(Numeric(17, 15))  # Y축 회전 radian
 
 
 class EquipmentTelemetry(Base):
