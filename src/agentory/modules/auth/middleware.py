@@ -17,7 +17,7 @@ from starlette.responses import JSONResponse, Response
 from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.modules.auth.models import AuditLog, SSOAccount, User
-from agentory.modules.auth.redis_store import cache_audit_log
+from agentory.modules.auth.redis_store import cache_audit_log, get_auth_session
 
 PUBLIC_PATHS = {
     "/health",
@@ -94,12 +94,24 @@ async def _get_jwks() -> dict[str, Any]:
     return jwks
 
 
-def _extract_bearer_token(request: Request) -> str:
-    authorization = request.headers.get("authorization", "")
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        raise AuthenticationError("missing bearer token")
-    return token
+def _extract_session_id(request: Request) -> str:
+    session_id = request.cookies.get(get_settings().auth_session_cookie_name)
+    if not session_id:
+        raise AuthenticationError("missing auth session")
+    return session_id
+
+
+def _session_user(session: dict[str, str]) -> dict[str, Any]:
+    user = {
+        "user_id": int(session["user_id"]),
+        "email": session["email"],
+        "name": session["name"],
+        "role": session["role"],
+        "status": session["status"],
+    }
+    if user["status"] != "active":
+        raise AuthorizationError("user is not allowed")
+    return user
 
 
 def _select_jwk(jwks: dict[str, Any], kid: str | None) -> dict[str, Any]:
@@ -278,17 +290,15 @@ async def oidc_auth_middleware(request: Request, call_next) -> Response:
 
     user_id: int | None = None
     try:
-        token = _extract_bearer_token(request)
-        claims = await verify_oidc_jwt(token)
-        local_user = await _load_local_user(claims)
-        user_id = local_user.id
-        request.state.user = {
-            **claims,
-            "user_id": local_user.id,
-            "email": local_user.email,
-            "name": local_user.name,
-            "role": local_user.role,
-        }
+        session_id = _extract_session_id(request)
+        session = await get_auth_session(session_id)
+        if not session:
+            raise AuthenticationError("invalid auth session")
+        user = _session_user(session)
+        user_id = user["user_id"]
+        request.state.session_id = session_id
+        request.state.auth_session = session
+        request.state.user = user
     except (AuthenticationError, httpx.HTTPError):
         await _write_audit_log(
             request,
@@ -299,7 +309,6 @@ async def oidc_auth_middleware(request: Request, call_next) -> Response:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Unauthorized"},
-            headers={"WWW-Authenticate": "Bearer"},
         )
     except AuthorizationError:
         await _write_audit_log(
@@ -337,13 +346,12 @@ async def oidc_auth_middleware(request: Request, call_next) -> Response:
 async def get_current_user(request: Request) -> dict[str, Any]:
     """미들웨어가 검증해 넣은 사용자 정보 반환, 미인가 시 401
 
-    JWKS 서명·만료·audience 검증은 oidc_auth_middleware 의 verify_oidc_jwt 에서 수행
+    JWKS 서명·만료·audience 검증은 oidc_auth_middleware의 verify_oidc_jwt에서 수행
     """
     user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized",
-            headers={"WWW-Authenticate": "Bearer"},
         )
     return user

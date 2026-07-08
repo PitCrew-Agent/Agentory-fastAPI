@@ -21,6 +21,9 @@ class AuthTokenResponse(BaseModel):
     access_token: str
     expires_in: int | None = None
     id_token: str | None = None
+    refresh_token: str | None = None
+    access_token_expires_at: int | None = None
+    id_token_expires_at: int | None = None
     refresh_token_cached: bool = False
     refresh_token_handle: str | None = None
     user: AuthUserResponse

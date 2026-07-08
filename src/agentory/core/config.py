@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     auth_state_ttl_seconds: int = 300
     auth_auto_provision_enabled: bool = False
     auth_default_role: str = "field_engineer"
+    auth_session_cookie_name: str = "agentory_session"
+    auth_session_ttl_seconds: int = 60 * 60 * 24 * 14
+    auth_cookie_samesite: str = "lax"
+    auth_cookie_secure: bool = False
+    auth_cookie_domain: str = ""
 
 
 @lru_cache

@@ -80,6 +80,76 @@ async def revoke_refresh_token(refresh_token_handle: str) -> bool:
     return True
 
 
+async def store_auth_session(
+    *,
+    payload: dict[str, Any],
+    ttl_seconds: int | None = None,
+) -> str:
+    settings = get_settings()
+    redis = get_redis_client()
+    ttl = ttl_seconds or settings.auth_session_ttl_seconds
+    now = int(time())
+    session_id = token_urlsafe(32)
+    session_key = _key("auth", "session", session_id)
+    session_payload = {
+        **payload,
+        "session_id": session_id,
+        "created_at": now,
+        "updated_at": now,
+        "expires_at": now + ttl,
+    }
+
+    await redis.hset(session_key, mapping=_string_map(session_payload))
+    await redis.expire(session_key, ttl)
+    return session_id
+
+
+async def get_auth_session(session_id: str) -> dict[str, str] | None:
+    redis = get_redis_client()
+    session_key = _key("auth", "session", session_id)
+    session = await redis.hgetall(session_key)
+    if not session:
+        return None
+    expires_at = int(session.get("expires_at") or 0)
+    if expires_at <= int(time()):
+        await redis.delete(session_key)
+        return None
+    return session
+
+
+async def update_auth_session(
+    session_id: str,
+    *,
+    payload: dict[str, Any],
+    ttl_seconds: int | None = None,
+) -> bool:
+    existing = await get_auth_session(session_id)
+    if not existing:
+        return False
+
+    settings = get_settings()
+    redis = get_redis_client()
+    ttl = ttl_seconds or settings.auth_session_ttl_seconds
+    now = int(time())
+    session_key = _key("auth", "session", session_id)
+    session_payload = {
+        **existing,
+        **payload,
+        "session_id": session_id,
+        "updated_at": now,
+        "expires_at": now + ttl,
+    }
+
+    await redis.hset(session_key, mapping=_string_map(session_payload))
+    await redis.expire(session_key, ttl)
+    return True
+
+
+async def delete_auth_session(session_id: str) -> bool:
+    redis = get_redis_client()
+    return bool(await redis.delete(_key("auth", "session", session_id)))
+
+
 async def store_auth_state(*, state: str, flow: str, nonce: str, redirect_uri: str) -> None:
     settings = get_settings()
     redis = get_redis_client()
