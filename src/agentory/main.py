@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from agentory.core.config import get_settings
 from agentory.core.logging import setup_logging
@@ -32,10 +33,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # TODO(안민호): OIDC/JWT 검증 미들웨어 등록 (BE_AUTH01_OAUTH01)
-    # app.middleware("http")(...)
-
     app.middleware("http")(oidc_auth_middleware)
+    # CORS는 최외곽에 두어 preflight(OPTIONS)가 인증 미들웨어보다 먼저 처리되도록 마지막에 등록
+    # Bearer 토큰 방식이라 쿠키 미사용, allow_credentials 불필요
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()],
+        allow_methods=["*"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")

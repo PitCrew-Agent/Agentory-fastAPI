@@ -1,8 +1,10 @@
 from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from starlette.responses import RedirectResponse
 
+from agentory.core.config import get_settings
 from agentory.modules.auth import service
 from agentory.modules.auth.middleware import get_current_user, write_audit_event
 from agentory.modules.auth.redis_store import list_audit_logs
@@ -88,8 +90,30 @@ async def password_reset_redirect(request: Request) -> RedirectResponse:
     return RedirectResponse(response.authorization_url)
 
 
-@router.get("/callback", response_model=AuthTokenResponse)
-async def callback(request: Request, code: str, state: str) -> AuthTokenResponse:
+def _frontend_redirect(fragment: str) -> RedirectResponse:
+    # 브라우저가 콜백에 직접 도달하므로 프론트로 302 리다이렉트, 토큰은 fragment로만 전달
+    base = get_settings().frontend_redirect_uri
+    return RedirectResponse(f"{base}#{fragment}", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/callback")
+async def callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    # IdP 로그인 실패 시 code 대신 error 파라미터 전달, 프론트로 에러 전달
+    if error or not code or not state:
+        await write_audit_event(
+            request,
+            action="AUTH_CALLBACK_FAILURE",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            success=False,
+            error_message=error or "Missing authorization code",
+        )
+        return _frontend_redirect(f"error={quote(error or 'invalid_request')}")
+
     try:
         response = await service.exchange_authorization_code(code, state)
     except HTTPException as exc:
@@ -100,7 +124,7 @@ async def callback(request: Request, code: str, state: str) -> AuthTokenResponse
             success=False,
             error_message="OIDC callback failed",
         )
-        raise
+        return _frontend_redirect("error=auth_failed")
     except Exception:
         await write_audit_event(
             request,
@@ -109,7 +133,7 @@ async def callback(request: Request, code: str, state: str) -> AuthTokenResponse
             success=False,
             error_message="OIDC callback failed",
         )
-        raise
+        return _frontend_redirect("error=server_error")
 
     await write_audit_event(
         request,
@@ -118,7 +142,12 @@ async def callback(request: Request, code: str, state: str) -> AuthTokenResponse
         success=True,
         user_id=response.user.id,
     )
-    return response
+    # 프론트는 id_token을 Bearer로 사용, fragment로 전달해 로그·Referer 노출 방지
+    # refresh_handle은 만료 후 POST /auth/refresh 재발급용, 사용자정보는 GET /auth/me
+    fragment = f"id_token={quote(response.id_token or '')}"
+    if response.refresh_token_handle:
+        fragment += f"&refresh_handle={quote(response.refresh_token_handle)}"
+    return _frontend_redirect(fragment)
 
 
 @router.post("/refresh", response_model=AuthTokenResponse)

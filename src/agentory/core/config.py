@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     oidc_client_secret: str = ""
     oidc_redirect_uri: str = "http://localhost:8000/api/v1/auth/callback"
     oidc_post_logout_redirect_uri: str = "http://localhost:8000/docs"
+    # 콜백 성공/실패 후 브라우저가 복귀할 프론트 URL (id_token은 fragment로 전달)
+    frontend_redirect_uri: str = "http://localhost:5173/dashboard"
+    # 프론트 SPA의 API 호출 허용 오리진, 콤마 구분 다중 지정
+    cors_allow_origins: str = "http://localhost:5173"
     oidc_scopes: str = "openid profile email offline_access"
     oidc_password_reset_url: str = ""
     azure_ad_tenant_id: str = ""
