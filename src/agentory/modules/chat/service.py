@@ -17,7 +17,7 @@ from agentory.modules.agent.streaming import stream_agent_events
 from agentory.modules.chat.models import ChatMessage, ChatSession
 from agentory.modules.chat.schemas import ChatResponse, ReasoningStep
 
-DEFAULT_USER = "anonymous"  # TODO(안민호): 인증 연동 후 JWT sub로 대체
+DEFAULT_USER = "anonymous"  # 라우터가 JWT sub를 넘기지 못한 경우의 폴백값
 
 
 async def _ensure_session(db, session_id: uuid.UUID, user_sub: str) -> None:
