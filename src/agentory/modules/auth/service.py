@@ -1,5 +1,6 @@
 import logging
 from secrets import token_urlsafe
+from time import time
 from typing import Any
 from urllib.parse import urlencode
 
@@ -10,11 +11,8 @@ from agentory.core.config import get_settings
 from agentory.modules.auth.middleware import _get_oidc_metadata, _load_local_user, verify_oidc_jwt
 from agentory.modules.auth.models import User
 from agentory.modules.auth.redis_store import (
-    get_refresh_token_session,
     pop_auth_state,
-    revoke_refresh_token,
     store_auth_state,
-    store_refresh_token,
 )
 from agentory.modules.auth.schemas import AuthTokenResponse, AuthUrlResponse, AuthUserResponse
 
@@ -120,23 +118,13 @@ async def exchange_authorization_code(code: str, state: str) -> AuthTokenRespons
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid nonce")
 
     user = await _load_local_user(claims)
-    refresh_token_handle = await _cache_refresh_token(tokens, user.id, claims)
-    return _token_response(tokens, user, refresh_token_handle)
+    return _token_response(tokens, user, claims)
 
 
 async def refresh_tokens(
     *,
     refresh_token: str | None = None,
-    refresh_token_handle: str | None = None,
 ) -> AuthTokenResponse:
-    if refresh_token_handle:
-        session = await get_refresh_token_session(refresh_token_handle)
-        if not session or not session.get("refresh_token"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token session",
-            )
-        refresh_token = session["refresh_token"]
     if not refresh_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing refresh token")
 
@@ -158,30 +146,17 @@ async def refresh_tokens(
     tokens = await _post_token_request(token_endpoint, form)
     claims = await _claims_from_tokens(tokens)
     user = await _load_local_user(claims)
-    if refresh_token_handle:
-        await revoke_refresh_token(refresh_token_handle)
-    refresh_token_handle = await _cache_refresh_token(tokens, user.id, claims)
-    return _token_response(tokens, user, refresh_token_handle)
+    return _token_response(tokens, user, claims)
 
 
-async def build_logout_url(
-    refresh_token: str | None = None,
-    refresh_token_handle: str | None = None,
-) -> tuple[str | None, bool]:
-    revoked = False
-    if refresh_token_handle:
-        revoked = await revoke_refresh_token(refresh_token_handle)
-    elif refresh_token:
-        session = await get_refresh_token_session(refresh_token)
-        revoked = await revoke_refresh_token(refresh_token) if session else False
-
+async def build_logout_url() -> str | None:
     metadata = await _get_oidc_metadata()
     endpoint = metadata.get("end_session_endpoint")
     if not endpoint:
-        return None, revoked
+        return None
 
     params = {"post_logout_redirect_uri": get_settings().oidc_post_logout_redirect_uri}
-    return f"{endpoint}?{urlencode(params)}", revoked
+    return f"{endpoint}?{urlencode(params)}"
 
 
 async def _post_token_request(token_endpoint: str, form: dict[str, str]) -> dict[str, Any]:
@@ -219,34 +194,43 @@ async def _claims_from_tokens(tokens: dict[str, Any]) -> dict[str, Any]:
         ) from exc
 
 
-async def _cache_refresh_token(
-    tokens: dict[str, Any],
-    user_id: int,
-    claims: dict[str, Any],
-) -> str | None:
-    refresh_token = tokens.get("refresh_token")
-    if not refresh_token:
-        return None
-
-    return await store_refresh_token(
-        user_id=user_id,
-        refresh_token=refresh_token,
-        provider=get_settings().oidc_provider,
-        provider_user_id=claims["sub"],
-    )
-
-
 def _token_response(
     tokens: dict[str, Any],
     user: User,
-    refresh_token_handle: str | None,
+    claims: dict[str, Any],
 ) -> AuthTokenResponse:
+    now = int(time())
+    expires_in = tokens.get("expires_in")
     return AuthTokenResponse(
         token_type=tokens.get("token_type", "Bearer"),
         access_token=tokens["access_token"],
-        expires_in=tokens.get("expires_in"),
+        expires_in=expires_in,
         id_token=tokens.get("id_token"),
-        refresh_token_cached=refresh_token_handle is not None,
-        refresh_token_handle=refresh_token_handle,
+        refresh_token=tokens.get("refresh_token"),
+        access_token_expires_at=now + int(expires_in) if expires_in else None,
+        id_token_expires_at=claims.get("exp"),
+        refresh_token_cached=False,
+        refresh_token_handle=None,
         user=_user_response(user),
     )
+
+
+def build_session_payload(
+    token_response: AuthTokenResponse,
+    *,
+    fallback_refresh_token: str | None = None,
+) -> dict[str, Any]:
+    refresh_token = token_response.refresh_token or fallback_refresh_token
+    return {
+        "user_id": token_response.user.id,
+        "email": token_response.user.email,
+        "name": token_response.user.name,
+        "role": token_response.user.role,
+        "status": token_response.user.status,
+        "token_type": token_response.token_type,
+        "id_token": token_response.id_token,
+        "access_token": token_response.access_token,
+        "refresh_token": refresh_token,
+        "access_token_expires_at": token_response.access_token_expires_at,
+        "id_token_expires_at": token_response.id_token_expires_at,
+    }
