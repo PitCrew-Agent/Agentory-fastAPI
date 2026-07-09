@@ -13,6 +13,8 @@ class ScenarioSpec:
     err402: bool = False  # 온도 급상승 + 압력 하강 급성 이상 → ERR-402
     variance_vars: tuple[str, ...] = ()  # 변동성(sigma) 증폭 변수 → WRN-801
     multivariate: bool = False  # rf 상승 + 온도 하강 관계 붕괴 → ERR-901
+    # 값을 밴드 밖으로 계단 이탈시킬 변수 → ERR-401/301/201·WRN-501
+    acute_vars: tuple[str, ...] = ()
 
 
 SCENARIOS: dict[str, ScenarioSpec] = {
@@ -25,6 +27,11 @@ SCENARIOS: dict[str, ScenarioSpec] = {
     "mixed_pm_demo": ScenarioSpec(drift_vars=("pressure", "rf_power")),
     "variance_increase": ScenarioSpec(variance_vars=("pressure",)),
     "multivariate_anomaly": ScenarioSpec(multivariate=True),
+    # 급성 단일변수 밴드 이탈 (참고서 §4)
+    "temperature_acute": ScenarioSpec(acute_vars=("temperature",)),  # ERR-401
+    "pressure_acute": ScenarioSpec(acute_vars=("pressure",)),  # ERR-301
+    "rf_power_acute": ScenarioSpec(acute_vars=("rf_power",)),  # ERR-201
+    "gas_flow_acute": ScenarioSpec(acute_vars=("gas_flow",)),  # WRN-501
 }
 
 NORMAL = SCENARIOS["normal"]
@@ -44,8 +51,16 @@ PRESETS: dict[str, dict[str, str]] = {
 ERR402_TEMP_RATE = 0.60  # tick당 온도 상승
 ERR402_PRESSURE_RATE = -1.30  # tick당 압력 하강
 
+# 급성·다변량 폭주 시 값이 하드리밋 밖으로 나가는 최대 폭 (하드리밋 span 대비 배수)
+# 실제 물리 범위를 벗어난 발산(예: 온도 540, 압력 -999) 방지, 현실적 고장 범위로 포화
+FAULT_OVERSHOOT = 0.5
+
+# 급성 단일변수 이상: 값을 USL 바로 바깥으로 계단 이탈 (센터·밴드는 nominal 유지)
+# 오프셋 = (USL - mu0) + band_half, 변수별 프로파일에서 파생
+
 # 변동성 증가(WRN-801): 대상 변수 sigma 증폭 배수
-VARIANCE_MULT = 2.5
+# 임계(2*sqrt2*sigma) 대비 여유를 크게 둬 최신 tick 기준에서도 알람이 안정적으로 확정되게 함
+VARIANCE_MULT = 3.5
 
 # 다변량 관계 붕괴(ERR-901): rf는 서서히 상승, 온도는 서서히 하강 (정상이면 함께 상승)
 # 밴드(3sigma) 안에 머물도록 작은 레이트 사용
