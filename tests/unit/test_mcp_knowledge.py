@@ -34,6 +34,9 @@ def _patch_pipeline(monkeypatch, store: _FakeStore, settings: Settings) -> None:
     monkeypatch.setattr(server, "get_embedder", lambda: _FakeEmbedder())
     monkeypatch.setattr(server, "PgVectorStore", lambda: store)
     monkeypatch.setattr(server, "get_settings", lambda: settings)
+    # 프로세스 싱글턴 초기화, 패치된 임베더·스토어가 검색마다 반영되도록
+    monkeypatch.setattr(server, "_embedder", None)
+    monkeypatch.setattr(server, "_store", None)
 
 
 def test_above_threshold_keeps_scores_at_or_above():

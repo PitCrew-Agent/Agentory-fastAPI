@@ -23,15 +23,22 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-5-mini"  # 기본(워커) 모델
     llm_router_model: str = ""  # Supervisor 라우팅용 모델
     llm_finalizer_model: str = ""  # 최종 답변 합성용 고성능 모델 (3단계)
-    # 라우팅 reasoning 강도, 짧은 구조화 판단이라 최소화로 지연 단축
-    llm_router_reasoning_effort: str = "minimal"
+    # 역할별 reasoning 강도, 추론 토큰 지연을 줄여 응답 속도 개선 (gpt-5 계열)
+    llm_router_reasoning_effort: str = "minimal"  # 짧은 구조화 판단
+    llm_worker_reasoning_effort: str = "minimal"  # 도구 인자 구성, 경량 판단
+    llm_finalizer_reasoning_effort: str = "low"  # 답변 합성, 품질·속도 균형
+    # 최종 답변 토큰 상한(0=무제한), 장황한 답변 방지 backstop, 간결화는 프롬프트가 주도
+    llm_finalizer_max_tokens: int = 0
 
     # Agent
-    agent_max_steps: int = 10  # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
-    agent_grounding_enabled: bool = True  # Grounding 자가 검증 on/off (NEW_TRUST02)
+    agent_max_steps: int = 4  # 전역 반복 예산 (AI_AGENT03_FALLBACK01), 과다 반복·지연 방지
+    # Grounding 자가 검증 on/off (NEW_TRUST02), off면 답변당 LLM 1회 절감
+    agent_grounding_enabled: bool = False
     agent_suggestions_enabled: bool = True  # 후속 추천 질문 생성 on/off (BE_CHAT02_SUGGEST01)
     # 도구 관찰값 프롬프트 재주입 상한, 초과분은 잘라 컨텍스트 초과 방지 (AI_AGENT03_FALLBACK01)
     agent_tool_observation_max_chars: int = 40000
+    # 멀티턴 history 로드 상한(최근 N개), 대화가 길어질수록 커지는 프롬프트 지연 방지
+    agent_history_max_messages: int = 12
 
     # 임베딩
     embedding_model: str = ""

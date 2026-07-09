@@ -17,6 +17,19 @@ mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
 # LLM이 과대 top_k를 넣는 것 방지, 튜닝 대상 아닌 정적 가드라 상수 유지
 MAX_TOP_K = 20
 
+# 임베더·스토어는 검색마다 재생성하지 않고 프로세스 단위로 재사용(클라이언트 초기화 비용 절감)
+_embedder = None
+_store = None
+
+
+def _get_search_deps():
+    global _embedder, _store
+    if _embedder is None:
+        _embedder = get_embedder()
+    if _store is None:
+        _store = PgVectorStore()
+    return _embedder, _store
+
 
 def _above_threshold(results: list[dict[str, Any]], threshold: float) -> list[dict[str, Any]]:
     # 임계값 이상만 유지, 전부 미달이면 빈 목록(관련 문서 없음)
@@ -42,8 +55,7 @@ async def search_manuals(
     resolved_top_k = settings.rag_search_top_k if top_k is None else top_k
     if not 1 <= resolved_top_k <= MAX_TOP_K:
         raise ValueError(f"top_k는 1 이상 {MAX_TOP_K} 이하여야 함")
-    embedder = get_embedder()
-    store = PgVectorStore()
+    embedder, store = _get_search_deps()
     [embedding] = await embedder.embed([query])
     results = await store.search(embedding, top_k=resolved_top_k, equipment_type=equipment_type)
     return _above_threshold(results, threshold=settings.rag_search_min_score)

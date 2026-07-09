@@ -22,7 +22,15 @@ def get_chat_model(role: str = "worker") -> BaseChatModel:
     }
     model = by_role.get(role) or settings.llm_model
     kwargs: dict = {"model": model, "api_key": settings.openai_api_key}
-    # 라우팅은 짧은 구조화 판단, reasoning 강도 낮춰 매 턴 지연 단축
-    if role == "router" and settings.llm_router_reasoning_effort:
-        kwargs["reasoning_effort"] = settings.llm_router_reasoning_effort
+    # 역할별 reasoning 강도, 추론 토큰 지연을 줄여 응답 속도 단축 (gpt-5 계열)
+    effort = {
+        "router": settings.llm_router_reasoning_effort,
+        "worker": settings.llm_worker_reasoning_effort,
+        "finalizer": settings.llm_finalizer_reasoning_effort,
+    }.get(role)
+    if effort:
+        kwargs["reasoning_effort"] = effort
+    # 최종 답변만 토큰 상한 적용(0=무제한), 장황한 답변 backstop
+    if role == "finalizer" and settings.llm_finalizer_max_tokens:
+        kwargs["max_tokens"] = settings.llm_finalizer_max_tokens
     return ChatOpenAI(**kwargs)
