@@ -14,6 +14,7 @@ from agentory.modules.telemetry import service
 from agentory.modules.telemetry.schemas import (
     EquipmentDetail,
     EquipmentStatusItem,
+    EquipmentSuggestionsResponse,
     LineItem,
     SensorPoint,
 )
@@ -48,6 +49,18 @@ async def equipment_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
     return detail
+
+
+@router.get("/equipment/{equipment_id}/suggestions", response_model=EquipmentSuggestionsResponse)
+async def equipment_suggestions(
+    equipment_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> EquipmentSuggestionsResponse:
+    # 선택 설비의 현재 상태 기반 챗봇 추천 메시지 3개 (NEW_TWIN01_SUGGEST01), 장비 클릭 시 호출
+    suggestions = await service.get_equipment_suggestions(session, equipment_id)
+    if suggestions is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return EquipmentSuggestionsResponse(suggestions=suggestions)
 
 
 @router.post("/equipment/{equipment_id}/clear-alarm", response_model=EquipmentDetail)

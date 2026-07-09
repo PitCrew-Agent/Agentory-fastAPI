@@ -67,6 +67,11 @@ class EquipmentDetail(BaseModel):
     checklist: list[ChecklistItem] = []
 
 
+class EquipmentSuggestionsResponse(BaseModel):
+    # 선택 설비 상태 기반 챗봇 추천 메시지 (NEW_TWIN01_SUGGEST01), 3개, 생성 실패 시 빈 목록
+    suggestions: list[str] = []
+
+
 class SensorPoint(BaseModel):
     # 시계열 그래프 한 점 (설비 센서 스냅샷, 그래프 위젯용)
     timestamp: datetime
