@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.core.config import get_settings
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 
 
@@ -43,13 +44,9 @@ async def fetch_sensor_logs(
 ) -> list[dict[str, Any]]:
     # 센서 로그 조회 (BE_MCP02_TELEMETRY01)
     # 지정 기간 필터 + 시간순 정렬
-    stmt = (
-        select(EquipmentTelemetry)
-        .where(
-            EquipmentTelemetry.timestamp >= start_time,
-            EquipmentTelemetry.timestamp <= end_time,
-        )
-        .order_by(EquipmentTelemetry.timestamp)
+    stmt = select(EquipmentTelemetry).where(
+        EquipmentTelemetry.timestamp >= start_time,
+        EquipmentTelemetry.timestamp <= end_time,
     )
     if equipment_id:
         # 단일 설비로 좁힘
@@ -61,7 +58,13 @@ async def fetch_sensor_logs(
         )
         stmt = stmt.where(EquipmentTelemetry.equipment_id.in_(line_equipment))
 
-    rows = await session.scalars(stmt)
+    # 행수 상한(BE_MCP02_TELEMETRY01), 대용량 구간 조회가 LLM 컨텍스트를 넘기지 않도록
+    # 최근 행 우선으로 LIMIT 후 시간 오름차순으로 되돌려 반환
+    limit = get_settings().sensor_log_max_rows
+    stmt = stmt.order_by(EquipmentTelemetry.timestamp.desc()).limit(limit)
+
+    rows = list(await session.scalars(stmt))
+    rows.reverse()
     # 결과 없으면 빈 목록 반환
     return [_telemetry_to_dict(r) for r in rows]
 
