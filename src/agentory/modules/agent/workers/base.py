@@ -20,6 +20,19 @@ log = logging.getLogger(__name__)
 
 NodeFn = Callable[[AgentState], Awaitable[dict[str, Any]]]
 
+
+def _truncate_observation(content: str) -> str:
+    # 관찰값 프롬프트 재주입 상한 적용(AI_AGENT03_FALLBACK01), 대용량 도구 결과가
+    # 다음 LLM 호출 컨텍스트를 넘겨 실패시키지 않도록 초과분을 잘라 안내 문구 부착
+    from agentory.core.config import get_settings
+
+    limit = get_settings().agent_tool_observation_max_chars
+    if len(content) <= limit:
+        return content
+    omitted = len(content) - limit
+    return f"{content[:limit]}\n... (결과 과다로 {omitted}자 생략, 조회 범위를 좁혀 재시도 권장)"
+
+
 WORKER_PROMPT_TEMPLATE = """{system_prompt}
 
 [현재 시각(UTC)]
@@ -86,6 +99,7 @@ def build_react_worker(
                     # 도구 폴백(AI_AGENT03_FALLBACK01): 실패를 Observation으로 주입해 대안 유도
                     log.warning("[agent:%s] 도구 %s 실행 실패: %s", name, call["name"], exc)
                     content = f"오류: 도구 실행 실패 ({exc})"
+            content = _truncate_observation(content)
             new_sigs.append(sig)
             entities = merge_entities(entities, extract_entities(content))
             results.append(ToolMessage(content=content, tool_call_id=call["id"], name=call["name"]))

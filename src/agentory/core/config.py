@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     agent_max_steps: int = 10  # 전역 반복 예산 (AI_AGENT03_FALLBACK01)
     agent_grounding_enabled: bool = True  # Grounding 자가 검증 on/off (NEW_TRUST02)
     agent_suggestions_enabled: bool = True  # 후속 추천 질문 생성 on/off (BE_CHAT02_SUGGEST01)
+    # 도구 관찰값 프롬프트 재주입 상한, 초과분은 잘라 컨텍스트 초과 방지 (AI_AGENT03_FALLBACK01)
+    agent_tool_observation_max_chars: int = 40000
 
     # 임베딩
     embedding_model: str = ""
@@ -42,6 +44,8 @@ class Settings(BaseSettings):
     # MCP 서버
     mcp_realtime_url: str = "http://localhost:8101/mcp"
     mcp_knowledge_url: str = "http://localhost:8102/mcp"
+    # 센서 로그 단일 조회 최대 행수, 초과 시 최근 행 우선 반환 (BE_MCP02_TELEMETRY01)
+    sensor_log_max_rows: int = 500
 
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"
