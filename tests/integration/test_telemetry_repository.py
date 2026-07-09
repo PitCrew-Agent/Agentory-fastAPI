@@ -135,6 +135,8 @@ async def test_get_equipment_detail_merges_meta_and_latest(seeded_session):
     assert detail.updated_at is not None
     # 위험이면 조치 체크리스트 존재
     assert detail.checklist
+    # ERR-402(냉각 급성)는 온도·압력이 원인 변수 (프론트 타일 강조용)
+    assert detail.alarm_metrics == ["temperature", "pressure"]
 
 
 async def test_get_equipment_detail_not_found(seeded_session):

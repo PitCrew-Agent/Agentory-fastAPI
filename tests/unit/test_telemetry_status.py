@@ -3,11 +3,13 @@
 import pytest
 
 from agentory.modules.telemetry.checklists import (
+    ALARM_METRICS,
     CHECKLIST_TEMPLATES,
     COMMON_ITEMS,
+    alarm_metrics,
     build_checklist_items,
 )
-from agentory.modules.telemetry.schemas import StatusLevel
+from agentory.modules.telemetry.schemas import SensorPoint, StatusLevel
 from agentory.modules.telemetry.service import assess_status
 
 
@@ -59,3 +61,28 @@ def test_all_known_codes_have_nonempty_template():
     # 등록 코드 전부 특화 항목 보유
     for code, items in CHECKLIST_TEMPLATES.items():
         assert items, f"{code} 템플릿 비어 있음"
+
+
+@pytest.mark.parametrize(
+    "alarm_code, expected",
+    [
+        (None, []),
+        ("", []),
+        ("ERR-401", ["temperature"]),
+        ("WRN-702", ["pressure"]),
+        ("ERR-402", ["temperature", "pressure"]),
+        ("ERR-901", ["rf_power", "temperature"]),
+        ("WRN-801", []),  # 변동성은 특정 변수 미지정
+        ("XYZ-000", []),  # 미등록 코드
+    ],
+)
+def test_alarm_metrics_by_code(alarm_code, expected):
+    assert alarm_metrics(alarm_code) == expected
+
+
+def test_alarm_metrics_keys_match_sensor_fields():
+    # 원인 변수 키가 실제 센서 필드명과 일치해야 프론트 타일 매핑 가능
+    sensor_fields = set(SensorPoint.model_fields) - {"timestamp"}
+    for code, metrics in ALARM_METRICS.items():
+        for metric in metrics:
+            assert metric in sensor_fields, f"{code} 원인 변수 {metric} 센서 필드 아님"
