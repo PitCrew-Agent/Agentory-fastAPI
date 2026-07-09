@@ -26,11 +26,13 @@ async def get_graph():
     return _graph
 
 
-def initial_state(query: str, history: list) -> dict[str, Any]:
+def initial_state(query: str, history: list, equipment_id: str | None = None) -> dict[str, Any]:
     # 이전 대화(history) 뒤에 이번 질의를 붙여 초기 상태 구성
+    # 선택 설비가 있으면 컨텍스트 장부에 시드해 라우터·워커·추천이 인지 (NEW_TWIN01_CHATCTX01)
+    entities: dict[str, Any] = {"equipment_ids": [equipment_id]} if equipment_id else {}
     return {
         "messages": [*history, HumanMessage(content=query)],
-        "entities": {},
+        "entities": entities,
         "step_count": 0,
         "tool_history": [],
         "next": "",
