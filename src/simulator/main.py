@@ -1,9 +1,10 @@
 """센서 데이터 시뮬레이터 (BE_SIM01_GEN01)
 
 실행: uv run simulator [--scenario ...] [--interval N] [--iterations N]
-      [--target EQP-003] [--drift-start N]
+      [--target EQP-003] [--drift-start N] [--preset floor_demo] [--gain 5]
 equipment_masters의 설비 목록을 대상으로 주기적으로 센서값을 생성해 equipment_telemetries에 적재
 시나리오는 대상 설비에만 적용, 나머지 설비는 normal로 생성
+preset 지정 시 설비별로 서로 다른 시나리오 배치, gain은 데모용 드리프트 증폭 배수
 1 tick 스파이크는 대표 알람 보류, 연속 2 tick 이상 지속한 후보만 알람으로 저장 (참고서 §7)
 골든 E2E 테스트는 --iterations 유한 모드로 시나리오를 결정론적으로 주입
 """
@@ -23,7 +24,7 @@ from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 from simulator.generator import SensorReading, generate_reading
-from simulator.scenarios import NORMAL, SCENARIOS
+from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 log = logging.getLogger("simulator")
 
@@ -38,8 +39,10 @@ class ScenarioConfig:
     name: str = "normal"
     interval_seconds: float = 5.0
     iterations: int | None = None  # None이면 무한 반복
-    target_equipment_id: str = "EQP-003"  # 시나리오 적용 대상
+    target_equipment_id: str = "EQP-003"  # 단일 시나리오 적용 대상 (preset 미사용 시)
     drift_start_tick: int = DRIFT_START_DEFAULT
+    preset: str | None = None  # 다중 설비 시나리오 배치, 지정 시 target/scenario 대신 우선
+    gain: float = 1.0  # PM 드리프트 증폭 배수, 데모 가시성 조절
 
 
 async def _load_equipment(session_factory: async_sessionmaker) -> list[tuple[str, str]]:
@@ -98,6 +101,8 @@ async def run_simulation(
 ) -> None:
     rng = random.Random()
     scenario = SCENARIOS[config.name]
+    # preset 지정 시 설비별 시나리오 맵, 미지정 설비는 normal
+    scenario_map = PRESETS[config.preset] if config.preset else None
     prev_candidate: dict[str, str | None] = {}  # 설비별 직전 tick 후보 알람
     history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
     tick = 0
@@ -112,8 +117,11 @@ async def run_simulation(
 
         readings = []
         for equipment_id, process_type in equipment:
-            # 시나리오는 대상 설비에만 적용, 나머지는 정상
-            spec = scenario if equipment_id == config.target_equipment_id else NORMAL
+            # preset이면 설비별 배치, 아니면 단일 target에만 시나리오 적용 후 나머지 정상
+            if scenario_map is not None:
+                spec = SCENARIOS[scenario_map.get(equipment_id, "normal")]
+            else:
+                spec = scenario if equipment_id == config.target_equipment_id else NORMAL
             window = history.setdefault(equipment_id, deque(maxlen=8))
             reading = generate_reading(
                 equipment_id,
@@ -122,6 +130,7 @@ async def run_simulation(
                 tick=tick,
                 drift_start_tick=config.drift_start_tick,
                 history=list(window),
+                gain=config.gain,
                 rng=rng,
             )
             window.append(reading)
@@ -129,7 +138,8 @@ async def run_simulation(
             readings.append(reading)
 
         inserted = await _persist(session_factory, readings)
-        log.info("[simulator] tick %d, %d건 적재 (scenario=%s)", tick, inserted, config.name)
+        mode = f"preset={config.preset}" if config.preset else f"scenario={config.name}"
+        log.info("[simulator] tick %d, %d건 적재 (%s)", tick, inserted, mode)
 
         tick += 1
         if config.iterations is None or tick < config.iterations:
@@ -145,6 +155,10 @@ def _parse_args() -> ScenarioConfig:
     parser.add_argument(
         "--drift-start", type=int, default=DRIFT_START_DEFAULT, help="드리프트 시작 tick"
     )
+    parser.add_argument(
+        "--preset", default=None, choices=list(PRESETS), help="다중 설비 시나리오 배치"
+    )
+    parser.add_argument("--gain", type=float, default=1.0, help="PM 드리프트 증폭 배수")
     args = parser.parse_args()
     return ScenarioConfig(
         name=args.scenario,
@@ -152,6 +166,8 @@ def _parse_args() -> ScenarioConfig:
         iterations=args.iterations,
         target_equipment_id=args.target,
         drift_start_tick=args.drift_start,
+        preset=args.preset,
+        gain=args.gain,
     )
 
 

@@ -85,8 +85,9 @@ def _dec(value: float) -> Decimal:
     return Decimal(str(value)).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
-def _drift_rate(var: str, scenario: ScenarioSpec, spec: VariableSpec) -> float:
-    # 시나리오별 변수 드리프트 레이트 결정
+def _drift_rate(var: str, scenario: ScenarioSpec, spec: VariableSpec, gain: float = 1.0) -> float:
+    # 시나리오별 변수 드리프트 레이트 결정, gain은 느린 PM 드리프트(WRN-70x)에만 적용
+    # err402·다변량 레이트는 이미 급격하므로 gain 미적용 (1 tick 폭주 방지)
     if scenario.err402 and var == "temperature":
         return ERR402_TEMP_RATE
     if scenario.err402 and var == "pressure":
@@ -96,7 +97,7 @@ def _drift_rate(var: str, scenario: ScenarioSpec, spec: VariableSpec) -> float:
     if scenario.multivariate and var == "temperature":
         return MULTIVAR_TEMP_RATE
     if var in scenario.drift_vars:
-        return spec.drift_rate
+        return spec.drift_rate * gain
     return 0.0
 
 
@@ -157,12 +158,14 @@ def generate_reading(
     tick: int = 0,
     drift_start_tick: int = 0,
     history: list[SensorReading] | None = None,
+    gain: float = 1.0,
     rng: random.Random,
 ) -> SensorReading:
     """단일 설비 센서값 1건 생성 + 해당 tick 후보 알람 판정
 
     scenario의 드리프트 대상 변수는 중심선이 tick에 따라 이동, 나머지는 mu0 유지
     variance_vars 변수는 sigma를 증폭해 변동성 증가를 모사, history는 WRN-801 판정용 최근값
+    gain은 PM 드리프트 레이트 배수로 데모 가시성 조절 (기본 1.0=실측 프로파일 그대로)
     """
     profile = get_profile(process_type)
     active = tick >= drift_start_tick
@@ -171,8 +174,11 @@ def generate_reading(
 
     for var in VARS:
         spec = getattr(profile, var)
-        drift = _drift_rate(var, scenario, spec) * max(0, tick - drift_start_tick)
+        drift = _drift_rate(var, scenario, spec, gain) * max(0, tick - drift_start_tick)
         center = spec.mu0 + drift
+        # PM 드리프트는 밴드가 하드리밋 회랑 소진 시 포화, 값 과주행 방지 (err402·다변량 미포화)
+        if var in scenario.drift_vars:
+            center = min(max(center, spec.lsl + spec.band_half), spec.usl - spec.band_half)
         # 변동성 시나리오 대상 변수는 sigma 증폭 (밴드는 nominal 유지)
         sigma = spec.sigma * (VARIANCE_MULT if active and var in scenario.variance_vars else 1.0)
         value = center + rng.gauss(0, sigma)

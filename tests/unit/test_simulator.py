@@ -10,7 +10,7 @@ from collections import deque
 from decimal import Decimal
 
 from simulator.generator import ERR402, generate_reading
-from simulator.scenarios import NORMAL, SCENARIOS
+from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 
 def _rng() -> random.Random:
@@ -96,3 +96,57 @@ def test_drift_scenarios_do_not_false_trigger_variance():
     # 드리프트는 중심선 이동일 뿐이라 변동성(WRN-801) 오탐이 없어야 함 (1차 차분 판정)
     for name in ("pressure_drift_pm", "gas_flow_drift_pm"):
         assert "WRN-801" not in _run_scenario(name)
+
+
+def test_gain_accelerates_pm_drift():
+    # gain 배수는 PM 드리프트를 가속해 같은 tick에서 더 이른 WRN 진입·더 큰 변위 유도
+    scenario = SCENARIOS["pressure_drift_pm"]
+    early = 6
+    base = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=early, drift_start_tick=0, rng=_rng()
+    )
+    boosted = generate_reading(
+        "EQP-002",
+        "Etching",
+        scenario=scenario,
+        tick=early,
+        drift_start_tick=0,
+        gain=5.0,
+        rng=_rng(),
+    )
+    assert base.alarm_code is None  # gain 1.0은 아직 회랑 미소진
+    assert boosted.alarm_code == "WRN-702"  # gain 5.0은 조기 진입
+    assert boosted.pressure > base.pressure
+
+
+def test_gain_default_keeps_baseline_behavior():
+    # gain 미지정은 1.0 기본이라 기존 판정과 동일
+    scenario = SCENARIOS["pressure_drift_pm"]
+    default = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=25, drift_start_tick=0, rng=_rng()
+    )
+    explicit = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=25, drift_start_tick=0, gain=1.0, rng=_rng()
+    )
+    assert default.alarm_code == explicit.alarm_code == "WRN-702"
+    assert default.pressure == explicit.pressure
+
+
+def test_gain_excludes_err402_and_multivariate():
+    # err402·다변량 레이트는 gain 미적용이라 온도 변위가 gain에 불변
+    scenario = SCENARIOS["err402_temp_rise"]
+    g1 = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=5, drift_start_tick=0, rng=_rng()
+    )
+    g5 = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=5, drift_start_tick=0, gain=5.0, rng=_rng()
+    )
+    assert g1.temperature == g5.temperature
+
+
+def test_floor_demo_preset_covers_alarm_families():
+    # 데모 preset은 급성 이상(ERR-402) 1종 + 4개 센서별 드리프트 경고를 모두 포함
+    assigned = [SCENARIOS[name] for name in PRESETS["floor_demo"].values()]
+    assert any(s.err402 for s in assigned)
+    drift_vars = {v for s in assigned for v in s.drift_vars}
+    assert drift_vars == {"temperature", "pressure", "rf_power", "gas_flow"}
