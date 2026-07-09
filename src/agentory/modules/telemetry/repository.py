@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
@@ -121,26 +121,69 @@ async def fetch_latest_telemetry(session: AsyncSession, equipment_id: str) -> di
     return _telemetry_to_dict(row) if row else None
 
 
+def _severity_rank(alarm_code):
+    # 알람 심각도 순위 (ERR 위험=2 > WRN 주의=1), 래치 시 최고 심각도 채택용
+    return case((alarm_code.like("ERR%"), 2), else_=1)
+
+
+def _latched_where(t, m):
+    # 확정 알람 중 해제 시각(alarm_cleared_at) 이후만 유효, NULL 해제는 전체 이력 반영
+    return (
+        t.alarm_code.is_not(None),
+        or_(m.alarm_cleared_at.is_(None), t.timestamp > m.alarm_cleared_at),
+    )
+
+
+async def fetch_latched_alarm(session: AsyncSession, equipment_id: str) -> str | None:
+    # 단일 설비의 래치된 알람 코드 (NEW_LOOP01_LATCH01)
+    # 해제 시각 이후 확정 알람 중 최고 심각도·최신 코드, 없으면 None(양호)
+    m = EquipmentMaster
+    t = EquipmentTelemetry
+    stmt = (
+        select(t.alarm_code)
+        .join(m, m.equipment_id == t.equipment_id)
+        .where(t.equipment_id == equipment_id, *_latched_where(t, m))
+        .order_by(_severity_rank(t.alarm_code).desc(), t.timestamp.desc())
+        .limit(1)
+    )
+    return await session.scalar(stmt)
+
+
+async def clear_equipment_alarm(session: AsyncSession, equipment_id: str) -> bool:
+    # 알람 래치 해제(현장 점검·수리 반영), 해제 시각·점검일 갱신, 대상 없으면 False
+    # commit은 서비스 계층 담당 (get_session 자동 커밋 없음)
+    stmt = (
+        update(EquipmentMaster)
+        .where(EquipmentMaster.equipment_id == equipment_id)
+        .values(alarm_cleared_at=func.now(), last_inspection_at=func.current_date())
+    )
+    result = await session.execute(stmt)
+    return result.rowcount > 0
+
+
 async def fetch_latest_status_rows(
     session: AsyncSession, *, line_name: str | None = None
 ) -> list[dict[str, Any]]:
-    # 전체 설비의 최신 alarm_code (NEW_TWIN01_SYNC01), 텔레메트리 없는 설비도 포함
-    # line_name 지정 시 해당 라인 설비만 (3D 뷰 라인 전환용)
-    # 설비별 최신 텔레메트리를 DISTINCT ON으로 한 건씩 추림
-    latest = (
-        select(EquipmentTelemetry.equipment_id, EquipmentTelemetry.alarm_code)
-        .distinct(EquipmentTelemetry.equipment_id)
-        .order_by(EquipmentTelemetry.equipment_id, EquipmentTelemetry.timestamp.desc())
+    # 전체 설비의 래치된 상태 (NEW_TWIN01_SYNC01 / NEW_LOOP01_LATCH01), 텔레메트리 없는 설비도 포함
+    # 한 번 확정된 알람은 점검(alarm_cleared_at) 전까지 유지, 최신 tick이 정상이어도 sticky
+    # 설비별로 해제 시각 이후 확정 알람 중 최고 심각도·최신 코드를 DISTINCT ON으로 한 건씩 추림
+    m = EquipmentMaster
+    t = EquipmentTelemetry
+    latched = (
+        select(t.equipment_id, t.alarm_code)
+        .distinct(t.equipment_id)
+        .join(m, m.equipment_id == t.equipment_id)
+        .where(*_latched_where(t, m))
+        .order_by(t.equipment_id, _severity_rank(t.alarm_code).desc(), t.timestamp.desc())
         .subquery()
     )
-    # 마스터 기준 좌외부조인, 로그 없는 설비는 alarm_code NULL(정상)
+    # 마스터 기준 좌외부조인, 래치 알람 없는 설비는 alarm_code NULL(정상)
     # 3D 배치값(위치·회전·shape 등)을 함께 반환해 프론트가 상태 색상과 배치를 한 번에 렌더
-    m = EquipmentMaster
     stmt = (
         select(
             m.equipment_id,
             m.line_name,
-            latest.c.alarm_code,
+            latched.c.alarm_code,
             m.display_order,
             m.shape,
             m.bay_zone,
@@ -149,7 +192,7 @@ async def fetch_latest_status_rows(
             m.position_z,
             m.rotation_y,
         )
-        .outerjoin(latest, m.equipment_id == latest.c.equipment_id)
+        .outerjoin(latched, m.equipment_id == latched.c.equipment_id)
         .order_by(m.line_name, m.display_order, m.equipment_id)
     )
     if line_name:
