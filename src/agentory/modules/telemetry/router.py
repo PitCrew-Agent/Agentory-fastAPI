@@ -50,6 +50,18 @@ async def equipment_detail(
     return detail
 
 
+@router.post("/equipment/{equipment_id}/clear-alarm", response_model=EquipmentDetail)
+async def clear_alarm(
+    equipment_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> EquipmentDetail:
+    # 알람 래치 해제(현장 점검·수리 완료 반영), 해제 후 갱신된 상세 반환 (NEW_LOOP01_LATCH01)
+    detail = await service.clear_equipment_alarm(session, equipment_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return detail
+
+
 @router.get("/equipment/{equipment_id}/series", response_model=list[SensorPoint])
 async def equipment_series(
     equipment_id: str,

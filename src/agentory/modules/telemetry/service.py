@@ -113,9 +113,9 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
     if not metas:
         return None
     meta = metas[0]
-    # 최신 텔레메트리 1건으로 상태·센서·체크리스트 구성
+    # 센서값은 실시간 최신 1건, 상태·알람은 래치값(점검 전까지 유지)으로 분리 구성
     latest = await repository.fetch_latest_telemetry(session, equipment_id)
-    alarm_code = latest["alarm_code"] if latest else None
+    alarm_code = await repository.fetch_latched_alarm(session, equipment_id)
     checklist = [ChecklistItem(text=t) for t in build_checklist_items(alarm_code)]
     return EquipmentDetail(
         equipment_id=equipment_id,
@@ -131,3 +131,12 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
         gas_flow=latest["gas_flow"] if latest else None,
         checklist=checklist,
     )
+
+
+async def clear_equipment_alarm(session: AsyncSession, equipment_id: str) -> EquipmentDetail | None:
+    # 알람 래치 해제(현장 점검·수리 완료), 미존재 설비는 None(라우터 404)
+    # 해제 후 갱신된 상세 반환, 이상 신호가 지속되면 다음 tick에 다시 래치됨
+    if not await repository.clear_equipment_alarm(session, equipment_id):
+        return None
+    await session.commit()  # 쓰기 경로 명시적 commit (get_session 자동 커밋 없음)
+    return await get_equipment_detail(session, equipment_id)

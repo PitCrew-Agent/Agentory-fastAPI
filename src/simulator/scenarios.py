@@ -33,17 +33,16 @@ NORMAL = SCENARIOS["normal"]
 # 3D 씬에서 정상 다수 + 서로 다른 경고 + 이상 1종이 한눈에 갈리도록 라인별 분산
 PRESETS: dict[str, dict[str, str]] = {
     "floor_demo": {
-        "EQP-C03": "err402_temp_rise",  # ERR-402 냉각 급성 이상, 온도 한계 돌파 빨강
-        "EQP-A03": "temperature_drift_pm",  # WRN-701 온도 드리프트
-        "EQP-B04": "pressure_drift_pm",  # WRN-702 압력 드리프트
-        "EQP-A05": "rf_power_drift_pm",  # WRN-703 rf 드리프트
-        "EQP-B05": "gas_flow_drift_pm",  # WRN-704 가스 드리프트
+        "EQP-A05": "err402_temp_rise",  # ERR-402 냉각 급성 이상, 온도 한계 돌파 빨강(위험)
+        "EQP-A03": "pressure_drift_pm",  # WRN-702 압력 드리프트(주의)
+        "EQP-B04": "gas_flow_drift_pm",  # WRN-704 가스유량 드리프트(주의)
+        "EQP-C03": "temperature_drift_pm",  # WRN-701 온도 드리프트(주의)
     },
 }
 
 # err402 시나리오의 온도 상승·압력 하강 레이트
 ERR402_TEMP_RATE = 0.60  # tick당 온도 상승
-ERR402_PRESSURE_RATE = -1.00  # tick당 압력 하강
+ERR402_PRESSURE_RATE = -1.30  # tick당 압력 하강
 
 # 변동성 증가(WRN-801): 대상 변수 sigma 증폭 배수
 VARIANCE_MULT = 2.5

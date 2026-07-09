@@ -34,6 +34,9 @@ class EquipmentMaster(Base):
     manager_dept: Mapped[str | None] = mapped_column(String(50))  # 책임 부서
     manager_name: Mapped[str | None] = mapped_column(String(50))  # 책임자 이름
     last_inspection_at: Mapped[date | None] = mapped_column(Date)  # 마지막 점검일
+    # 알람 래치 해제 기준 시각(NEW_LOOP01_LATCH01), 이 시각 이후 확정 알람만 상태에 반영
+    # NULL은 해제 이력 없음(전체 이력 반영), 현장 점검·수리 시 해당 시각으로 갱신
+    alarm_cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 3D 트윈 뷰 배치값 (NEW_TWIN01_SCENE01), 프론트가 라인·설비 위치를 그대로 재현
     display_order: Mapped[int | None] = mapped_column(Integer)  # 라인 내 표시 순서

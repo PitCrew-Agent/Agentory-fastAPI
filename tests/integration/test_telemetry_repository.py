@@ -188,3 +188,56 @@ async def test_get_sensor_series_empty_window(seeded_session):
 async def test_get_sensor_series_not_found(seeded_session):
     # 미존재 설비는 None (라우터 404)
     assert await service.get_sensor_series(seeded_session, "NO-SUCH") is None
+
+
+async def test_latched_status_holds_after_recovery(seeded_session):
+    # 최신 tick이 정상으로 돌아와도 확정 알람은 점검 전까지 유지(래치)
+    seeded_session.add(
+        EquipmentTelemetry(
+            equipment_id=EQP,
+            timestamp=T0.replace(minute=45),
+            temperature=Decimal("42.0"),
+            pressure=Decimal("1.00"),
+            alarm_code=None,  # 신호 정상 복귀
+        )
+    )
+    await seeded_session.flush()
+    # 상태 목록·상세 모두 래치로 위험 유지
+    rows = await repository.fetch_latest_status_rows(seeded_session, line_name=LINE)
+    row = next(r for r in rows if r["equipment_id"] == EQP)
+    assert row["alarm_code"] == "ERR-402"
+    detail = await service.get_equipment_detail(seeded_session, EQP)
+    assert detail is not None
+    assert detail.status == StatusLevel.CRITICAL
+    assert detail.temperature == 42.0  # 센서값은 실시간 최신 정상값
+
+
+async def test_latched_status_prefers_higher_severity(seeded_session):
+    # 해제 구간에 WRN과 ERR이 섞이면 더 심각한 ERR로 래치(최신이 WRN이어도)
+    seeded_session.add(
+        EquipmentTelemetry(
+            equipment_id=EQP,
+            timestamp=T0.replace(minute=50),
+            temperature=Decimal("60.0"),
+            pressure=Decimal("1.00"),
+            alarm_code="WRN-701",
+        )
+    )
+    await seeded_session.flush()
+    assert await repository.fetch_latched_alarm(seeded_session, EQP) == "ERR-402"
+
+
+async def test_clear_alarm_resets_latch(seeded_session):
+    # 점검·수리(clear)로 래치 해제 시 이후 상태가 양호로 복귀 (해제 시각 이후 알람만 유효)
+    assert await repository.clear_equipment_alarm(seeded_session, EQP) is True
+    await seeded_session.flush()
+    assert await repository.fetch_latched_alarm(seeded_session, EQP) is None
+    rows = await repository.fetch_latest_status_rows(seeded_session, line_name=LINE)
+    row = next(r for r in rows if r["equipment_id"] == EQP)
+    assert row["alarm_code"] is None
+
+
+async def test_clear_alarm_missing_equipment(seeded_session):
+    # 미존재 설비 해제는 False (라우터 404 유도)
+    assert await repository.clear_equipment_alarm(seeded_session, "NO-SUCH") is False
+    assert await service.clear_equipment_alarm(seeded_session, "NO-SUCH") is None
