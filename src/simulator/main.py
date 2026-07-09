@@ -138,7 +138,8 @@ async def run_simulation(
             readings.append(reading)
 
         inserted = await _persist(session_factory, readings)
-        log.info("[simulator] tick %d, %d건 적재 (scenario=%s)", tick, inserted, config.name)
+        mode = f"preset={config.preset}" if config.preset else f"scenario={config.name}"
+        log.info("[simulator] tick %d, %d건 적재 (%s)", tick, inserted, mode)
 
         tick += 1
         if config.iterations is None or tick < config.iterations:
