@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.telemetry import repository
-from agentory.modules.telemetry.checklists import build_checklist_items
+from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist_items
 from agentory.modules.telemetry.schemas import (
     ChecklistItem,
     EquipmentDetail,
@@ -121,6 +121,7 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
         equipment_id=equipment_id,
         status=assess_status(alarm_code),
         alarm_code=alarm_code,
+        alarm_metrics=alarm_metrics(alarm_code),
         process_type=meta["process_type"],
         manager_name=meta["manager_name"],
         last_inspection_at=meta["last_inspection_at"],

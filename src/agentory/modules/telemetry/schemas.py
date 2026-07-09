@@ -50,6 +50,9 @@ class EquipmentDetail(BaseModel):
     equipment_id: str
     status: StatusLevel
     alarm_code: str | None = None
+    # 알람 원인 센서 변수 키 (temperature/pressure/rf_power/gas_flow), 프론트가 해당 타일 강조
+    # 양호·변동성(WRN-801) 등 특정 변수 미지정 시 빈 목록
+    alarm_metrics: list[str] = []
     # 설비 메타 (equipment_masters), 설비 유형은 현재 전부 식각
     process_type: str
     manager_name: str | None = None
