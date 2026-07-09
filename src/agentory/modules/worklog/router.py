@@ -33,8 +33,9 @@ async def create_work_log(
     session: AsyncSession = Depends(get_session),
 ) -> WorkLogItem:
     # 작성자=소유자, 진행자 이름은 로그인 사용자에서 자동
+    # 소유자 식별자는 세션 사용자 dict의 email (sub 미포함, chat 모듈과 동일 기준)
     return await service.create_work_log(
-        session, payload, owner_sub=user["sub"], worker_name=user["name"]
+        session, payload, owner_sub=user["email"], worker_name=user["name"]
     )
 
 
@@ -48,7 +49,7 @@ async def update_work_log(
     # 소유자만 수정(403), 미존재 404
     try:
         item = await service.update_work_log(
-            session, work_log_id, payload, requester_sub=user["sub"]
+            session, work_log_id, payload, requester_sub=user["email"]
         )
     except PermissionError:
         raise HTTPException(status_code=403, detail="본인 작업 로그만 수정 가능") from None
@@ -65,7 +66,7 @@ async def delete_work_log(
 ) -> None:
     # 소유자만 삭제(403, soft delete), 미존재 404
     try:
-        deleted = await service.delete_work_log(session, work_log_id, requester_sub=user["sub"])
+        deleted = await service.delete_work_log(session, work_log_id, requester_sub=user["email"])
     except PermissionError:
         raise HTTPException(status_code=403, detail="본인 작업 로그만 삭제 가능") from None
     if not deleted:
