@@ -190,8 +190,8 @@ async def test_get_sensor_series_not_found(seeded_session):
     assert await service.get_sensor_series(seeded_session, "NO-SUCH") is None
 
 
-async def test_latched_status_holds_after_recovery(seeded_session):
-    # 최신 tick이 정상으로 돌아와도 확정 알람은 점검 전까지 유지(래치)
+async def test_status_follows_latest_tick_on_recovery(seeded_session):
+    # 최신 tick이 정상으로 복귀하면 상태 목록·상세 모두 양호로 즉시 반영(실시간 기준)
     seeded_session.add(
         EquipmentTelemetry(
             equipment_id=EQP,
@@ -202,14 +202,15 @@ async def test_latched_status_holds_after_recovery(seeded_session):
         )
     )
     await seeded_session.flush()
-    # 상태 목록·상세 모두 래치로 위험 유지
+    # 3D 뷰 상태는 최신 tick 기준이라 알람 없음(양호)
     rows = await repository.fetch_latest_status_rows(seeded_session, line_name=LINE)
     row = next(r for r in rows if r["equipment_id"] == EQP)
-    assert row["alarm_code"] == "ERR-402"
+    assert row["alarm_code"] is None
     detail = await service.get_equipment_detail(seeded_session, EQP)
     assert detail is not None
-    assert detail.status == StatusLevel.CRITICAL
-    assert detail.temperature == 42.0  # 센서값은 실시간 최신 정상값
+    assert detail.status == StatusLevel.NORMAL
+    assert detail.alarm_code is None
+    assert detail.temperature == 42.0  # 센서값도 실시간 최신 정상값
 
 
 async def test_latched_status_prefers_higher_severity(seeded_session):
@@ -227,14 +228,16 @@ async def test_latched_status_prefers_higher_severity(seeded_session):
     assert await repository.fetch_latched_alarm(seeded_session, EQP) == "ERR-402"
 
 
-async def test_clear_alarm_resets_latch(seeded_session):
-    # 점검·수리(clear)로 래치 해제 시 이후 상태가 양호로 복귀 (해제 시각 이후 알람만 유효)
+async def test_clear_alarm_resets_latch_but_status_follows_data(seeded_session):
+    # 점검(clear)은 래치만 해제, 3D 상태는 실시간 최신 tick 기준이라 데이터가 이상이면 위험 유지
     assert await repository.clear_equipment_alarm(seeded_session, EQP) is True
     await seeded_session.flush()
+    # 래치는 해제 시각 이후 알람만 유효라 None으로 복귀
     assert await repository.fetch_latched_alarm(seeded_session, EQP) is None
+    # 최신 tick이 아직 ERR-402라 상태는 위험 유지 (수리 없이 해제만 하면 다음 tick에 재알람)
     rows = await repository.fetch_latest_status_rows(seeded_session, line_name=LINE)
     row = next(r for r in rows if r["equipment_id"] == EQP)
-    assert row["alarm_code"] is None
+    assert row["alarm_code"] == "ERR-402"
 
 
 async def test_clear_alarm_missing_equipment(seeded_session):

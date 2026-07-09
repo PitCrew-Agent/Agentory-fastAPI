@@ -140,6 +140,7 @@ def _latched_where(t, m):
 async def fetch_latched_alarm(session: AsyncSession, equipment_id: str) -> str | None:
     # 단일 설비의 래치된 알람 코드 (NEW_LOOP01_LATCH01)
     # 해제 시각 이후 확정 알람 중 최고 심각도·최신 코드, 없으면 None(양호)
+    # 상태 판정은 실시간 최신 tick 기준으로 전환, 래치 조회는 스캐폴딩으로만 유지
     m = EquipmentMaster
     t = EquipmentTelemetry
     stmt = (
@@ -167,26 +168,24 @@ async def clear_equipment_alarm(session: AsyncSession, equipment_id: str) -> boo
 async def fetch_latest_status_rows(
     session: AsyncSession, *, line_name: str | None = None
 ) -> list[dict[str, Any]]:
-    # 전체 설비의 래치된 상태 (NEW_TWIN01_SYNC01 / NEW_LOOP01_LATCH01), 텔레메트리 없는 설비도 포함
-    # 한 번 확정된 알람은 점검(alarm_cleared_at) 전까지 유지, 최신 tick이 정상이어도 sticky
-    # 설비별로 해제 시각 이후 확정 알람 중 최고 심각도·최신 코드를 DISTINCT ON으로 한 건씩 추림
+    # 전체 설비의 현재 상태 (NEW_TWIN01_SYNC01), 텔레메트리 없는 설비도 포함
+    # 3D 뷰는 실시간 최신 tick의 alarm_code를 그대로 반영, 래치(sticky)는 판정에서 제외
+    # 설비별 최신 tick 한 건을 DISTINCT ON으로 추림, 최신이 정상이면 alarm_code NULL(양호)
     m = EquipmentMaster
     t = EquipmentTelemetry
-    latched = (
+    latest = (
         select(t.equipment_id, t.alarm_code)
         .distinct(t.equipment_id)
-        .join(m, m.equipment_id == t.equipment_id)
-        .where(*_latched_where(t, m))
-        .order_by(t.equipment_id, _severity_rank(t.alarm_code).desc(), t.timestamp.desc())
+        .order_by(t.equipment_id, t.timestamp.desc())
         .subquery()
     )
-    # 마스터 기준 좌외부조인, 래치 알람 없는 설비는 alarm_code NULL(정상)
+    # 마스터 기준 좌외부조인, 텔레메트리 없는 설비는 alarm_code NULL(양호)
     # 3D 배치값(위치·회전·shape 등)을 함께 반환해 프론트가 상태 색상과 배치를 한 번에 렌더
     stmt = (
         select(
             m.equipment_id,
             m.line_name,
-            latched.c.alarm_code,
+            latest.c.alarm_code,
             m.display_order,
             m.shape,
             m.bay_zone,
@@ -195,7 +194,7 @@ async def fetch_latest_status_rows(
             m.position_z,
             m.rotation_y,
         )
-        .outerjoin(latched, m.equipment_id == latched.c.equipment_id)
+        .outerjoin(latest, m.equipment_id == latest.c.equipment_id)
         .order_by(m.line_name, m.display_order, m.equipment_id)
     )
     if line_name:

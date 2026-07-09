@@ -113,9 +113,9 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
     if not metas:
         return None
     meta = metas[0]
-    # 센서값은 실시간 최신 1건, 상태·알람은 래치값(점검 전까지 유지)으로 분리 구성
+    # 센서값·상태·알람 모두 실시간 최신 tick 기준 (3D 뷰와 동일 소스로 일치, 래치는 판정 제외)
     latest = await repository.fetch_latest_telemetry(session, equipment_id)
-    alarm_code = await repository.fetch_latched_alarm(session, equipment_id)
+    alarm_code = latest["alarm_code"] if latest else None
     checklist = [ChecklistItem(text=t) for t in build_checklist_items(alarm_code)]
     return EquipmentDetail(
         equipment_id=equipment_id,
