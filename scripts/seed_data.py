@@ -48,24 +48,24 @@ LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
         (3, -2.60, "south", "pressure_drift_pm"),  # 주의(WRN-702)
         (4, -1.00, "north", "normal"),
         (5, 1.50, "north", "err402_temp_rise"),  # 위험(ERR-402)
-        (6, 2.70, "south", "normal"),
+        (6, 2.70, "south", "temperature_acute"),  # 위험(ERR-401)
         (7, 4.45, "north", "normal"),
     ],
     "B": [
         (1, -4.70, "north", "normal"),
-        (2, -4.10, "south", "normal"),
-        (3, -2.70, "north", "normal"),
+        (2, -4.10, "south", "rf_power_drift_pm"),  # 주의(WRN-703)
+        (3, -2.70, "north", "pressure_acute"),  # 위험(ERR-301)
         (4, -1.40, "south", "gas_flow_drift_pm"),  # 주의(WRN-704)
         (5, 1.60, "south", "normal"),
-        (6, 2.80, "north", "normal"),
+        (6, 2.80, "north", "rf_power_acute"),  # 위험(ERR-201)
         (7, 4.40, "north", "normal"),
     ],
     "C": [
         (1, -4.60, "north", "normal"),
-        (2, -3.10, "north", "normal"),
+        (2, -3.10, "north", "gas_flow_acute"),  # 주의(WRN-501)
         (3, -1.80, "south", "temperature_drift_pm"),  # 주의(WRN-701)
-        (4, -0.25, "north", "normal"),
-        (5, 2.30, "south", "normal"),
+        (4, -0.25, "north", "variance_increase"),  # 주의(WRN-801)
+        (5, 2.30, "south", "multivariate_anomaly"),  # 위험(ERR-901)
         (6, 4.00, "south", "normal"),
     ],
 }
@@ -74,13 +74,13 @@ LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
 INSPECTED_AT = {"A": date(2026, 7, 2), "B": date(2026, 7, 4), "C": date(2026, 6, 30)}
 
 # 텔레메트리 시계열 파라미터, 유한 tick으로 정상·이상을 결정론적으로 주입
-# 드리프트 PM은 정상 밴드 회랑을 소진해야 하므로 이르게 시작해 최신 tick까지 알람 유지
-# 급성(err402)은 짧게 상승하는 이상이라 뒤늦게 시작해 최신값이 현실 범위를 벗어나지 않게 분리
+# 드리프트 PM·급성 단일변수·변동성·다변량은 이르게 시작해 최신 tick까지 알람 유지
+# 온도 누적 상승형(err402)만 뒤늦게 시작해 최신값이 짧게 이탈하도록 분리 (생성기 클램프와 이중 안전)
 SERIES_TICKS = 44  # 설비당 생성 tick 수
 SERIES_INTERVAL_MIN = 5  # tick 간격 분
-DRIFT_START_TICK = 4  # 드리프트 PM 시나리오 시작 tick
-ACUTE_DRIFT_START_TICK = 36  # 급성 시나리오 시작 tick (최신 구간 ERR-402 확정 유지)
-ACUTE_SCENARIOS = {"err402_temp_rise"}  # 급성 이상 시나리오
+DRIFT_START_TICK = 4  # 드리프트·급성·변동성·다변량 시나리오 시작 tick
+LATE_START_TICK = 36  # 누적 상승형(err402) 시작 tick (최신 구간만 이탈)
+LATE_START_SCENARIOS = {"err402_temp_rise"}  # 누적 상승형 이상 시나리오
 # 마지막 tick이 기준일 근처가 되도록 시작 시각 앵커
 SERIES_BASE = datetime(2026, 7, 8, 5, 0, 0, tzinfo=UTC)
 
@@ -117,7 +117,7 @@ def build_telemetry(equipment_id: str, scenario_name: str) -> list[EquipmentTele
     # 설비 1대의 정상·이상 시계열 생성 (simulator.generate_reading 재사용)
     # 연속 2 tick 지속 규칙으로 대표 알람 확정, 1 tick 스파이크는 보류 (시뮬레이터 §7과 동일)
     scenario = SCENARIOS[scenario_name]
-    drift_start = ACUTE_DRIFT_START_TICK if scenario_name in ACUTE_SCENARIOS else DRIFT_START_TICK
+    drift_start = LATE_START_TICK if scenario_name in LATE_START_SCENARIOS else DRIFT_START_TICK
     # 설비별 고정 시드로 재현 가능한 잡음 생성
     rng = random.Random(hash(equipment_id) & 0xFFFFFFFF)
     window: deque = deque(maxlen=8)

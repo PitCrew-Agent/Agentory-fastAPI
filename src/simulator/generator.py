@@ -107,8 +107,11 @@ def _judge(
     values: dict[str, float],
     bands: dict[str, tuple[float, float]],
     history: list[SensorReading] | None = None,
+    *,
+    variance_vars: tuple[str, ...] = (),
 ) -> str | None:
     # 성립한 알람 후보 중 우선순위 최상위 1개를 대표 알람으로 반환
+    # variance_vars는 잡음 증폭이 의도된 변수라 밴드 이탈을 급성(ERR-30x 등)으로 오분류하지 않음
     candidates: list[str] = []
     all_in_band = all(bands[v][0] <= values[v] <= bands[v][1] for v in VARS)
 
@@ -129,8 +132,8 @@ def _judge(
     for var in VARS:
         spec = getattr(profile, var)
         lcl, ucl = bands[var]
-        # 급성: 값이 동적 밴드 밖
-        if not (lcl <= values[var] <= ucl):
+        # 급성: 값이 동적 밴드 밖 (변동성 의도 변수는 잡음 이탈이므로 급성 제외)
+        if not (lcl <= values[var] <= ucl) and var not in variance_vars:
             candidates.append(ACUTE_CODES[var])
         # 드리프트/PM: 밴드가 하드리밋 회랑을 소진
         if ucl >= spec.usl - spec.band_half or lcl <= spec.lsl + spec.band_half:
@@ -189,6 +192,9 @@ def generate_reading(
         # 변동성 시나리오 대상 변수는 sigma 증폭 (밴드는 nominal 유지)
         sigma = spec.sigma * (VARIANCE_MULT if active and var in scenario.variance_vars else 1.0)
         value = center + rng.gauss(0, sigma)
+        # 급성 단일변수 이상: 값을 밴드 밖(USL 바로 바깥)으로 계단 이탈 → ACUTE 알람 (센터 불변)
+        if active and var in scenario.acute_vars:
+            value += (spec.usl - spec.mu0) + spec.band_half
         values[var] = value
         bands[var] = (center - spec.band_half, center + spec.band_half)
 
@@ -198,5 +204,5 @@ def generate_reading(
         pressure=_dec(values["pressure"]),
         rf_power=_dec(values["rf_power"]),
         gas_flow=_dec(values["gas_flow"]),
-        alarm_code=_judge(profile, values, bands, history),
+        alarm_code=_judge(profile, values, bands, history, variance_vars=scenario.variance_vars),
     )
