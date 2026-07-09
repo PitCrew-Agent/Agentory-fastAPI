@@ -22,6 +22,7 @@ from simulator.profiles import SensorProfile, VariableSpec, get_profile
 from simulator.scenarios import (
     ERR402_PRESSURE_RATE,
     ERR402_TEMP_RATE,
+    FAULT_OVERSHOOT,
     MULTIVAR_RF_RATE,
     MULTIVAR_TEMP_RATE,
     VARIANCE_MULT,
@@ -176,9 +177,15 @@ def generate_reading(
         spec = getattr(profile, var)
         drift = _drift_rate(var, scenario, spec, gain) * max(0, tick - drift_start_tick)
         center = spec.mu0 + drift
-        # PM 드리프트는 밴드가 하드리밋 회랑 소진 시 포화, 값 과주행 방지 (err402·다변량 미포화)
         if var in scenario.drift_vars:
+            # PM 드리프트는 밴드가 하드리밋 회랑 소진 시 포화 → WRN-70x
             center = min(max(center, spec.lsl + spec.band_half), spec.usl - spec.band_half)
+        else:
+            # 급성 냉각(ERR-402)·다변량(ERR-901) 폭주 방지, 하드리밋 바깥 현실적 고장폭으로 포화
+            span = spec.usl - spec.lsl
+            center = min(
+                max(center, spec.lsl - FAULT_OVERSHOOT * span), spec.usl + FAULT_OVERSHOOT * span
+            )
         # 변동성 시나리오 대상 변수는 sigma 증폭 (밴드는 nominal 유지)
         sigma = spec.sigma * (VARIANCE_MULT if active and var in scenario.variance_vars else 1.0)
         value = center + rng.gauss(0, sigma)

@@ -150,3 +150,16 @@ def test_floor_demo_preset_covers_alarm_families():
     assert any(s.err402 for s in assigned)
     drift_vars = {v for s in assigned for v in s.drift_vars}
     assert drift_vars == {"temperature", "pressure", "gas_flow"}
+
+
+def test_err402_values_stay_in_physical_range_over_long_run():
+    # 장시간 누적돼도 온도·압력이 하드리밋 밖 현실 범위(클램프) 안에 머물러야 함
+    # 회귀 대상: 클램프 없으면 온도 540·압력 -999 같은 물리적으로 불가능한 발산 발생
+    scenario = SCENARIOS["err402_temp_rise"]
+    reading = generate_reading(
+        "EQP-002", "Etching", scenario=scenario, tick=600, drift_start_tick=0, rng=_rng()
+    )
+    # 온도 USL 61.5 + 0.5*span(3.0)=63.0, 압력 LSL 30 - 0.5*span(25)=17.5 (밴드 잡음 여유 포함)
+    assert 61.5 <= float(reading.temperature) <= 64.0
+    assert 16.0 <= float(reading.pressure) <= 40.0
+    assert reading.alarm_code == ERR402

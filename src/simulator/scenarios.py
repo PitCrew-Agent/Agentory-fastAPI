@@ -44,6 +44,10 @@ PRESETS: dict[str, dict[str, str]] = {
 ERR402_TEMP_RATE = 0.60  # tick당 온도 상승
 ERR402_PRESSURE_RATE = -1.30  # tick당 압력 하강
 
+# 급성·다변량 폭주 시 값이 하드리밋 밖으로 나가는 최대 폭 (하드리밋 span 대비 배수)
+# 실제 물리 범위를 벗어난 발산(예: 온도 540, 압력 -999) 방지, 현실적 고장 범위로 포화
+FAULT_OVERSHOOT = 0.5
+
 # 변동성 증가(WRN-801): 대상 변수 sigma 증폭 배수
 VARIANCE_MULT = 2.5
 
