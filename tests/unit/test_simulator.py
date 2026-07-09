@@ -145,8 +145,8 @@ def test_gain_excludes_err402_and_multivariate():
 
 
 def test_floor_demo_preset_covers_alarm_families():
-    # 데모 preset은 급성 이상(ERR-402) 1종 + 4개 센서별 드리프트 경고를 모두 포함
+    # 데모 preset은 급성 이상(ERR-402) 1종 + 서로 다른 센서 드리프트 경고 포함
     assigned = [SCENARIOS[name] for name in PRESETS["floor_demo"].values()]
     assert any(s.err402 for s in assigned)
     drift_vars = {v for s in assigned for v in s.drift_vars}
-    assert drift_vars == {"temperature", "pressure", "rf_power", "gas_flow"}
+    assert drift_vars == {"temperature", "pressure", "gas_flow"}

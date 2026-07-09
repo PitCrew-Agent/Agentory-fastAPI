@@ -79,7 +79,7 @@ INSPECTED_AT = {"A": date(2026, 7, 2), "B": date(2026, 7, 4), "C": date(2026, 6,
 SERIES_TICKS = 44  # 설비당 생성 tick 수
 SERIES_INTERVAL_MIN = 5  # tick 간격 분
 DRIFT_START_TICK = 4  # 드리프트 PM 시나리오 시작 tick
-ACUTE_DRIFT_START_TICK = 38  # 급성 시나리오 시작 tick (최신값 오버슈트 방지)
+ACUTE_DRIFT_START_TICK = 36  # 급성 시나리오 시작 tick (최신 구간 ERR-402 확정 유지)
 ACUTE_SCENARIOS = {"err402_temp_rise"}  # 급성 이상 시나리오
 # 마지막 tick이 기준일 근처가 되도록 시작 시각 앵커
 SERIES_BASE = datetime(2026, 7, 8, 5, 0, 0, tzinfo=UTC)
