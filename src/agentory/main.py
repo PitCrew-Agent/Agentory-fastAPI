@@ -41,7 +41,11 @@ def create_app() -> FastAPI:
         allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()],
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["Authorization", "Content-Type"],
+        # fetch 기반 SSE가 보내는 Cache-Control·Last-Event-ID 등 비안전 헤더 preflight 허용
+        # credentials 동반 시 Starlette가 요청 헤더를 그대로 echo하므로 와일드카드 안전
+        allow_headers=["*"],
+        # 스트림 재연결 시 프론트가 마지막 이벤트 ID 읽도록 노출
+        expose_headers=["Last-Event-ID"],
     )
 
     app.include_router(auth_router, prefix="/api/v1")

@@ -93,6 +93,29 @@ async def test_cors_allows_credentials(monkeypatch):
     assert res.headers["access-control-allow-credentials"] == "true"
 
 
+async def test_cors_allows_sse_fetch_headers(monkeypatch):
+    # fetch 기반 SSE preflight가 Cache-Control·Last-Event-ID 비안전 헤더를 허용받는지 검증
+    settings = get_settings()
+    monkeypatch.setattr(settings, "cors_allow_origins", "http://localhost:5173")
+
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        res = await client.options(
+            "/api/v1/chat/stream",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "authorization,cache-control,last-event-id",
+            },
+        )
+
+    assert res.status_code == 200
+    allowed = res.headers["access-control-allow-headers"].lower()
+    assert "cache-control" in allowed
+    assert "last-event-id" in allowed
+    assert res.headers["access-control-allow-credentials"] == "true"
+
+
 async def test_me_reads_opaque_session(monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "oidc_issuer_url", "https://issuer.example")
