@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from agentory.common.events import SSEEvent
 from agentory.common.exceptions import ExternalServiceError
+from agentory.core.config import get_settings
 from agentory.modules.agent.runner import RECURSION_LIMIT, get_graph, initial_state
 from agentory.modules.agent.streaming import stream_agent_events
 from agentory.modules.chat.models import ChatMessage, ChatSession
@@ -31,13 +32,16 @@ async def _ensure_session(db, session_id: uuid.UUID, user_sub: str) -> None:
 
 async def _load_history(db, session_id: uuid.UUID) -> list:
     # 이전 user/assistant 발화를 LangChain 메시지로 로드 (멀티턴 컨텍스트)
+    # 최근 N개만 로드해 대화가 길어질수록 프롬프트가 커지는 누적 지연 방지
+    limit = get_settings().agent_history_max_messages
     rows = await db.scalars(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(limit)
     )
     history = []
-    for row in rows:
+    for row in reversed(list(rows)):  # 최신 N개를 다시 시간순으로 복원
         if row.role == "user":
             history.append(HumanMessage(content=row.content))
         elif row.role == "assistant":
