@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.modules.agent.equipment_suggest import generate_equipment_suggestions
 from agentory.modules.telemetry import repository
 from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist_items
 from agentory.modules.telemetry.schemas import (
@@ -131,6 +132,26 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
         rf_power=latest["rf_power"] if latest else None,
         gas_flow=latest["gas_flow"] if latest else None,
         checklist=checklist,
+    )
+
+
+async def get_equipment_suggestions(session: AsyncSession, equipment_id: str) -> list[str] | None:
+    # 선택 설비 상세(상태·알람·센서) 조회 겸 존재 확인, 미존재면 None(라우터 404)
+    detail = await get_equipment_detail(session, equipment_id)
+    if detail is None:
+        return None
+    # 현재 상태를 근거로 챗봇 추천 메시지 3개 생성, 생성 실패는 함수 내부에서 빈 목록으로 격리
+    return await generate_equipment_suggestions(
+        equipment_id=detail.equipment_id,
+        status=detail.status.value,
+        alarm_code=detail.alarm_code,
+        alarm_metrics=detail.alarm_metrics,
+        sensors={
+            "temperature": detail.temperature,
+            "pressure": detail.pressure,
+            "rf_power": detail.rf_power,
+            "gas_flow": detail.gas_flow,
+        },
     )
 
 

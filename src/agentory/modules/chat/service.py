@@ -54,6 +54,7 @@ async def stream_chat(
     session_id: str,
     message: str,
     user_sub: str = DEFAULT_USER,
+    equipment_id: str | None = None,
 ) -> AsyncIterator[SSEEvent]:
     # 질의를 그래프에 흘려 SSE 이벤트를 방출하고, 완료 후 응답·추론 기록 저장
     sid = uuid.UUID(session_id)
@@ -64,7 +65,8 @@ async def stream_chat(
         await db.commit()
 
     graph = await get_graph()
-    state = initial_state(message, history)
+    # 대시보드에서 선택된 설비를 컨텍스트로 시드 (NEW_TWIN01_CHATCTX01)
+    state = initial_state(message, history, equipment_id=equipment_id)
 
     answer_parts: list[str] = []
     trace_steps: list[dict] = []
@@ -115,13 +117,16 @@ async def run_query(
     session_id: str,
     message: str,
     user_sub: str = DEFAULT_USER,
+    equipment_id: str | None = None,
 ) -> ChatResponse:
     # 스트림을 내부 소비해 비스트리밍 응답 구성
     answer_parts: list[str] = []
     steps: list[ReasoningStep] = []
     citations = []
     suggested: list[str] = []
-    async for event in stream_chat(session_factory, session_id, message, user_sub):
+    async for event in stream_chat(
+        session_factory, session_id, message, user_sub, equipment_id=equipment_id
+    ):
         if event.type == "answer":
             answer_parts.append(event.delta)
         elif event.type == "thought":
