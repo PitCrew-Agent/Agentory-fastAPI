@@ -5,8 +5,11 @@ graph.astream(updates·messages)를 agentory.common.events 계약으로 변환
 """
 
 import itertools
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
+
+from langgraph.errors import GraphRecursionError
 
 from agentory.common.events import (
     ActionEvent,
@@ -14,6 +17,7 @@ from agentory.common.events import (
     AnswerEvent,
     Citation,
     DoneEvent,
+    ErrorEvent,
     ObservationEvent,
     SSEEvent,
     ThoughtEvent,
@@ -21,7 +25,14 @@ from agentory.common.events import (
 from agentory.modules.agent.supervisor.finalizer import make_finalizer_node  # noqa: F401
 from agentory.modules.agent.supervisor.graph import FINALIZER, GROUNDING, SUGGEST
 
+log = logging.getLogger(__name__)
+
 _WORKER_AGENTS = {a.value for a in AgentName}
+
+# 재귀 상한 초과 시 사용자 안내 (AI_AGENT03_FALLBACK01)
+_RECURSION_MESSAGE = "분석 단계가 한도를 초과했습니다 질문을 좁혀 다시 시도해 주세요"
+# 그 외 그래프 실행 실패 시 사용자 안내
+_AGENT_ERROR_MESSAGE = "일시적인 오류로 답변을 완료하지 못했습니다 잠시 후 다시 시도해 주세요"
 
 
 def _agent(name: str) -> AgentName | None:
@@ -80,23 +91,31 @@ async def stream_agent_events(
     grounded: bool | None = None
     suggested: list[str] = []
 
-    async for mode, chunk in graph.astream(
-        state, config=config, stream_mode=["updates", "messages"]
-    ):
-        if mode == "messages":
-            for event in map_messages_chunk(chunk):
+    # 그래프 실행 중 예외는 error 이벤트로 전달 후 done으로 마감 (계약: error → done)
+    try:
+        async for mode, chunk in graph.astream(
+            state, config=config, stream_mode=["updates", "messages"]
+        ):
+            if mode == "messages":
+                for event in map_messages_chunk(chunk):
+                    yield event
+                continue
+            # updates 모드: 종료 노드 산출물 수집 + 이벤트 방출
+            for node, update in chunk.items():
+                if node == FINALIZER:
+                    citations = update.get("citations", citations)
+                elif node == GROUNDING:
+                    grounded = update.get("grounded", grounded)
+                elif node == SUGGEST:
+                    suggested = update.get("suggested_questions", suggested)
+            for event in map_updates_chunk(chunk, next(counter)):
                 yield event
-            continue
-        # updates 모드: 종료 노드 산출물 수집 + 이벤트 방출
-        for node, update in chunk.items():
-            if node == FINALIZER:
-                citations = update.get("citations", citations)
-            elif node == GROUNDING:
-                grounded = update.get("grounded", grounded)
-            elif node == SUGGEST:
-                suggested = update.get("suggested_questions", suggested)
-        for event in map_updates_chunk(chunk, next(counter)):
-            yield event
+    except GraphRecursionError:
+        log.warning("[stream] 재귀 상한(%s) 초과", config)
+        yield ErrorEvent(code="RECURSION_LIMIT", message=_RECURSION_MESSAGE)
+    except Exception:
+        log.exception("[stream] 그래프 실행 실패")
+        yield ErrorEvent(code="AGENT_ERROR", message=_AGENT_ERROR_MESSAGE)
 
     yield DoneEvent(
         citations=[Citation(**c) for c in citations],
