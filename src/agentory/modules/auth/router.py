@@ -81,8 +81,9 @@ def _current_user_response(user: dict, lines: list | None = None) -> AuthUserRes
     )
 
 
-@router.get("/login", response_model=AuthUrlResponse)
+@router.get("/login", response_model=AuthUrlResponse, summary="로그인 인가 URL 발급")
 async def login(request: Request) -> AuthUrlResponse:
+    """로그인 인가 URL 발급"""
     response = await service.build_authorization_url("login")
     await write_audit_event(
         request,
@@ -93,14 +94,16 @@ async def login(request: Request) -> AuthUrlResponse:
     return response
 
 
-@router.get("/login/redirect")
+@router.get("/login/redirect", summary="로그인 인가 URL로 즉시 리다이렉트")
 async def login_redirect(request: Request) -> RedirectResponse:
+    """로그인 인가 URL로 302 리다이렉트"""
     response = await login(request)
     return RedirectResponse(response.authorization_url)
 
 
-@router.get("/signup", response_model=AuthUrlResponse)
+@router.get("/signup", response_model=AuthUrlResponse, summary="회원가입 인가 URL 발급")
 async def signup(request: Request) -> AuthUrlResponse:
+    """회원가입 인가 URL 발급"""
     response = await service.build_authorization_url("signup")
     await write_audit_event(
         request,
@@ -111,14 +114,16 @@ async def signup(request: Request) -> AuthUrlResponse:
     return response
 
 
-@router.get("/signup/redirect")
+@router.get("/signup/redirect", summary="회원가입 인가 URL로 즉시 리다이렉트")
 async def signup_redirect(request: Request) -> RedirectResponse:
+    """회원가입 인가 URL로 302 리다이렉트"""
     response = await signup(request)
     return RedirectResponse(response.authorization_url)
 
 
-@router.get("/password-reset", response_model=AuthUrlResponse)
+@router.get("/password-reset", response_model=AuthUrlResponse, summary="비밀번호 재설정 URL 발급")
 async def password_reset(request: Request) -> AuthUrlResponse:
+    """비밀번호 재설정 URL 발급"""
     response = await service.build_password_reset_url()
     await write_audit_event(
         request,
@@ -129,8 +134,9 @@ async def password_reset(request: Request) -> AuthUrlResponse:
     return response
 
 
-@router.get("/password-reset/redirect")
+@router.get("/password-reset/redirect", summary="비밀번호 재설정 URL로 즉시 리다이렉트")
 async def password_reset_redirect(request: Request) -> RedirectResponse:
+    """비밀번호 재설정 URL로 302 리다이렉트"""
     response = await password_reset(request)
     return RedirectResponse(response.authorization_url)
 
@@ -144,13 +150,18 @@ def _frontend_redirect(error: str | None = None) -> RedirectResponse:
     return RedirectResponse(base, status_code=status.HTTP_302_FOUND)
 
 
-@router.get("/callback")
+@router.get(
+    "/callback",
+    summary="OIDC 콜백 (IdP 전용, 프론트 직접 호출 아님)",
+    responses={302: {"description": "세션 쿠키 설정 후 프론트로 리다이렉트"}},
+)
 async def callback(
     request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
 ) -> RedirectResponse:
+    """OIDC 콜백, 세션 쿠키 설정 후 프론트 리다이렉트 (IdP 전용)"""
     # IdP 로그인 실패 시 code 대신 error 파라미터 전달, 프론트로 에러 전달
     if error or not code or not state:
         await write_audit_event(
@@ -199,11 +210,17 @@ async def callback(
     return redirect
 
 
-@router.post("/refresh", response_model=AuthUserResponse)
+@router.post(
+    "/refresh",
+    response_model=AuthUserResponse,
+    summary="세션 토큰 갱신",
+    responses={401: {"description": "세션이 없거나 갱신 토큰이 유효하지 않음"}},
+)
 async def refresh(
     request: Request,
     response: Response,
 ) -> AuthUserResponse:
+    """세션 토큰 갱신·현재 사용자 반환 (토큰 값은 본문 비노출)"""
     session_id = request.cookies.get(get_settings().auth_session_cookie_name)
     session = await get_auth_session(session_id) if session_id else None
     if not session or not session.get("refresh_token"):
@@ -258,12 +275,13 @@ async def refresh(
     return token_response.user
 
 
-@router.post("/logout", response_model=LogoutResponse)
+@router.post("/logout", response_model=LogoutResponse, summary="로그아웃")
 async def logout(
     request: Request,
     response: Response,
     user: dict = Depends(get_current_user),
 ) -> LogoutResponse:
+    """세션 폐기·쿠키 제거 (IdP 로그아웃은 응답 logout_url로 이동)"""
     session_id = request.cookies.get(get_settings().auth_session_cookie_name)
     logout_url = await service.build_logout_url()
     deleted = await delete_auth_session(session_id) if session_id else False
@@ -278,21 +296,33 @@ async def logout(
     return LogoutResponse(logout_url=logout_url, refresh_token_revoked=deleted)
 
 
-@router.get("/me", response_model=AuthUserResponse)
+@router.get(
+    "/me",
+    response_model=AuthUserResponse,
+    summary="현재 로그인 사용자 조회",
+    responses={401: {"description": "미인증"}},
+)
 async def me(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> AuthUserResponse:
-    # 담당 라인은 DB에서 실시간 로드, 관리자 재지정이 즉시 반영되도록
+    """현재 로그인 사용자 (담당 라인 포함)"""
     lines = await admin_service.list_user_line_refs(session, user["user_id"])
     return _current_user_response(user, lines)
 
 
-@router.get("/audit-logs")
+@router.get(
+    "/audit-logs",
+    summary="감사 로그 조회 (관리자)",
+    responses={403: {"description": "관리자 권한 필요"}},
+)
 async def audit_logs(
-    index: Literal["time", "user", "success", "status", "action"] = "time",
-    value: str | None = None,
-    limit: int = Query(default=50, ge=1, le=200),
+    index: Literal["time", "user", "success", "status", "action"] = Query(
+        default="time", examples=["time"]
+    ),
+    value: str | None = Query(default=None, description="time 외 인덱스의 조회 값", examples=["7"]),
+    limit: int = Query(default=50, ge=1, le=200, examples=[50]),
     _: dict = Depends(require_admin),
 ) -> list[dict[str, str]]:
+    """감사 로그 조회 (관리자, index로 조회 기준 선택)"""
     return await list_audit_logs(index=index, value=value, limit=limit)
