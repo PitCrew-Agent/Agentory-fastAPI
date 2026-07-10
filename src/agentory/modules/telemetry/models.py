@@ -26,13 +26,18 @@ class EquipmentMaster(Base):
     """설비 마스터 (§8.1)"""
 
     __tablename__ = "equipment_masters"
+    __table_args__ = (Index("ix_equipment_masters_manager_user", "manager_user_id"),)
 
     equipment_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     line_name: Mapped[str] = mapped_column(String(50), nullable=False)
     process_type: Mapped[str] = mapped_column(String(50), nullable=False)
     location: Mapped[str | None] = mapped_column(String(50))
-    manager_dept: Mapped[str | None] = mapped_column(String(50))  # 책임 부서
-    manager_name: Mapped[str | None] = mapped_column(String(50))  # 책임자 이름
+    manager_dept: Mapped[str | None] = mapped_column(String(50))  # 책임 부서 (레거시)
+    manager_name: Mapped[str | None] = mapped_column(String(50))  # 책임자 이름 (레거시 표시 폴백)
+    # 책임자 유저 (BE_ADMIN01_MANAGER01), 관리자가 유저 중 지정, 유저 삭제 시 해제
+    manager_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
     last_inspection_at: Mapped[date | None] = mapped_column(Date)  # 마지막 점검일
     # 알람 래치 해제 기준 시각(NEW_LOOP01_LATCH01), 이 시각 이후 확정 알람만 상태에 반영
     # NULL은 해제 이력 없음(전체 이력 반영), 현장 점검·수리 시 해당 시각으로 갱신

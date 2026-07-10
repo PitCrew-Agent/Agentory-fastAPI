@@ -45,6 +45,13 @@ class EquipmentStatusItem(BaseModel):
     rotation_y: float | None = None
 
 
+class EquipmentManager(BaseModel):
+    # 설비 책임자 유저 요약 (BE_ADMIN01_MANAGER01)
+    id: int
+    name: str
+    email: str
+
+
 class EquipmentDetail(BaseModel):
     # 선택 설비 상세 = 상태 + 메타 + 최신 센서값 + 조치 체크리스트 (대시보드 상세 패널용)
     equipment_id: str
@@ -55,7 +62,8 @@ class EquipmentDetail(BaseModel):
     alarm_metrics: list[str] = []
     # 설비 메타 (equipment_masters), 설비 유형은 현재 전부 식각
     process_type: str
-    manager_name: str | None = None
+    manager_name: str | None = None  # 레거시 문자열 표시 폴백
+    manager: EquipmentManager | None = None  # 책임자 유저, 미지정 시 None
     last_inspection_at: date | None = None
     # 최신 텔레메트리 1건, 로그 없으면 전부 None
     updated_at: datetime | None = None

@@ -13,6 +13,7 @@ from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.core.config import get_settings
+from agentory.modules.auth.models import User
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 
 
@@ -254,9 +255,18 @@ async def fetch_equipment_metadata(
             "location": e.location,
             "manager_dept": e.manager_dept,
             "manager_name": e.manager_name,
+            "manager_user_id": e.manager_user_id,
             "last_inspection_at": (
                 e.last_inspection_at.isoformat() if e.last_inspection_at else None
             ),
         }
         for e in rows
     ]
+
+
+async def fetch_user_ref(session: AsyncSession, user_id: int) -> dict[str, Any] | None:
+    # 책임자 유저 요약 조회 (BE_ADMIN01_MANAGER01), 없으면 None
+    user = await session.get(User, user_id)
+    if user is None:
+        return None
+    return {"id": user.id, "name": user.name, "email": user.email}
