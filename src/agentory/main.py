@@ -25,12 +25,28 @@ async def lifespan(app: FastAPI):
     # TODO(주희정): watcher 종료 처리
 
 
+# 태그별 그룹 라벨, Swagger 엔드포인트 그룹 헤더에 표시
+OPENAPI_TAGS = [
+    {"name": "auth", "description": "로그인·로그아웃·토큰 갱신·현재 사용자"},
+    {
+        "name": "admin",
+        "description": "담당 라인 CRUD·유저 담당 라인·설비 책임자 지정 (관리자 전용)",
+    },
+    {"name": "chat", "description": "Tory 질의응답·대화 히스토리"},
+    {"name": "notifications", "description": "알림 목록(커서 페이지네이션)·읽음·실시간 스트림"},
+    {"name": "telemetry", "description": "설비 상태·상세·센서 시계열·라인"},
+    {"name": "work-logs", "description": "작업 로그 CRUD (수정·삭제는 작성자만)"},
+    {"name": "system", "description": "헬스 체크"},
+]
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="Agentory API",
-        description="자율형 제조 데이터 분석 및 MCP 에이전트 시스템",
+        description="자율형 제조 데이터 분석 및 MCP 에이전트 시스템 백엔드 API",
         version="0.1.0",
+        openapi_tags=OPENAPI_TAGS,
         lifespan=lifespan,
     )
 
