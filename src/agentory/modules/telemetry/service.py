@@ -14,6 +14,7 @@ from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist
 from agentory.modules.telemetry.schemas import (
     ChecklistItem,
     EquipmentDetail,
+    EquipmentManager,
     EquipmentStatusItem,
     LineItem,
     ScenePosition,
@@ -118,6 +119,11 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
     latest = await repository.fetch_latest_telemetry(session, equipment_id)
     alarm_code = latest["alarm_code"] if latest else None
     checklist = [ChecklistItem(text=t) for t in build_checklist_items(alarm_code)]
+    # 책임자 유저 지정 시 요약 로드, 미지정이면 레거시 manager_name만 노출
+    manager = None
+    if meta.get("manager_user_id"):
+        ref = await repository.fetch_user_ref(session, meta["manager_user_id"])
+        manager = EquipmentManager(**ref) if ref else None
     return EquipmentDetail(
         equipment_id=equipment_id,
         status=assess_status(alarm_code),
@@ -125,6 +131,7 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
         alarm_metrics=alarm_metrics(alarm_code),
         process_type=meta["process_type"],
         manager_name=meta["manager_name"],
+        manager=manager,
         last_inspection_at=meta["last_inspection_at"],
         updated_at=latest["timestamp"] if latest else None,
         temperature=latest["temperature"] if latest else None,

@@ -135,6 +135,15 @@ async def test_me_reads_opaque_session(monkeypatch):
     monkeypatch.setattr("agentory.modules.auth.middleware.get_auth_session", fake_get_auth_session)
     monkeypatch.setattr("agentory.modules.auth.middleware.write_audit_event", _noop_audit)
 
+    # /me는 담당 라인을 DB에서 로드하므로 유닛 테스트에선 스텁 (DB 미연결 환경 대응)
+    async def fake_list_user_line_refs(session, user_id):
+        assert user_id == 7
+        return []
+
+    monkeypatch.setattr(
+        "agentory.modules.admin.service.list_user_line_refs", fake_list_user_line_refs
+    )
+
     app = create_app()
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -145,6 +154,7 @@ async def test_me_reads_opaque_session(monkeypatch):
 
     assert res.status_code == 200
     assert res.json()["email"] == "user@example.com"
+    assert res.json()["lines"] == []
 
 
 async def test_refresh_updates_server_session_without_returning_tokens(monkeypatch):
@@ -203,6 +213,7 @@ async def test_refresh_updates_server_session_without_returning_tokens(monkeypat
         "name": "User",
         "role": "field_engineer",
         "status": "active",
+        "lines": [],  # 담당 라인 필드 추가 (refresh는 세션 기반이라 빈 리스트)
     }
     assert "new-access-token" not in res.text
     assert "new-id-token" not in res.text
