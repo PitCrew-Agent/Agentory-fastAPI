@@ -1,7 +1,8 @@
 """알림 모델 (NEW_PROACT01_ALERT01)
 
-설비 알람 이력 + 읽음 상태 영속, source_log_id로 telemetry 알람 멱등 동기화
-watcher 선제 알림(NEW_PROACT01_DETECT01)은 source_log_id NULL로 동일 테이블 적재
+설비 알람 이력 + 읽음 상태 영속, 동일 설비+알람은 시간 버킷(정시)당 1건만 적재해
+반복 알람의 난잡한 중복을 억제 (NEW_PROACT01_ALERT03)
+source_log_id는 버킷 첫 telemetry 로그 참조, watcher 선제 알림(NEW_PROACT01_DETECT01)은 NULL
 """
 
 from datetime import datetime
@@ -28,8 +29,13 @@ class Notification(Base):
 
     __tablename__ = "notifications"
     __table_args__ = (
-        # telemetry 로그 1건당 알림 1건 보장(멱등 sync), watcher 알림은 NULL 다건 허용
-        UniqueConstraint("source_log_id", name="uq_notifications_source_log"),
+        # 동일 설비+알람은 시간 버킷당 1건만 허용해 반복 알람 중복 억제(멱등 sync)
+        UniqueConstraint(
+            "equipment_id",
+            "alarm_code",
+            "bucket_hour",
+            name="uq_notifications_equip_alarm_bucket",
+        ),
         Index("ix_notifications_occurred_at", "occurred_at"),
         Index("ix_notifications_is_read", "is_read"),
     )
@@ -40,9 +46,11 @@ class Notification(Base):
     alarm_code: Mapped[str] = mapped_column(String(20), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
+    # 발생 시각의 정시 절단값, 동일 설비+알람 중복 억제 유니크 키
+    bucket_hour: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source_log_id: Mapped[int | None] = mapped_column(
         BigInteger
-    )  # telemetry log_id, watcher는 NULL
+    )  # 버킷 첫 telemetry log_id, watcher는 NULL
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

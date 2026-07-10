@@ -1,12 +1,14 @@
 """알림 조회·동기화 레포지토리 (NEW_PROACT01_ALERT01)
 
 telemetry 알람을 notifications로 멱등 동기화(sync-on-read), 읽음 상태 갱신
+동일 설비+알람은 시간 버킷(정시)당 첫 알람 1건만 적재해 중복 억제 (NEW_PROACT01_ALERT03)
 """
 
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.notification.messages import build_notification_message
@@ -27,29 +29,45 @@ def _to_dict(row: Notification) -> dict[str, Any]:
 
 
 async def sync_from_telemetry(session: AsyncSession) -> int:
-    # 아직 알림화되지 않은 telemetry 알람을 notifications로 적재, 적재 건수 반환
-    already = select(Notification.source_log_id).where(Notification.source_log_id.is_not(None))
-    stmt = (
-        select(EquipmentTelemetry)
+    # 설비+알람+시간버킷별 첫 알람만 알림화, 버킷당 1건 유니크로 멱등, 신규 적재 건수 반환
+    bucket = func.date_trunc("hour", EquipmentTelemetry.timestamp)
+    grouped = (
+        select(
+            EquipmentTelemetry.equipment_id.label("equipment_id"),
+            EquipmentTelemetry.alarm_code.label("alarm_code"),
+            bucket.label("bucket_hour"),
+            func.min(EquipmentTelemetry.timestamp).label("occurred_at"),
+            func.min(EquipmentTelemetry.log_id).label("source_log_id"),
+        )
         .where(
             EquipmentTelemetry.alarm_code.is_not(None),
-            EquipmentTelemetry.log_id.not_in(already),
+            EquipmentTelemetry.alarm_code != "",
         )
-        .order_by(EquipmentTelemetry.timestamp)
+        .group_by(EquipmentTelemetry.equipment_id, EquipmentTelemetry.alarm_code, bucket)
     )
-    rows = (await session.scalars(stmt)).all()
-    for row in rows:
-        session.add(
-            Notification(
-                occurred_at=row.timestamp,
-                equipment_id=row.equipment_id,
-                alarm_code=row.alarm_code,
-                message=build_notification_message(row.equipment_id, row.alarm_code),
-                source_log_id=row.log_id,
-            )
-        )
+    groups = (await session.execute(grouped)).all()
+    if not groups:
+        return 0
+    values = [
+        {
+            "occurred_at": g.occurred_at,
+            "equipment_id": g.equipment_id,
+            "alarm_code": g.alarm_code,
+            "bucket_hour": g.bucket_hour,
+            "message": build_notification_message(g.equipment_id, g.alarm_code),
+            "source_log_id": g.source_log_id,
+        }
+        for g in groups
+    ]
+    # 기존 버킷은 유니크 충돌로 무시, 신규 버킷만 적재
+    stmt = (
+        pg_insert(Notification)
+        .values(values)
+        .on_conflict_do_nothing(constraint="uq_notifications_equip_alarm_bucket")
+    )
+    result = await session.execute(stmt)
     await session.flush()
-    return len(rows)
+    return result.rowcount or 0
 
 
 async def fetch_notifications(
