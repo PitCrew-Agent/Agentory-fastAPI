@@ -19,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -30,8 +31,15 @@ class ChatSession(Base):
     """대화 세션"""
 
     __tablename__ = "chat_session"
-    # 사용자별 히스토리 목록을 최신순으로 조회하는 패턴 대응 (BE_CHAT03_HISTORY01)
-    __table_args__ = (Index("ix_chat_session_user_created", "user_sub", "created_at"),)
+    # 미삭제 세션의 사용자별 최신순 히스토리 조회 대응, soft delete 제외 (BE_CHAT03_HISTORY01)
+    __table_args__ = (
+        Index(
+            "ix_chat_session_user_created",
+            "user_sub",
+            "created_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
 
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
@@ -43,6 +51,8 @@ class ChatSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # 히스토리 삭제는 soft delete, NULL=활성, 목록·상세에서 제외 (BE_CHAT03_DELETE01)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ChatMessage(Base):

@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
@@ -67,6 +67,26 @@ async def get_session_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail=f"대화 세션 없음: {session_id}")
     return detail
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="대화 세션 삭제",
+    responses={
+        204: {"description": "삭제 성공 (본문 없음)"},
+        404: {"description": "세션이 없거나 본인 소유가 아님"},
+    },
+)
+async def delete_session(
+    session_id: str = Path(examples=["1e4b1c2a-9b3d-4a1f-8c2e-2b7f9a0c1d34"]),
+    user: dict[str, Any] = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """본인 대화 세션을 히스토리에서 삭제 (soft delete)"""
+    deleted = await service.delete_session(session, session_id, user["email"])
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"대화 세션 없음: {session_id}")
 
 
 @router.post(

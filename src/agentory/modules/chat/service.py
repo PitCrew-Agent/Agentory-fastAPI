@@ -9,7 +9,7 @@ import uuid
 from collections.abc import AsyncIterator
 
 from langchain_core.messages import AIMessage, HumanMessage
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentory.common.events import SSEEvent
@@ -182,11 +182,11 @@ def _derive_title(content: str | None, equipment_id: str | None = None) -> str:
 
 
 async def list_sessions(db: AsyncSession, user_sub: str) -> list[ChatSessionSummary]:
-    # 본인 대화 세션을 최신순으로, 장비·제목·개수·마지막 시각과 함께 반환
+    # 본인 대화 세션을 최신순으로, 장비·제목·개수·마지막 시각과 함께 반환 (삭제 세션 제외)
     sessions = list(
         await db.scalars(
             select(ChatSession)
-            .where(ChatSession.user_sub == user_sub)
+            .where(ChatSession.user_sub == user_sub, ChatSession.deleted_at.is_(None))
             .order_by(ChatSession.created_at.desc())
             .limit(HISTORY_LIST_LIMIT)
         )
@@ -235,13 +235,17 @@ async def list_sessions(db: AsyncSession, user_sub: str) -> list[ChatSessionSumm
 async def get_session_detail(
     db: AsyncSession, session_id: str, user_sub: str
 ) -> ChatSessionDetail | None:
-    # 본인 세션만 상세 조회, 미존재·타인 소유·잘못된 ID는 None (라우터 404)
+    # 본인 세션만 상세 조회, 미존재·삭제·타인 소유·잘못된 ID는 None (라우터 404)
     try:
         sid = uuid.UUID(session_id)
     except ValueError:
         return None
     session = await db.scalar(
-        select(ChatSession).where(ChatSession.session_id == sid, ChatSession.user_sub == user_sub)
+        select(ChatSession).where(
+            ChatSession.session_id == sid,
+            ChatSession.user_sub == user_sub,
+            ChatSession.deleted_at.is_(None),
+        )
     )
     if session is None:
         return None
@@ -270,3 +274,25 @@ async def get_session_detail(
             for r in rows
         ],
     )
+
+
+async def delete_session(db: AsyncSession, session_id: str, user_sub: str) -> bool:
+    # 본인 세션 soft delete, 미존재·삭제됨·타인 소유·잘못된 ID는 False (라우터 404)
+    # 메시지·trace는 평가 재사용 위해 보존, 삭제 성공(1건)에만 커밋
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        return False
+    result = await db.execute(
+        update(ChatSession)
+        .where(
+            ChatSession.session_id == sid,
+            ChatSession.user_sub == user_sub,
+            ChatSession.deleted_at.is_(None),
+        )
+        .values(deleted_at=func.now())
+    )
+    if result.rowcount == 0:
+        return False
+    await db.commit()
+    return True
