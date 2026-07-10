@@ -30,11 +30,16 @@ class ChatSession(Base):
     """대화 세션"""
 
     __tablename__ = "chat_session"
+    # 사용자별 히스토리 목록을 최신순으로 조회하는 패턴 대응 (BE_CHAT03_HISTORY01)
+    __table_args__ = (Index("ix_chat_session_user_created", "user_sub", "created_at"),)
 
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
     user_sub: Mapped[str] = mapped_column(String(255), nullable=False)  # Keycloak sub
+    # 대화 컨텍스트 설비, 세션 생성 시 첫 질의의 선택 설비로 고정 (NEW_TWIN01_CHATCTX01)
+    # 대시보드는 항상 설비를 선택해 넘기므로 신규 세션은 값 존재, 레거시 세션은 NULL 허용
+    equipment_id: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
