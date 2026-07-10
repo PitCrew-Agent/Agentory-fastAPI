@@ -1,0 +1,309 @@
+{
+  "rows": [
+    {
+      "latency": 76.7870829589665,
+      "calls": 11,
+      "in_tok": 192744,
+      "out_tok": 6810,
+      "steps": 9,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_chain",
+      "rep": 0
+    },
+    {
+      "latency": 51.94052029191516,
+      "calls": 7,
+      "in_tok": 89554,
+      "out_tok": 4601,
+      "steps": 5,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_chain",
+      "rep": 1
+    },
+    {
+      "latency": 93.73584829084575,
+      "calls": 9,
+      "in_tok": 155859,
+      "out_tok": 9083,
+      "steps": 7,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_chain",
+      "rep": 2
+    },
+    {
+      "latency": 35.30220862501301,
+      "calls": 6,
+      "in_tok": 16701,
+      "out_tok": 2812,
+      "steps": 4,
+      "config": "A_before(steps10_ground)",
+      "query": "knowledge",
+      "rep": 0
+    },
+    {
+      "latency": 36.44513312494382,
+      "calls": 7,
+      "in_tok": 18891,
+      "out_tok": 2841,
+      "steps": 5,
+      "config": "A_before(steps10_ground)",
+      "query": "knowledge",
+      "rep": 1
+    },
+    {
+      "latency": 30.65254525002092,
+      "calls": 6,
+      "in_tok": 15741,
+      "out_tok": 2549,
+      "steps": 4,
+      "config": "A_before(steps10_ground)",
+      "query": "knowledge",
+      "rep": 2
+    },
+    {
+      "latency": 77.87925312505104,
+      "calls": 10,
+      "in_tok": 160398,
+      "out_tok": 5721,
+      "steps": 8,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_one",
+      "rep": 0
+    },
+    {
+      "latency": 89.33361629210413,
+      "calls": 10,
+      "in_tok": 159206,
+      "out_tok": 7665,
+      "steps": 8,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_one",
+      "rep": 1
+    },
+    {
+      "latency": 104.20355958398432,
+      "calls": 11,
+      "in_tok": 175664,
+      "out_tok": 8562,
+      "steps": 9,
+      "config": "A_before(steps10_ground)",
+      "query": "diag_one",
+      "rep": 2
+    },
+    {
+      "latency": 55.105684417067096,
+      "calls": 8,
+      "in_tok": 104543,
+      "out_tok": 4797,
+      "steps": 7,
+      "config": "B_steps4_ground",
+      "query": "diag_chain",
+      "rep": 0
+    },
+    {
+      "latency": 79.14721924997866,
+      "calls": 14,
+      "in_tok": 419575,
+      "out_tok": 4645,
+      "steps": 13,
+      "config": "B_steps4_ground",
+      "query": "diag_chain",
+      "rep": 1
+    },
+    {
+      "latency": 67.02155058388598,
+      "calls": 6,
+      "in_tok": 62841,
+      "out_tok": 5767,
+      "steps": 5,
+      "config": "B_steps4_ground",
+      "query": "diag_chain",
+      "rep": 2
+    },
+    {
+      "latency": 63.62977149989456,
+      "calls": 6,
+      "in_tok": 20573,
+      "out_tok": 3536,
+      "steps": 5,
+      "config": "B_steps4_ground",
+      "query": "knowledge",
+      "rep": 0
+    },
+    {
+      "latency": 112.42180241597816,
+      "calls": 6,
+      "in_tok": 21157,
+      "out_tok": 3858,
+      "steps": 5,
+      "config": "B_steps4_ground",
+      "query": "knowledge",
+      "rep": 1
+    },
+    {
+      "latency": 35.20840129209682,
+      "calls": 6,
+      "in_tok": 14170,
+      "out_tok": 2642,
+      "steps": 5,
+      "config": "B_steps4_ground",
+      "query": "knowledge",
+      "rep": 2
+    },
+    {
+      "latency": 57.62454762519337,
+      "calls": 9,
+      "in_tok": 202280,
+      "out_tok": 4174,
+      "steps": 8,
+      "config": "B_steps4_ground",
+      "query": "diag_one",
+      "rep": 0
+    },
+    {
+      "latency": 35.580897707957774,
+      "calls": 7,
+      "in_tok": 78540,
+      "out_tok": 3211,
+      "steps": 6,
+      "config": "B_steps4_ground",
+      "query": "diag_one",
+      "rep": 1
+    },
+    {
+      "latency": 34.168198250001296,
+      "calls": 7,
+      "in_tok": 67957,
+      "out_tok": 2966,
+      "steps": 6,
+      "config": "B_steps4_ground",
+      "query": "diag_one",
+      "rep": 2
+    },
+    {
+      "latency": 38.491333125159144,
+      "calls": 6,
+      "in_tok": 76398,
+      "out_tok": 3292,
+      "steps": 6,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_chain",
+      "rep": 0
+    },
+    {
+      "latency": 40.00233170809224,
+      "calls": 6,
+      "in_tok": 76540,
+      "out_tok": 3578,
+      "steps": 6,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_chain",
+      "rep": 1
+    },
+    {
+      "latency": 48.030357083072886,
+      "calls": 6,
+      "in_tok": 77183,
+      "out_tok": 4277,
+      "steps": 6,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_chain",
+      "rep": 2
+    },
+    {
+      "latency": 27.78228470799513,
+      "calls": 5,
+      "in_tok": 10619,
+      "out_tok": 2451,
+      "steps": 4,
+      "config": "C_after(steps4_noground)",
+      "query": "knowledge",
+      "rep": 0
+    },
+    {
+      "latency": 37.80318683292717,
+      "calls": 5,
+      "in_tok": 19317,
+      "out_tok": 3752,
+      "steps": 5,
+      "config": "C_after(steps4_noground)",
+      "query": "knowledge",
+      "rep": 1
+    },
+    {
+      "latency": 33.2618645420298,
+      "calls": 5,
+      "in_tok": 12593,
+      "out_tok": 2875,
+      "steps": 5,
+      "config": "C_after(steps4_noground)",
+      "query": "knowledge",
+      "rep": 2
+    },
+    {
+      "latency": 45.17940883315168,
+      "calls": 6,
+      "in_tok": 77254,
+      "out_tok": 4454,
+      "steps": 6,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_one",
+      "rep": 0
+    },
+    {
+      "latency": 59.82575137517415,
+      "calls": 8,
+      "in_tok": 124575,
+      "out_tok": 4492,
+      "steps": 8,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_one",
+      "rep": 1
+    },
+    {
+      "latency": 36.63056974997744,
+      "calls": 6,
+      "in_tok": 75907,
+      "out_tok": 3133,
+      "steps": 6,
+      "config": "C_after(steps4_noground)",
+      "query": "diag_one",
+      "rep": 2
+    }
+  ],
+  "summary": [
+    {
+      "config": "A_before(steps10_ground)",
+      "n": 9,
+      "p50_s": 76.79,
+      "p95_s": 104.2,
+      "mean_s": 66.25,
+      "mean_calls": 8.6,
+      "mean_total_tok": 115045,
+      "mean_out_tok": 5627,
+      "mean_cost_usd": 0.03861
+    },
+    {
+      "config": "B_steps4_ground",
+      "n": 9,
+      "p50_s": 57.62,
+      "p95_s": 112.42,
+      "mean_s": 59.99,
+      "mean_calls": 7.7,
+      "mean_total_tok": 114137,
+      "mean_out_tok": 3955,
+      "mean_cost_usd": 0.03546
+    },
+    {
+      "config": "C_after(steps4_noground)",
+      "n": 9,
+      "p50_s": 38.49,
+      "p95_s": 59.83,
+      "mean_s": 40.78,
+      "mean_calls": 5.9,
+      "mean_total_tok": 64743,
+      "mean_out_tok": 3589,
+      "mean_cost_usd": 0.02247
+    }
+  ]
+}
