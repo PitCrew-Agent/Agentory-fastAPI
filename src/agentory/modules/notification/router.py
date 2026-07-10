@@ -7,14 +7,14 @@ SSE 이벤트 스키마는 agentory.common.events.NotificationEvent가 단일 �
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from agentory.common.events import NotificationEvent
 from agentory.core.db import SessionLocal, get_session
 from agentory.modules.notification import repository, service
-from agentory.modules.notification.schemas import NotificationItem, ReadAllResponse
+from agentory.modules.notification.schemas import NotificationPage, ReadAllResponse
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -22,13 +22,22 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 STREAM_POLL_SECONDS = 3.0
 
 
-@router.get("", response_model=list[NotificationItem])
+@router.get("", response_model=NotificationPage)
 async def list_notifications(
     unread_only: bool = False,
+    before: str | None = Query(
+        default=None, description="이전 페이지 마지막 항목 커서, 첫 페이지는 생략"
+    ),
+    limit: int = Query(default=service.DEFAULT_PAGE_SIZE, ge=1, le=service.MAX_PAGE_SIZE),
     session: AsyncSession = Depends(get_session),
-) -> list[NotificationItem]:
-    # 알림 이력 목록 (sync-on-read), unread_only로 미읽음만
-    return await service.list_notifications(session, unread_only=unread_only)
+) -> NotificationPage:
+    # 알림 이력 목록 (sync-on-read), 발생 역순 커서 페이지네이션, unread_only로 미읽음만
+    try:
+        return await service.list_notifications(
+            session, unread_only=unread_only, before=before, limit=limit
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
 @router.post("/read-all", response_model=ReadAllResponse)

@@ -3,9 +3,10 @@
 telemetry 알람을 notifications로 멱등 동기화(sync-on-read), 읽음 상태 갱신
 """
 
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.notification.messages import build_notification_message
@@ -65,6 +66,31 @@ async def fetch_notifications(
         stmt = stmt.where(Notification.id > after_id).order_by(Notification.id)
     else:
         stmt = stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc())
+    rows = await session.scalars(stmt)
+    return [_to_dict(r) for r in rows]
+
+
+async def fetch_notifications_page(
+    session: AsyncSession,
+    *,
+    unread_only: bool = False,
+    before: tuple[datetime, int] | None = None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    # 발생 역순(occurred_at, id) 키셋 페이지네이션, before 커서보다 과거 항목만
+    # 새 알림이 위에 쌓여도 경계가 밀리지 않도록 offset 대신 키셋 사용
+    stmt = select(Notification)
+    if unread_only:
+        stmt = stmt.where(Notification.is_read.is_(False))
+    if before is not None:
+        cur_occurred, cur_id = before
+        stmt = stmt.where(
+            or_(
+                Notification.occurred_at < cur_occurred,
+                and_(Notification.occurred_at == cur_occurred, Notification.id < cur_id),
+            )
+        )
+    stmt = stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc()).limit(limit)
     rows = await session.scalars(stmt)
     return [_to_dict(r) for r in rows]
 
