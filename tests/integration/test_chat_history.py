@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import delete, func, text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -118,3 +118,40 @@ async def test_detail_other_owner_returns_none(session):
 
 async def test_detail_invalid_uuid_returns_none(session):
     assert await service.get_session_detail(session, "not-a-uuid", OWNER) is None
+
+
+async def test_soft_deleted_hidden_from_list_and_detail(session):
+    # deleted_at 표시 시 목록·상세에서 제외 (커밋 없이 필터만 검증) (BE_CHAT03_DELETE01)
+    sid = await _seed_session(session)
+    await session.execute(
+        update(ChatSession).where(ChatSession.session_id == sid).values(deleted_at=func.now())
+    )
+    await session.flush()
+    items = await service.list_sessions(session, OWNER)
+    assert all(i.session_id != str(sid) for i in items)
+    assert await service.get_session_detail(session, str(sid), OWNER) is None
+
+
+async def test_delete_other_owner_returns_false(session):
+    # 타인 세션 삭제 불가, rowcount 0이라 커밋 없음(롤백 안전)
+    sid = await _seed_session(session, user_sub=OTHER)
+    assert await service.delete_session(session, str(sid), OWNER) is False
+
+
+async def test_delete_invalid_uuid_returns_false(session):
+    assert await service.delete_session(session, "not-a-uuid", OWNER) is False
+
+
+async def test_delete_success_hides_and_is_idempotent(session):
+    # 성공 삭제는 커밋되므로 테스트 종료 시 하드 삭제로 정리
+    sid = await _seed_session(session)
+    try:
+        assert await service.delete_session(session, str(sid), OWNER) is True
+        assert all(i.session_id != str(sid) for i in await service.list_sessions(session, OWNER))
+        assert await service.get_session_detail(session, str(sid), OWNER) is None
+        # 두 번째 삭제는 이미 삭제됨이라 False
+        assert await service.delete_session(session, str(sid), OWNER) is False
+    finally:
+        await session.execute(delete(ChatMessage).where(ChatMessage.session_id == sid))
+        await session.execute(delete(ChatSession).where(ChatSession.session_id == sid))
+        await session.commit()
