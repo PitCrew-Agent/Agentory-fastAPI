@@ -38,3 +38,29 @@ MCP 서버는 표준상 별도 프로세스가 자연스러우므로 완전한 �
 
 - SSE 이벤트 계약은 `src/agentory/common/events.py`가 단일 소스 (docs/sse-events.md 참조).
 - 브랜치 전략: default `develop`, 작업은 `feature/<기능ID>` → PR → develop.
+
+## 후속 결정 및 관련 ADR
+
+본 ADR이 정한 골격 위에서 구현을 진행하며 내린 세부 결정은 별도 ADR로 분리했습니다.
+
+| ADR | 주제 |
+| --- | --- |
+| [ADR-0002](0002-auth-session.md) | Azure AD SSO + opaque 세션 쿠키 인증 (Bearer→opaque 3회 전환) |
+| [ADR-0003](0003-agent-runtime-budget.md) | 에이전트 실행 예산·컨텍스트 방어 가드레일 |
+| [ADR-0004](0004-realtime-sse.md) | 실시간 SSE·알림 동기화·트윈 상태 판정 (래치 폐기) |
+| [ADR-0005](0005-simulator-spc.md) | 시뮬레이터 SPC 이상 데이터 생성 모델 |
+
+### RAG 포트(§4)의 후속 보완
+
+본 ADR §4에서 임베딩·벡터 스토어 포트를 3대 교체 지점으로 지정했고, 실제 어댑터는
+pgvector·OpenAI 임베딩 단일 구현으로 확정했습니다. 구현 중 다음을 추가로 결정했습니다.
+
+- 미구현 스텁 도구(`search_similar_cases`)는 `@mcp.tool()` 데코레이터를 제거해 MCP에
+  노출하지 않습니다. LLM tool binding에 잡혀 불필요한 실패 Observation이 생기는 것을 막기
+  위함이며, 회귀 테스트로 고정합니다 (BE_MCP04_RAG01).
+- LLM 과대 입력 방어를 위해 `top_k`에 정적 상한(`MAX_TOP_K`=20) 검증을 둡니다. 운영 튜닝값
+  (`RAG_SEARCH_TOP_K`·`MIN_SCORE`)과 구분되는 상수입니다.
+- 임베딩 차원(1536)이 벡터 컬럼 스키마에 하드 커플링되어 있어, 임베딩 모델 교체 시 차원
+  마이그레이션 + 전체 재적재가 필요합니다(유연성보다 단순성 선택).
+- 검색 결과 빈 배열은 "매뉴얼 부재"가 아니라 "임계값 이상 근거 없음"을 의미하므로, 상위
+  로직·프롬프트가 이를 오해하지 않도록 주의합니다.
