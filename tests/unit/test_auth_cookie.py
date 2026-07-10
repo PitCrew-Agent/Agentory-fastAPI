@@ -203,6 +203,7 @@ async def test_refresh_updates_server_session_without_returning_tokens(monkeypat
         "name": "User",
         "role": "field_engineer",
         "status": "active",
+        "lines": [],  # 담당 라인 필드 추가 (refresh는 세션 기반이라 빈 리스트)
     }
     assert "new-access-token" not in res.text
     assert "new-id-token" not in res.text
