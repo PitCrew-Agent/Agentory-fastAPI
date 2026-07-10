@@ -4,12 +4,13 @@ Agent 그래프 스트리밍을 SSE 이벤트로 흘리며, 질의·응답과 �
 비스트리밍 응답은 동일 스트림을 소비해 구성 (단일 실행 경로)
 """
 
+import re
 import uuid
 from collections.abc import AsyncIterator
 
 from langchain_core.messages import AIMessage, HumanMessage
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentory.common.events import SSEEvent
 from agentory.common.exceptions import ExternalServiceError
@@ -17,16 +18,27 @@ from agentory.core.config import get_settings
 from agentory.modules.agent.runner import RECURSION_LIMIT, get_graph, initial_state
 from agentory.modules.agent.streaming import stream_agent_events
 from agentory.modules.chat.models import ChatMessage, ChatSession
-from agentory.modules.chat.schemas import ChatResponse, ReasoningStep
+from agentory.modules.chat.schemas import (
+    ChatMessageItem,
+    ChatResponse,
+    ChatSessionDetail,
+    ChatSessionSummary,
+    ReasoningStep,
+)
 
 DEFAULT_USER = "anonymous"  # 라우터가 JWT sub를 넘기지 못한 경우의 폴백값
+TITLE_MAX_LEN = 30  # 히스토리 제목(첫 질문 요약) 절삭 길이
+DEFAULT_TITLE = "새 대화"  # 첫 사용자 질의가 없는 세션의 폴백 제목
+HISTORY_LIST_LIMIT = 100  # 히스토리 목록 최대 세션 수
 
 
-async def _ensure_session(db, session_id: uuid.UUID, user_sub: str) -> None:
-    # 세션이 없으면 생성 (클라이언트 지정 session_id 사용)
+async def _ensure_session(
+    db, session_id: uuid.UUID, user_sub: str, equipment_id: str | None = None
+) -> None:
+    # 세션이 없으면 생성 (클라이언트 지정 session_id 사용), 첫 질의의 선택 설비를 세션에 고정
     exists = await db.scalar(select(ChatSession).where(ChatSession.session_id == session_id))
     if exists is None:
-        db.add(ChatSession(session_id=session_id, user_sub=user_sub))
+        db.add(ChatSession(session_id=session_id, user_sub=user_sub, equipment_id=equipment_id))
         await db.commit()
 
 
@@ -59,7 +71,7 @@ async def stream_chat(
     # 질의를 그래프에 흘려 SSE 이벤트를 방출하고, 완료 후 응답·추론 기록 저장
     sid = uuid.UUID(session_id)
     async with session_factory() as db:
-        await _ensure_session(db, sid, user_sub)
+        await _ensure_session(db, sid, user_sub, equipment_id)
         history = await _load_history(db, sid)
         db.add(ChatMessage(session_id=sid, role="user", content=message))
         await db.commit()
@@ -148,4 +160,113 @@ async def run_query(
         reasoning_steps=steps,
         citations=citations,
         suggested_questions=suggested,
+    )
+
+
+def _derive_title(content: str | None, equipment_id: str | None = None) -> str:
+    # 첫 사용자 질문을 제목으로 절삭, 없으면 기본 제목 (BE_CHAT03_HISTORY01)
+    text = (content or "").strip()
+    if text and equipment_id:
+        # 배지로 이미 표시되는 앞쪽 장비id는 제목에서 제거 (중복 방지)
+        # 장비id 뒤가 구분자·공백·문자열 끝일 때만 제거해 유사 id 오탐 방지 (예: A01 vs A011)
+        text = re.sub(
+            rf"^{re.escape(equipment_id)}(\s*[-–:·,]\s*|\s+|$)",
+            "",
+            text,
+            count=1,
+            flags=re.IGNORECASE,
+        ).strip()
+    if not text:
+        return DEFAULT_TITLE
+    return text if len(text) <= TITLE_MAX_LEN else text[:TITLE_MAX_LEN] + "…"
+
+
+async def list_sessions(db: AsyncSession, user_sub: str) -> list[ChatSessionSummary]:
+    # 본인 대화 세션을 최신순으로, 장비·제목·개수·마지막 시각과 함께 반환
+    sessions = list(
+        await db.scalars(
+            select(ChatSession)
+            .where(ChatSession.user_sub == user_sub)
+            .order_by(ChatSession.created_at.desc())
+            .limit(HISTORY_LIST_LIMIT)
+        )
+    )
+    if not sessions:
+        return []
+
+    sids = [s.session_id for s in sessions]
+    # 세션별 메시지 개수·마지막 시각 집계 (N+1 방지)
+    agg_rows = await db.execute(
+        select(
+            ChatMessage.session_id,
+            func.count(ChatMessage.message_id),
+            func.max(ChatMessage.created_at),
+        )
+        .where(ChatMessage.session_id.in_(sids))
+        .group_by(ChatMessage.session_id)
+    )
+    agg = {sid: (cnt, last) for sid, cnt, last in agg_rows}
+
+    # 세션별 첫 사용자 질문(제목 원천), DISTINCT ON으로 세션당 최초 1건
+    title_rows = await db.execute(
+        select(ChatMessage.session_id, ChatMessage.content)
+        .where(ChatMessage.session_id.in_(sids), ChatMessage.role == "user")
+        .distinct(ChatMessage.session_id)
+        .order_by(ChatMessage.session_id, ChatMessage.created_at.asc())
+    )
+    first_user = {sid: content for sid, content in title_rows}
+
+    summaries = []
+    for s in sessions:
+        count, last = agg.get(s.session_id, (0, None))
+        summaries.append(
+            ChatSessionSummary(
+                session_id=str(s.session_id),
+                equipment_id=s.equipment_id,
+                title=_derive_title(first_user.get(s.session_id), s.equipment_id),
+                created_at=s.created_at,
+                last_message_at=last,
+                message_count=count,
+            )
+        )
+    return summaries
+
+
+async def get_session_detail(
+    db: AsyncSession, session_id: str, user_sub: str
+) -> ChatSessionDetail | None:
+    # 본인 세션만 상세 조회, 미존재·타인 소유·잘못된 ID는 None (라우터 404)
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        return None
+    session = await db.scalar(
+        select(ChatSession).where(ChatSession.session_id == sid, ChatSession.user_sub == user_sub)
+    )
+    if session is None:
+        return None
+
+    rows = list(
+        await db.scalars(
+            select(ChatMessage)
+            .where(ChatMessage.session_id == sid)
+            .order_by(ChatMessage.created_at.asc(), ChatMessage.message_id.asc())
+        )
+    )
+    first_user = next((r.content for r in rows if r.role == "user"), None)
+    return ChatSessionDetail(
+        session_id=str(sid),
+        equipment_id=session.equipment_id,
+        title=_derive_title(first_user, session.equipment_id),
+        created_at=session.created_at,
+        messages=[
+            ChatMessageItem(
+                message_id=r.message_id,
+                role=r.role,
+                content=r.content,
+                trace=r.trace,
+                created_at=r.created_at,
+            )
+            for r in rows
+        ],
     )
