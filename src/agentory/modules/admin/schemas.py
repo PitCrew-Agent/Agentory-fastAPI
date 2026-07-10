@@ -8,6 +8,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from agentory.modules.telemetry.schemas import EquipmentManager
+
 
 class LineStatus(StrEnum):
     # 라인 운영 상태, 삭제 대신 비활성 처리에도 사용
@@ -64,3 +66,14 @@ class AdminUserItem(BaseModel):
     role: str
     status: str
     lines: list[LineRef] = Field(default_factory=list)
+
+
+class AssignManagerRequest(BaseModel):
+    # 설비 책임자 지정, None이면 책임자 해제
+    user_id: int | None = None
+
+
+class EquipmentManagerItem(BaseModel):
+    # 설비 책임자 지정 결과, 미지정 시 manager는 None
+    equipment_id: str
+    manager: EquipmentManager | None = None

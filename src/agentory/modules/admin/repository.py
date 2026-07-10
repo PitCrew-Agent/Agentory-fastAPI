@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.admin.models import Line, UserLine
 from agentory.modules.auth.models import User
+from agentory.modules.telemetry.models import EquipmentMaster
 
 
 def _line_to_dict(row: Line) -> dict[str, Any]:
@@ -159,3 +160,15 @@ async def replace_user_lines(session: AsyncSession, user_id: int, line_ids: list
     for line_id in dict.fromkeys(line_ids):  # 중복 제거, 순서 유지
         session.add(UserLine(user_id=user_id, line_id=line_id))
     await session.flush()
+
+
+async def set_equipment_manager(
+    session: AsyncSession, equipment_id: str, manager_user_id: int | None
+) -> bool:
+    # 설비 책임자 유저 지정(또는 None으로 해제), 설비 미존재면 False
+    equip = await session.get(EquipmentMaster, equipment_id)
+    if equip is None:
+        return False
+    equip.manager_user_id = manager_user_id
+    await session.flush()
+    return True

@@ -10,11 +10,14 @@ from agentory.modules.admin import repository
 from agentory.modules.admin.schemas import (
     AdminUserItem,
     AssignLinesRequest,
+    AssignManagerRequest,
+    EquipmentManagerItem,
     LineCreate,
     LineItem,
     LineRef,
     LineUpdate,
 )
+from agentory.modules.telemetry.schemas import EquipmentManager
 
 
 async def create_line(session: AsyncSession, payload: LineCreate) -> LineItem:
@@ -109,3 +112,20 @@ async def assign_user_lines(
     await session.commit()
     refs = await repository.list_user_line_refs(session, user_id)
     return AdminUserItem(**user, lines=[LineRef(**r) for r in refs])
+
+
+async def assign_equipment_manager(
+    session: AsyncSession, equipment_id: str, payload: AssignManagerRequest
+) -> EquipmentManagerItem | None:
+    # 설비 미존재는 None(404), 없는 유저 지정 시 ValueError(400), None이면 책임자 해제
+    manager = None
+    if payload.user_id is not None:
+        user = await repository.get_user(session, payload.user_id)
+        if user is None:
+            raise ValueError(f"존재하지 않는 유저: {payload.user_id}")
+        manager = EquipmentManager(id=user["id"], name=user["name"], email=user["email"])
+    updated = await repository.set_equipment_manager(session, equipment_id, payload.user_id)
+    if not updated:
+        return None
+    await session.commit()
+    return EquipmentManagerItem(equipment_id=equipment_id, manager=manager)

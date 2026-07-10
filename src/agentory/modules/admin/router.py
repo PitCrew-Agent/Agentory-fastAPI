@@ -14,6 +14,8 @@ from agentory.modules.admin import service
 from agentory.modules.admin.schemas import (
     AdminUserItem,
     AssignLinesRequest,
+    AssignManagerRequest,
+    EquipmentManagerItem,
     LineCreate,
     LineItem,
     LineUpdate,
@@ -134,4 +136,24 @@ async def assign_user_lines(
         raise HTTPException(status_code=400, detail=str(exc)) from None
     if item is None:
         raise HTTPException(status_code=404, detail=f"유저 없음: {user_id}")
+    return item
+
+
+# --- 설비 책임자 지정 ---
+
+
+@router.put("/equipment/{equipment_id}/manager", response_model=EquipmentManagerItem)
+async def assign_equipment_manager(
+    equipment_id: str,
+    payload: AssignManagerRequest,
+    _: dict[str, Any] = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> EquipmentManagerItem:
+    # 책임자 유저 지정(user_id=null이면 해제), 설비 미존재 404, 없는 유저 400
+    try:
+        item = await service.assign_equipment_manager(session, equipment_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
     return item
