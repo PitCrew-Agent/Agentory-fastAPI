@@ -66,9 +66,36 @@ async def test_sync_creates_notifications_for_alarms(seeded_session):
 
 
 async def test_sync_is_idempotent(seeded_session):
-    # 두 번째 sync는 신규 0건 (source_log_id 중복 방지)
+    # 두 번째 sync는 신규 0건 (버킷 유니크 중복 방지)
     await repository.sync_from_telemetry(seeded_session)
     assert await repository.sync_from_telemetry(seeded_session) == 0
+
+
+async def test_sync_dedup_by_hour_bucket(seeded_session):
+    # 동일 설비+알람은 시간 버킷당 1건, 다른 시간대는 별건 (NEW_PROACT01_ALERT03)
+    # 픽스처의 ERR-402(00:15)와 같은 시간대 중복(00:45), 다음 시간대(01:05) 추가
+    seeded_session.add_all(
+        EquipmentTelemetry(
+            equipment_id=EQP,
+            timestamp=ts,
+            temperature=Decimal("60.0"),
+            alarm_code="ERR-402",
+        )
+        for ts in (T0.replace(minute=45), T0.replace(hour=1, minute=5))
+    )
+    await seeded_session.flush()
+    await repository.sync_from_telemetry(seeded_session)
+    err402 = [
+        r
+        for r in _mine(await repository.fetch_notifications(seeded_session))
+        if r["alarm_code"] == "ERR-402"
+    ]
+    # 00시대 :15·:45는 1건으로 합쳐지고 01시대가 별건, 총 2건
+    assert len(err402) == 2
+    # 같은 버킷 대표는 가장 이른 발생 시각(00:15)
+    hour0 = [r for r in err402 if r["occurred_at"].hour == 0]
+    assert len(hour0) == 1
+    assert hour0[0]["occurred_at"].minute == 15
 
 
 async def test_mark_read_individual_and_all(seeded_session):
