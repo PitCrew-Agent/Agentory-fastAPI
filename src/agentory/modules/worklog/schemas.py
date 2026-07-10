@@ -18,10 +18,20 @@ class WorkLogStatus(StrEnum):
 
 class WorkLogCreate(BaseModel):
     # 작업 로그 작성 (시작~종료 범위·내용·상태), 진행자는 로그인 사용자에서 자동
-    started_at: datetime
-    ended_at: datetime | None = None
-    content: str = Field(min_length=1)
-    status: WorkLogStatus = WorkLogStatus.PENDING
+    started_at: datetime = Field(
+        description="작업 시작 시각", examples=["2026-07-10T09:00:00+09:00"]
+    )
+    ended_at: datetime | None = Field(
+        default=None,
+        description="작업 종료 시각, 진행중이면 생략",
+        examples=["2026-07-10T11:30:00+09:00"],
+    )
+    content: str = Field(
+        min_length=1, description="작업 내용", examples=["EQP-A05 챔버 압력 센서 교체"]
+    )
+    status: WorkLogStatus = Field(
+        default=WorkLogStatus.PENDING, description="진행 상태", examples=["진행중"]
+    )
 
     @model_validator(mode="after")
     def _check_range(self) -> "WorkLogCreate":
@@ -41,10 +51,10 @@ class WorkLogUpdate(BaseModel):
 
 class WorkLogItem(BaseModel):
     # 작업 로그 목록·상세 항목 (owner_sub는 노출 안 함)
-    id: int
-    worker_name: str
-    started_at: datetime
-    ended_at: datetime | None = None
-    content: str
-    status: WorkLogStatus
-    created_at: datetime
+    id: int = Field(description="작업 로그 id", examples=[15])
+    worker_name: str = Field(description="진행자 이름 (작성자)", examples=["홍길동"])
+    started_at: datetime = Field(description="작업 시작 시각")
+    ended_at: datetime | None = Field(default=None, description="작업 종료 시각, 진행중이면 null")
+    content: str = Field(description="작업 내용")
+    status: WorkLogStatus = Field(description="진행 상태", examples=["완료"])
+    created_at: datetime = Field(description="로그 생성 시각")
