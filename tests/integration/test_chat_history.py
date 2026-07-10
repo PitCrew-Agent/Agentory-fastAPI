@@ -82,9 +82,7 @@ async def test_list_strips_equipment_prefix_from_title(session):
 
 async def test_list_keeps_title_when_prefix_is_similar_id(session):
     # 유사 id(EQP-A011)는 세션 장비(EQP-A01)와 달라 제거 안 함
-    sid = await _seed_session(
-        session, equipment_id="EQP-A01", first_q="EQP-A011 압력 확인"
-    )
+    sid = await _seed_session(session, equipment_id="EQP-A01", first_q="EQP-A011 압력 확인")
     items = await service.list_sessions(session, OWNER)
     mine = next(i for i in items if i.session_id == str(sid))
     assert mine.title == "EQP-A011 압력 확인"
