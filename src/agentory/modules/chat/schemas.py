@@ -1,5 +1,6 @@
 """채팅 API 요청/응답 스키마 (BE_CHAT01_QUERY01)"""
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -30,3 +31,31 @@ class ChatResponse(BaseModel):
     reasoning_steps: list[ReasoningStep] = []
     citations: list[Citation] = []
     suggested_questions: list[str] = []  # 후속 추천 질문 (BE_CHAT02_SUGGEST01)
+
+
+class ChatSessionSummary(BaseModel):
+    # 대화 히스토리 목록 항목 (BE_CHAT03_HISTORY01), 장비 배지 + 제목 + 일시로 표시
+    session_id: str
+    equipment_id: str | None = None  # 대화 컨텍스트 설비, 배지 표시용
+    title: str  # 첫 사용자 질문 요약 (절삭), 첫 질의 없으면 기본값
+    created_at: datetime
+    last_message_at: datetime | None = None  # 마지막 메시지 시각, 정렬·표시용
+    message_count: int
+
+
+class ChatMessageItem(BaseModel):
+    # 대화 상세의 개별 메시지, trace는 추론 기록(steps·citations 등) 원본
+    message_id: int
+    role: str
+    content: str
+    trace: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class ChatSessionDetail(BaseModel):
+    # 대화 상세 (BE_CHAT03_HISTORY02), 세션 메타 + 전체 메시지
+    session_id: str
+    equipment_id: str | None = None
+    title: str
+    created_at: datetime
+    messages: list[ChatMessageItem] = []

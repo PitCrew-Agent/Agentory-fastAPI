@@ -5,13 +5,19 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
-from agentory.core.db import SessionLocal
+from agentory.core.db import SessionLocal, get_session
 from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.chat import service
-from agentory.modules.chat.schemas import ChatRequest, ChatResponse
+from agentory.modules.chat.schemas import (
+    ChatRequest,
+    ChatResponse,
+    ChatSessionDetail,
+    ChatSessionSummary,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -30,6 +36,28 @@ async def query(
         user_sub=user["email"],
         equipment_id=req.equipment_id,
     )
+
+
+@router.get("/sessions", response_model=list[ChatSessionSummary])
+async def list_sessions(
+    user: dict[str, Any] = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[ChatSessionSummary]:
+    # 본인 대화 히스토리 목록 (최신순), 장비·제목·개수 포함
+    return await service.list_sessions(session, user["email"])
+
+
+@router.get("/sessions/{session_id}", response_model=ChatSessionDetail)
+async def get_session_detail(
+    session_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ChatSessionDetail:
+    # 본인 세션 상세 (전체 메시지), 미존재·타인 소유는 404
+    detail = await service.get_session_detail(session, session_id, user["email"])
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"대화 세션 없음: {session_id}")
+    return detail
 
 
 @router.post("/stream")
