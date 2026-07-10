@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from agentory.modules.admin.schemas import LineRef
+
 
 class AuthUrlResponse(BaseModel):
     authorization_url: str
@@ -14,6 +16,7 @@ class AuthUserResponse(BaseModel):
     name: str
     role: str
     status: str
+    lines: list[LineRef] = Field(default_factory=list)  # 담당 라인, 부서 대신 사용
 
 
 class AuthTokenResponse(BaseModel):

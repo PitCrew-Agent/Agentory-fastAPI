@@ -2,9 +2,12 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import RedirectResponse, Response
 
 from agentory.core.config import get_settings
+from agentory.core.db import get_session
+from agentory.modules.admin import service as admin_service
 from agentory.modules.auth import service
 from agentory.modules.auth.middleware import get_current_user, write_audit_event
 from agentory.modules.auth.redis_store import (
@@ -67,13 +70,14 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
-def _current_user_response(user: dict) -> AuthUserResponse:
+def _current_user_response(user: dict, lines: list | None = None) -> AuthUserResponse:
     return AuthUserResponse(
         id=user["user_id"],
         email=user["email"],
         name=user["name"],
         role=user["role"],
         status="active",
+        lines=lines or [],
     )
 
 
@@ -275,8 +279,13 @@ async def logout(
 
 
 @router.get("/me", response_model=AuthUserResponse)
-async def me(user: dict = Depends(get_current_user)) -> AuthUserResponse:
-    return _current_user_response(user)
+async def me(
+    user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> AuthUserResponse:
+    # 담당 라인은 DB에서 실시간 로드, 관리자 재지정이 즉시 반영되도록
+    lines = await admin_service.list_user_line_refs(session, user["user_id"])
+    return _current_user_response(user, lines)
 
 
 @router.get("/audit-logs")
