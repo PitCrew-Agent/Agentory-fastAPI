@@ -1,0 +1,78 @@
+# CD: develop 머지 시 이미지 빌드·push → 마이그레이션 → ECS 롤링 배포 (INFRA01_DEPLOY01)
+# 인증은 GitHub OIDC(단기 토큰), 저장된 액세스 키 없음
+name: CD
+
+on:
+  push:
+    branches: [develop]
+
+# 배포는 중간 취소 금지, 같은 브랜치 순차 실행
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC 토큰 발급용
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPO: 339276916623.dkr.ecr.ap-northeast-2.amazonaws.com/agentory-api
+  CLUSTER: agentory-test-cluster
+  SUBNETS: subnet-01aa0aeaa0c8366b3,subnet-01e1a109abe428d81
+  SECURITY_GROUP: sg-005b6f2f755f6dd95
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::339276916623:role/agentory-github-cd
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REPO }}:latest
+            ${{ env.ECR_REPO }}:${{ github.sha }}
+
+      - name: Run DB migration (alembic upgrade head)
+        run: |
+          set -euo pipefail
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition agentory-api-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUP],assignPublicIp=ENABLED}" \
+            --overrides '{"containerOverrides":[{"name":"agentory-api","command":["alembic","upgrade","head"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "migration task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+          CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[?name==`agentory-api`].exitCode | [0]' --output text)
+          echo "migration exit code: $CODE"
+          test "$CODE" = "0"
+
+      - name: Deploy services (rolling)
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "$CLUSTER" --service agentory-api-service --force-new-deployment >/dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service agentory-simulator-service --force-new-deployment >/dev/null
+          echo "waiting for api service to stabilize..."
+          aws ecs wait services-stable --cluster "$CLUSTER" --services agentory-api-service
+          echo "deploy complete"
