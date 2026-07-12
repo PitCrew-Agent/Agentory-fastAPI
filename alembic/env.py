@@ -23,7 +23,8 @@ from agentory.modules.telemetry import models as telemetry_models  # noqa: F401
 from agentory.modules.worklog import models as worklog_models  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# %는 configparser 보간 문자라 %%로 이스케이프, 비번 URL 인코딩(%XX) 대응 (INFRA01_DEPLOY01)
+config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
