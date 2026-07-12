@@ -96,6 +96,26 @@ async def test_list_truncates_long_title(session):
     assert mine.title == "가" * 30 + "…"  # TITLE_MAX_LEN 절삭
 
 
+async def test_list_strips_response_format_scaffolding_from_title(session):
+    # 프론트가 붙이는 응답 형식 지시 스캐폴딩은 제목에서 제외 (BE_CHAT03_HISTORY01)
+    sid = await _seed_session(
+        session,
+        equipment_id=None,
+        first_q="온도 30일 추세 보여줘\n\n---\n응답 형식 지시:\n답변은 표로 정리해줘",
+    )
+    items = await service.list_sessions(session, OWNER)
+    mine = next(i for i in items if i.session_id == str(sid))
+    assert mine.title == "온도 30일 추세 보여줘"
+
+
+async def test_list_takes_first_line_for_multiline_question(session):
+    # 구분선이 없어도 여러 줄이면 첫 비어있지 않은 줄만 제목으로
+    sid = await _seed_session(session, equipment_id=None, first_q="압력 확인\n추가 설명 줄")
+    items = await service.list_sessions(session, OWNER)
+    mine = next(i for i in items if i.session_id == str(sid))
+    assert mine.title == "압력 확인"
+
+
 async def test_list_scoped_to_owner(session):
     sid_other = await _seed_session(session, user_sub=OTHER)
     items = await service.list_sessions(session, OWNER)

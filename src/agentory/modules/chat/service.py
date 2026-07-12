@@ -165,7 +165,11 @@ async def run_query(
 
 def _derive_title(content: str | None, equipment_id: str | None = None) -> str:
     # 첫 사용자 질문을 제목으로 절삭, 없으면 기본 제목 (BE_CHAT03_HISTORY01)
+    # 프론트가 붙이는 응답 형식 지시 등 스캐폴딩은 제외
+    # 첫 구분선(---) 이전의 첫 비어있지 않은 줄만 사용
     text = (content or "").strip()
+    text = re.split(r"\n\s*-{3,}", text, maxsplit=1)[0]
+    text = next((line.strip() for line in text.splitlines() if line.strip()), "")
     if text and equipment_id:
         # 배지로 이미 표시되는 앞쪽 장비id는 제목에서 제거 (중복 방지)
         # 장비id 뒤가 구분자·공백·문자열 끝일 때만 제거해 유사 id 오탐 방지 (예: A01 vs A011)
