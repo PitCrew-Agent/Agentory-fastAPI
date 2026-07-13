@@ -43,6 +43,7 @@ async def session():
 async def _make(session, **over):
     kw = {
         "owner_sub": OWNER,
+        "work_type": "정기점검",
         "worker_name": WORKER,
         "started_at": S,
         "ended_at": E,
@@ -54,10 +55,11 @@ async def _make(session, **over):
 
 
 async def test_create_and_get(session):
-    created = await _make(session)
+    created = await _make(session, work_type="수리점검")
     fetched = await repository.get_work_log(session, created["id"])
     assert fetched["worker_name"] == WORKER
     assert fetched["owner_sub"] == OWNER
+    assert fetched["work_type"] == "수리점검"  # 유형 왕복
     assert fetched["ended_at"] is not None
 
 

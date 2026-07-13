@@ -14,6 +14,7 @@ from agentory.modules.worklog.schemas import (
     WorkLogCreate,
     WorkLogItem,
     WorkLogStatus,
+    WorkLogType,
     WorkLogUpdate,
 )
 
@@ -36,6 +37,7 @@ def _user():
 def _item(owner_sub: str, worker_name: str) -> WorkLogItem:
     return WorkLogItem(
         id=1,
+        work_type=WorkLogType.REGULAR,
         worker_name=worker_name,
         started_at=S,
         content="점검 완료",
@@ -55,7 +57,7 @@ async def test_create_uses_session_user_keys(monkeypatch):
         return _item(owner_sub, worker_name)
 
     monkeypatch.setattr(wl_router.service, "create_work_log", fake_create)
-    payload = WorkLogCreate(started_at=S, content="점검 완료")
+    payload = WorkLogCreate(work_type=WorkLogType.REGULAR, started_at=S, content="점검 완료")
     result = await wl_router.create_work_log(payload, user=_user(), session=None)
 
     assert result.worker_name == "홍길동"
