@@ -18,12 +18,13 @@ from agentory.modules.telemetry.models import EquipmentTelemetry
 
 def _to_dict(row: Notification) -> dict[str, Any]:
     # 알림 행을 응답·이벤트 공용 dict로 변환
+    # message는 저장값 대신 코드에서 요청 로케일로 재빌드해 다국어 응답 (ko는 저장값과 동일)
     return {
         "id": row.id,
         "occurred_at": row.occurred_at,
         "equipment_id": row.equipment_id,
         "alarm_code": row.alarm_code,
-        "message": row.message,
+        "message": build_notification_message(row.equipment_id, row.alarm_code),
         "is_read": row.is_read,
     }
 
