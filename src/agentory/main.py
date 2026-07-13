@@ -4,14 +4,17 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from agentory.common.context import get_locale
 from agentory.common.exceptions import AppError
 from agentory.common.i18n import translate
 from agentory.common.middleware import ContextMiddleware
+from agentory.common.response import ApiResponse
 from agentory.core.config import get_settings
 from agentory.core.logging import setup_logging
 from agentory.modules.admin.router import router as admin_router
@@ -46,24 +49,47 @@ OPENAPI_TAGS = [
 ]
 
 
+# HTTP 상태코드 -> 에러 code 파생 (봉투 code 필드용), 미매핑은 HTTP_{status}
+_STATUS_CODE_NAMES = {
+    400: "BAD_REQUEST",
+    401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_ALLOWED",
+    409: "CONFLICT",
+    422: "VALIDATION_ERROR",
+    429: "TOO_MANY_REQUESTS",
+    500: "INTERNAL_SERVER_ERROR",
+}
+
+
+def _fail(status_code: int, code: str, message: str, result: object = None) -> JSONResponse:
+    # 실패 응답 봉투 {success:false, code, message, result} (INFRA_AOP01)
+    return JSONResponse(
+        status_code=status_code,
+        content={"success": False, "code": code, "message": message, "result": result},
+    )
+
+
 def _register_exception_handlers(app: FastAPI) -> None:
-    # 도메인 예외·검증 오류를 통일 에러 포맷({code, message})으로 직렬화 (INFRA_AOP01)
+    # 도메인 예외·검증 오류·잔여 HTTPException을 ApiResponse 실패 봉투로 통일 (INFRA_AOP01)
     # 메시지는 요청 로케일(Accept-Language)로 번역, 라우터별 try/except 대체
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
         message = translate(exc.message_code, get_locale(), **exc.params)
-        return JSONResponse(
-            status_code=exc.http_status, content={"code": exc.code, "message": message}
-        )
+        return _fail(exc.http_status, exc.code, message)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        # 검증 오류도 통일 포맷, 상세(detail)는 디버깅용으로 함께 노출
+        # 검증 오류도 통일 봉투, 필드별 상세는 result에 실어 프론트가 활용
         message = translate("error.validation", get_locale())
-        return JSONResponse(
-            status_code=422,
-            content={"code": "VALIDATION_ERROR", "message": message, "detail": exc.errors()},
-        )
+        return _fail(422, "VALIDATION_ERROR", message, jsonable_encoder(exc.errors()))
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        # 잔여 HTTPException(auth 프로토콜 오류·미매칭 경로 등)도 봉투로 통일
+        code = _STATUS_CODE_NAMES.get(exc.status_code, f"HTTP_{exc.status_code}")
+        return _fail(exc.status_code, code, str(exc.detail))
 
 
 def create_app() -> FastAPI:
@@ -102,9 +128,9 @@ def create_app() -> FastAPI:
     app.include_router(notification_router, prefix="/api/v1")
     app.include_router(worklog_router, prefix="/api/v1")
 
-    @app.get("/health", tags=["system"])
-    async def health() -> dict:
-        return {"status": "ok", "env": settings.app_env}
+    @app.get("/health", tags=["system"], response_model=ApiResponse[dict])
+    async def health() -> ApiResponse[dict]:
+        return ApiResponse.ok({"status": "ok", "env": settings.app_env})
 
     return app
 

@@ -7,12 +7,13 @@ SSE 이벤트 스키마는 agentory.common.events.NotificationEvent가 단일 �
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from agentory.common.events import NotificationEvent
 from agentory.common.exceptions import NotFoundError
+from agentory.common.response import ApiResponse
 from agentory.core.db import SessionLocal, get_session
 from agentory.modules.notification import repository, service
 from agentory.modules.notification.schemas import NotificationPage, ReadAllResponse
@@ -25,7 +26,7 @@ STREAM_POLL_SECONDS = 3.0
 
 @router.get(
     "",
-    response_model=NotificationPage,
+    response_model=ApiResponse[NotificationPage],
     summary="알림 목록 조회 (커서 페이지네이션)",
     responses={400: {"description": "before 커서 형식이 잘못됨"}},
 )
@@ -40,36 +41,37 @@ async def list_notifications(
         default=service.DEFAULT_PAGE_SIZE, ge=1, le=service.MAX_PAGE_SIZE, examples=[10]
     ),
     session: AsyncSession = Depends(get_session),
-) -> NotificationPage:
+) -> ApiResponse[NotificationPage]:
     """설비 알람 알림 목록, 발생 역순 커서 페이지네이션(기본 10개)"""
     # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
-    return await service.list_notifications(
+    page = await service.list_notifications(
         session, unread_only=unread_only, before=before, limit=limit
     )
+    return ApiResponse.ok(page)
 
 
-@router.post("/read-all", response_model=ReadAllResponse, summary="알림 일괄 읽음 처리")
-async def read_all(session: AsyncSession = Depends(get_session)) -> ReadAllResponse:
+@router.post(
+    "/read-all", response_model=ApiResponse[ReadAllResponse], summary="알림 일괄 읽음 처리"
+)
+async def read_all(session: AsyncSession = Depends(get_session)) -> ApiResponse[ReadAllResponse]:
     """미읽음 알림 일괄 읽음 처리"""
-    return await service.mark_all_read(session)
+    return ApiResponse.ok(await service.mark_all_read(session))
 
 
 @router.patch(
     "/{notification_id}/read",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=ApiResponse[None],
     summary="알림 개별 읽음 처리",
-    responses={
-        204: {"description": "읽음 처리 성공 (본문 없음)"},
-        404: {"description": "해당 알림이 존재하지 않음"},
-    },
+    responses={404: {"description": "해당 알림이 존재하지 않음"}},
 )
 async def read_one(
     notification_id: int = Path(examples=[1024]),
     session: AsyncSession = Depends(get_session),
-) -> None:
+) -> ApiResponse[None]:
     """알림 개별 읽음 처리"""
     if not await service.mark_read(session, notification_id):
         raise NotFoundError("error.notification.not_found", params={"id": notification_id})
+    return ApiResponse.ok()
 
 
 @router.get(
