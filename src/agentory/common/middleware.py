@@ -40,9 +40,7 @@ class ContextMiddleware:
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 # 추적용 X-Request-ID 응답 헤더 부착
-                message.setdefault("headers", []).append(
-                    (b"x-request-id", request_id.encode())
-                )
+                message.setdefault("headers", []).append((b"x-request-id", request_id.encode()))
             await send(message)
 
         try:
