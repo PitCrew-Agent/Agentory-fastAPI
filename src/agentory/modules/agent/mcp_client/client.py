@@ -33,3 +33,14 @@ async def load_tools_by_server() -> dict[str, list[BaseTool]]:
         except Exception:
             tools[name] = []
     return tools
+
+
+async def load_tools_for_server(name: str) -> list[BaseTool]:
+    # 단일 MCP 서버 도구 로드 (NEW_INCIDENT01_PLAN01)
+    if name not in SERVER_NAMES:
+        raise ValueError(f"지원하지 않는 MCP 서버: {name}")
+    client = _build_client()
+    try:
+        return await client.get_tools(server_name=name)
+    except Exception:
+        return []

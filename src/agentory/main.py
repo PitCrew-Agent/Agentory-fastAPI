@@ -21,6 +21,7 @@ from agentory.modules.admin.router import router as admin_router
 from agentory.modules.auth.middleware import oidc_auth_middleware
 from agentory.modules.auth.router import router as auth_router
 from agentory.modules.chat.router import router as chat_router
+from agentory.modules.incident.router import router as incident_router
 from agentory.modules.notification.router import router as notification_router
 from agentory.modules.telemetry.router import router as telemetry_router
 from agentory.modules.worklog.router import router as worklog_router
@@ -43,6 +44,7 @@ OPENAPI_TAGS = [
     },
     {"name": "chat", "description": "Tory 질의응답·대화 히스토리"},
     {"name": "notifications", "description": "알림 목록(커서 페이지네이션)·읽음·실시간 스트림"},
+    {"name": "incident-plans", "description": "알림 기반 대응 계획·작업 로그 초안 생성"},
     {"name": "telemetry", "description": "설비 상태·상세·센서 시계열·라인"},
     {"name": "work-logs", "description": "작업 로그 CRUD (수정·삭제는 작성자만)"},
     {"name": "system", "description": "헬스 체크"},
@@ -126,6 +128,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(telemetry_router, prefix="/api/v1")
     app.include_router(notification_router, prefix="/api/v1")
+    app.include_router(incident_router, prefix="/api/v1")
     app.include_router(worklog_router, prefix="/api/v1")
 
     @app.get("/health", tags=["system"], response_model=ApiResponse[dict])
