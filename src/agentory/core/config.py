@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     mcp_knowledge_url: str = "http://localhost:8102/mcp"
     # 센서 로그 단일 조회 최대 행수, 초과 시 최근 행 우선 반환 (BE_MCP02_TELEMETRY01)
     sensor_log_max_rows: int = 500
+    # 수리 후 시뮬레이터가 정상 강제하는 힐 윈도우(분), 경과 후 원래 시나리오 재개 (NEW_REPAIR01)
+    sim_repair_heal_minutes: int = 60
 
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"
