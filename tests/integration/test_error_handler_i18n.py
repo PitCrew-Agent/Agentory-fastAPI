@@ -21,11 +21,12 @@ API = "/api/v1"
 
 @pytest.fixture
 async def client():
-    # 인증 미들웨어의 전역 엔진 audit 접근(다른 루프) 회피 위해 테스트 동안 OIDC 비활성
+    # 인증·감사의 전역 엔진 접근(다른 루프) 회피 위해 테스트 동안 OIDC·audit DB 비활성
     settings = get_settings()
-    _saved = (settings.oidc_issuer_url, settings.oidc_client_id)
+    _saved = (settings.oidc_issuer_url, settings.oidc_client_id, settings.audit_log_db_enabled)
     settings.oidc_issuer_url = ""
     settings.oidc_client_id = ""
+    settings.audit_log_db_enabled = False
     # 전역 엔진의 이벤트 루프 바인딩 회피 위해 테스트 전용 엔진(NullPool)으로 get_session 오버라이드
     engine = create_async_engine(settings.database_url, poolclass=NullPool)
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -53,12 +54,12 @@ async def client():
             yield c
     finally:
         app.dependency_overrides.clear()
-        settings.oidc_issuer_url, settings.oidc_client_id = _saved
+        settings.oidc_issuer_url, settings.oidc_client_id, settings.audit_log_db_enabled = _saved
         await engine.dispose()
 
 
 async def test_success_uses_apiresponse_envelope(client):
-    # 성공 응답도 ApiResponse 봉투 {success, code, message, result}
+    # 성공 응답도 ApiResponse 구조 {success, code, message, result}
     r = await client.get(f"{API}/work-logs")
     assert r.status_code == 200
     body = r.json()
@@ -69,7 +70,7 @@ async def test_success_uses_apiresponse_envelope(client):
 
 
 async def test_not_found_uses_unified_envelope_ko(client):
-    # 미존재 작업 로그 수정 -> 404 ApiResponse 실패 봉투, 기본 로케일 ko
+    # 미존재 작업 로그 수정 -> 404 ApiResponse 실패 응답, 기본 로케일 ko
     r = await client.patch(f"{API}/work-logs/-1", json={"status": "완료"})
     assert r.status_code == 404
     body = r.json()
