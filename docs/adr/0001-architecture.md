@@ -51,6 +51,7 @@ MCP 서버는 표준상 별도 프로세스가 자연스러우므로 완전한 �
 | [ADR-0005](0005-simulator-spc.md) | 시뮬레이터 SPC 이상 데이터 생성 모델 |
 | [ADR-0006](0006-alarm-history-query.md) | 장비별 알람 이력 조회 설계 (데이터 소스·조회 형태·인덱스) |
 | [ADR-0007](0007-equipment-repair.md) | 설비 수리 이력·시뮬레이터 힐 윈도우 동기화 |
+| [ADR-0008](0008-cross-cutting-aop-i18n.md) | 횡단 관심사 표준화 (예외·i18n·ApiResponse·액세스 로그) |
 
 ### RAG 포트(§4)의 후속 보완
 
