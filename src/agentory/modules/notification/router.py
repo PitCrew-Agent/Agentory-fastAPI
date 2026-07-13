@@ -7,11 +7,12 @@ SSE 이벤트 스키마는 agentory.common.events.NotificationEvent가 단일 �
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from agentory.common.events import NotificationEvent
+from agentory.common.exceptions import NotFoundError
 from agentory.core.db import SessionLocal, get_session
 from agentory.modules.notification import repository, service
 from agentory.modules.notification.schemas import NotificationPage, ReadAllResponse
@@ -41,12 +42,10 @@ async def list_notifications(
     session: AsyncSession = Depends(get_session),
 ) -> NotificationPage:
     """설비 알람 알림 목록, 발생 역순 커서 페이지네이션(기본 10개)"""
-    try:
-        return await service.list_notifications(
-            session, unread_only=unread_only, before=before, limit=limit
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    return await service.list_notifications(
+        session, unread_only=unread_only, before=before, limit=limit
+    )
 
 
 @router.post("/read-all", response_model=ReadAllResponse, summary="알림 일괄 읽음 처리")
@@ -70,7 +69,7 @@ async def read_one(
 ) -> None:
     """알림 개별 읽음 처리"""
     if not await service.mark_read(session, notification_id):
-        raise HTTPException(status_code=404, detail=f"알림 없음: {notification_id}")
+        raise NotFoundError("error.notification.not_found", params={"id": notification_id})
 
 
 @router.get(

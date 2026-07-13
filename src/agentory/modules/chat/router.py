@@ -5,10 +5,11 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
+from agentory.common.exceptions import NotFoundError
 from agentory.core.db import SessionLocal, get_session
 from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.chat import service
@@ -65,7 +66,7 @@ async def get_session_detail(
     """본인 대화 세션 전체 메시지 (시간순)"""
     detail = await service.get_session_detail(session, session_id, user["email"])
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"대화 세션 없음: {session_id}")
+        raise NotFoundError("error.chat_session.not_found", params={"id": session_id})
     return detail
 
 
@@ -86,7 +87,7 @@ async def delete_session(
     """본인 대화 세션을 히스토리에서 삭제 (soft delete)"""
     deleted = await service.delete_session(session, session_id, user["email"])
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"대화 세션 없음: {session_id}")
+        raise NotFoundError("error.chat_session.not_found", params={"id": session_id})
 
 
 @router.post(

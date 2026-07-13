@@ -6,9 +6,10 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.common.exceptions import NotFoundError
 from agentory.core.db import get_session
 from agentory.modules.telemetry import service
 from agentory.modules.telemetry.schemas import (
@@ -58,7 +59,7 @@ async def equipment_detail(
     """설비 상세 (상태·메타·센서·책임자·체크리스트)"""
     detail = await service.get_equipment_detail(session, equipment_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return detail
 
 
@@ -75,7 +76,7 @@ async def equipment_suggestions(
     """설비 상태 기반 챗봇 추천 질문 3개"""
     suggestions = await service.get_equipment_suggestions(session, equipment_id)
     if suggestions is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return EquipmentSuggestionsResponse(suggestions=suggestions)
 
 
@@ -92,7 +93,7 @@ async def clear_alarm(
     """알람 래치 해제 후 갱신 상세 (현장 점검·수리 반영)"""
     detail = await service.clear_equipment_alarm(session, equipment_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return detail
 
 
@@ -126,20 +127,18 @@ async def equipment_alarms(
     session: AsyncSession = Depends(get_session),
 ) -> AlarmHistoryPage:
     """설비 알람 발생 이력, 발생 역순 커서 페이지네이션(기본 10개)"""
-    try:
-        page = await service.list_alarm_events(
-            session,
-            equipment_id,
-            start=start,
-            end=end,
-            alarm_code=alarm_code,
-            before=before,
-            limit=limit,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    page = await service.list_alarm_events(
+        session,
+        equipment_id,
+        start=start,
+        end=end,
+        alarm_code=alarm_code,
+        before=before,
+        limit=limit,
+    )
     if page is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return page
 
 
@@ -163,7 +162,7 @@ async def equipment_alarm_summary(
         session, equipment_id, start=start, end=end, alarm_code=alarm_code
     )
     if summary is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return summary
 
 
@@ -182,5 +181,5 @@ async def equipment_series(
     """설비 센서 시계열 (기간 미지정 시 최근 구간)"""
     series = await service.get_sensor_series(session, equipment_id, start=start, end=end)
     if series is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return series

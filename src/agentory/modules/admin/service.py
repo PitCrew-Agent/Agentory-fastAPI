@@ -10,6 +10,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.common.exceptions import ConflictError, ValidationError
 from agentory.modules.admin import repository
 from agentory.modules.admin.schemas import (
     AdminUserItem,
@@ -32,9 +33,9 @@ MAX_REPAIR_PAGE_SIZE = 50
 
 
 async def create_line(session: AsyncSession, payload: LineCreate) -> LineItem:
-    # code 중복 사전 검사, 있으면 ValueError(409)
+    # code 중복 사전 검사, 있으면 ConflictError(409)
     if await repository.get_line_by_code(session, payload.code):
-        raise ValueError(f"이미 존재하는 라인 코드: {payload.code}")
+        raise ConflictError("error.line.code_conflict", params={"code": payload.code})
     row = await repository.create_line(
         session,
         code=payload.code,
@@ -57,7 +58,7 @@ async def get_line(session: AsyncSession, line_id: int) -> LineItem | None:
 
 
 async def update_line(session: AsyncSession, line_id: int, payload: LineUpdate) -> LineItem | None:
-    # 미존재는 None(404), code 변경 시 타 라인과 중복이면 ValueError(409)
+    # 미존재는 None(404), code 변경 시 타 라인과 중복이면 ConflictError(409)
     current = await repository.get_line(session, line_id)
     if current is None:
         return None
@@ -68,7 +69,7 @@ async def update_line(session: AsyncSession, line_id: int, payload: LineUpdate) 
     if new_code and new_code != current["code"]:
         existing = await repository.get_line_by_code(session, new_code)
         if existing and existing["id"] != line_id:
-            raise ValueError(f"이미 존재하는 라인 코드: {new_code}")
+            raise ConflictError("error.line.code_conflict", params={"code": new_code})
     updated = await repository.update_line(session, line_id, fields)
     await session.commit()
     return LineItem(**updated)
@@ -109,7 +110,7 @@ async def get_user(session: AsyncSession, user_id: int) -> AdminUserItem | None:
 async def assign_user_lines(
     session: AsyncSession, user_id: int, payload: AssignLinesRequest
 ) -> AdminUserItem | None:
-    # 유저 미존재는 None(404), 없는 라인 포함 시 ValueError(400)
+    # 유저 미존재는 None(404), 없는 라인 포함 시 ValidationError(400)
     user = await repository.get_user(session, user_id)
     if user is None:
         return None
@@ -118,7 +119,7 @@ async def assign_user_lines(
         found = await repository.existing_line_ids(session, requested)
         missing = [lid for lid in requested if lid not in found]
         if missing:
-            raise ValueError(f"존재하지 않는 라인: {missing}")
+            raise ValidationError("error.line.unknown", params={"ids": missing})
     await repository.replace_user_lines(session, user_id, requested)
     await session.commit()
     refs = await repository.list_user_line_refs(session, user_id)
@@ -128,12 +129,12 @@ async def assign_user_lines(
 async def assign_equipment_manager(
     session: AsyncSession, equipment_id: str, payload: AssignManagerRequest
 ) -> EquipmentManagerItem | None:
-    # 설비 미존재는 None(404), 없는 유저 지정 시 ValueError(400), None이면 책임자 해제
+    # 설비 미존재는 None(404), 없는 유저 지정 시 ValidationError(400), None이면 책임자 해제
     manager = None
     if payload.user_id is not None:
         user = await repository.get_user(session, payload.user_id)
         if user is None:
-            raise ValueError(f"존재하지 않는 유저: {payload.user_id}")
+            raise ValidationError("error.user.unknown", params={"id": payload.user_id})
         manager = EquipmentManager(id=user["id"], name=user["name"], email=user["email"])
     updated = await repository.set_equipment_manager(session, equipment_id, payload.user_id)
     if not updated:
@@ -155,7 +156,7 @@ def _decode_repair_cursor(cursor: str) -> tuple[datetime, int]:
         at_str, id_str = raw.rsplit("|", 1)
         return datetime.fromisoformat(at_str), int(id_str)
     except (ValueError, binascii.Error) as exc:
-        raise ValueError(f"잘못된 커서: {cursor}") from exc
+        raise ValidationError("error.cursor.invalid", params={"cursor": cursor}) from exc
 
 
 async def repair_equipment(

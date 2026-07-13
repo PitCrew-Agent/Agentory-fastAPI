@@ -7,9 +7,10 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.common.exceptions import NotFoundError, PermissionDeniedError
 from agentory.core.db import get_session
 from agentory.modules.admin import service
 from agentory.modules.admin.schemas import (
@@ -40,7 +41,7 @@ router = APIRouter(
 async def require_admin(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     # 관리자 role만 허용, 그 외 403
     if user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise PermissionDeniedError("error.forbidden")
     return user
 
 
@@ -49,7 +50,7 @@ async def require_field_or_admin(
 ) -> dict[str, Any]:
     # 수리·수리 이력은 관리자·현장 책임자 모두 허용 (전체 설비 대상)
     if user.get("role") not in ("admin", "field_engineer"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        raise PermissionDeniedError("error.forbidden")
     return user
 
 
@@ -81,10 +82,8 @@ async def create_line(
     session: AsyncSession = Depends(get_session),
 ) -> LineItem:
     """담당 라인 생성 (code 고유, 설비 line_name과 매칭)"""
-    try:
-        return await service.create_line(session, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    # code 중복은 서비스가 ConflictError raise, 전역 핸들러가 409 통일 응답
+    return await service.create_line(session, payload)
 
 
 @router.get(
@@ -101,7 +100,7 @@ async def get_line(
     """담당 라인 상세"""
     item = await service.get_line(session, line_id)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"라인 없음: {line_id}")
+        raise NotFoundError("error.line.not_found", params={"id": line_id})
     return item
 
 
@@ -121,12 +120,10 @@ async def update_line(
     session: AsyncSession = Depends(get_session),
 ) -> LineItem:
     """담당 라인 부분 수정 (status=inactive로 비활성화)"""
-    try:
-        item = await service.update_line(session, line_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    # code 중복은 서비스가 ConflictError raise, 전역 핸들러가 409 통일 응답
+    item = await service.update_line(session, line_id, payload)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"라인 없음: {line_id}")
+        raise NotFoundError("error.line.not_found", params={"id": line_id})
     return item
 
 
@@ -146,7 +143,7 @@ async def delete_line(
 ) -> None:
     """담당 라인 삭제 (연결된 유저 담당 라인도 제거)"""
     if not await service.delete_line(session, line_id):
-        raise HTTPException(status_code=404, detail=f"라인 없음: {line_id}")
+        raise NotFoundError("error.line.not_found", params={"id": line_id})
 
 
 # --- 유저 관리·담당 라인 지정 ---
@@ -175,7 +172,7 @@ async def get_user(
     """유저 상세 (담당 라인 포함)"""
     item = await service.get_user(session, user_id)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"유저 없음: {user_id}")
+        raise NotFoundError("error.user.not_found", params={"id": user_id})
     return item
 
 
@@ -195,12 +192,10 @@ async def assign_user_lines(
     session: AsyncSession = Depends(get_session),
 ) -> AdminUserItem:
     """유저 담당 라인 전체 교체 (빈 배열이면 전부 해제)"""
-    try:
-        item = await service.assign_user_lines(session, user_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 없는 라인 포함은 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    item = await service.assign_user_lines(session, user_id, payload)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"유저 없음: {user_id}")
+        raise NotFoundError("error.user.not_found", params={"id": user_id})
     return item
 
 
@@ -223,12 +218,10 @@ async def assign_equipment_manager(
     session: AsyncSession = Depends(get_session),
 ) -> EquipmentManagerItem:
     """설비 책임자 유저 지정 (user_id=null이면 해제)"""
-    try:
-        item = await service.assign_equipment_manager(session, equipment_id, payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 없는 유저 지정은 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    item = await service.assign_equipment_manager(session, equipment_id, payload)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return item
 
 
@@ -253,7 +246,7 @@ async def repair_equipment(
         session, equipment_id, payload, repaired_by=user.get("user_id")
     )
     if item is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return item
 
 
@@ -285,18 +278,16 @@ async def list_repairs(
     session: AsyncSession = Depends(get_session),
 ) -> RepairPage:
     """수리 작업 현황, 수리 역순 커서 페이지네이션 (설비·책임자·기간 필터)"""
-    try:
-        return await service.list_repairs(
-            session,
-            equipment_id=equipment_id,
-            repaired_by=repaired_by,
-            start=start,
-            end=end,
-            before=before,
-            limit=limit,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    return await service.list_repairs(
+        session,
+        equipment_id=equipment_id,
+        repaired_by=repaired_by,
+        start=start,
+        end=end,
+        before=before,
+        limit=limit,
+    )
 
 
 @router.get(
@@ -323,12 +314,8 @@ async def list_equipment_repairs(
     session: AsyncSession = Depends(get_session),
 ) -> RepairPage:
     """특정 설비 수리 이력, 수리 역순 커서 페이지네이션"""
-    try:
-        page = await service.list_equipment_repairs(
-            session, equipment_id, before=before, limit=limit
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
+    page = await service.list_equipment_repairs(session, equipment_id, before=before, limit=limit)
     if page is None:
-        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return page

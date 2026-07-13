@@ -11,6 +11,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.common.exceptions import ValidationError
 from agentory.modules.notification import repository
 from agentory.modules.notification.schemas import (
     NotificationItem,
@@ -35,7 +36,7 @@ def _decode_cursor(cursor: str) -> tuple[datetime, int]:
         occurred_str, id_str = raw.rsplit("|", 1)
         return datetime.fromisoformat(occurred_str), int(id_str)
     except (ValueError, binascii.Error) as exc:
-        raise ValueError(f"잘못된 커서: {cursor}") from exc
+        raise ValidationError("error.cursor.invalid", params={"cursor": cursor}) from exc
 
 
 async def list_notifications(
