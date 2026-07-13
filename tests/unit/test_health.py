@@ -4,7 +4,10 @@
 async def test_health(client):
     res = await client.get("/health")
     assert res.status_code == 200
-    assert res.json()["status"] == "ok"
+    body = res.json()
+    # ApiResponse 봉투: 실제 상태는 result 안
+    assert body["success"] is True
+    assert body["result"]["status"] == "ok"
 
 
 async def test_openapi_docs(client):
