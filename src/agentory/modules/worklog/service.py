@@ -17,6 +17,7 @@ async def create_work_log(
     row = await repository.create_work_log(
         session,
         owner_sub=owner_sub,
+        work_type=payload.work_type,
         worker_name=worker_name,
         started_at=payload.started_at,
         ended_at=payload.ended_at,

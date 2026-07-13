@@ -16,8 +16,18 @@ class WorkLogStatus(StrEnum):
     DONE = "완료"
 
 
+class WorkLogType(StrEnum):
+    # 작업 유형, 작성 시 단일 선택 (점검·수리 성격 구분)
+    REGULAR = "정기점검"
+    REPAIR = "수리점검"
+    PREVENTIVE = "예방점검"
+    EMERGENCY = "긴급수리"
+    ETC = "기타"
+
+
 class WorkLogCreate(BaseModel):
-    # 작업 로그 작성 (시작~종료 범위·내용·상태), 진행자는 로그인 사용자에서 자동
+    # 작업 로그 작성 (유형·시작~종료 범위·내용·상태), 진행자는 로그인 사용자에서 자동
+    work_type: WorkLogType = Field(description="작업 유형 (단일 선택)", examples=["수리점검"])
     started_at: datetime = Field(
         description="작업 시작 시각", examples=["2026-07-10T09:00:00+09:00"]
     )
@@ -42,7 +52,8 @@ class WorkLogCreate(BaseModel):
 
 
 class WorkLogUpdate(BaseModel):
-    # 부분 수정, 전달된 필드만 반영 (상태 변경 등)
+    # 부분 수정, 전달된 필드만 반영 (유형·상태 변경 등)
+    work_type: WorkLogType | None = None
     started_at: datetime | None = None
     ended_at: datetime | None = None
     content: str | None = Field(default=None, min_length=1)
@@ -52,6 +63,7 @@ class WorkLogUpdate(BaseModel):
 class WorkLogItem(BaseModel):
     # 작업 로그 목록·상세 항목 (owner_sub는 노출 안 함)
     id: int = Field(description="작업 로그 id", examples=[15])
+    work_type: WorkLogType = Field(description="작업 유형", examples=["수리점검"])
     worker_name: str = Field(description="진행자 이름 (작성자)", examples=["홍길동"])
     started_at: datetime = Field(description="작업 시작 시각")
     ended_at: datetime | None = Field(default=None, description="작업 종료 시각, 진행중이면 null")
