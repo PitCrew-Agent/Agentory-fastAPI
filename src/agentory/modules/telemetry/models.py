@@ -43,6 +43,9 @@ class EquipmentMaster(Base):
     # 알람 래치 해제 기준 시각(NEW_LOOP01_LATCH01), 이 시각 이후 확정 알람만 상태에 반영
     # NULL은 해제 이력 없음(전체 이력 반영), 현장 점검·수리 시 해당 시각으로 갱신
     alarm_cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # 수리 힐 윈도우 래치(NEW_REPAIR01_SIM01), 이 시각 이후 heal window 동안 시뮬레이터가 정상 강제
+    # 윈도우 경과 후 원래 시나리오 재개(재고장), NULL은 수리 이력 없음
+    repaired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # 3D 트윈 뷰 배치값 (NEW_TWIN01_SCENE01), 프론트가 라인·설비 위치를 그대로 재현
     display_order: Mapped[int | None] = mapped_column(Integer)  # 라인 내 표시 순서

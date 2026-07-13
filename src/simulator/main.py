@@ -15,11 +15,13 @@ import logging
 import random
 from collections import deque
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
@@ -45,15 +47,18 @@ class ScenarioConfig:
     gain: float = 1.0  # PM 드리프트 증폭 배수, 데모 가시성 조절
 
 
-async def _load_equipment(session_factory: async_sessionmaker) -> list[tuple[str, str]]:
-    """equipment_masters에서 (equipment_id, process_type) 목록 로드
+async def _load_equipment(
+    session_factory: async_sessionmaker,
+) -> list[tuple[str, str, datetime | None]]:
+    """equipment_masters에서 (equipment_id, process_type, repaired_at) 목록 로드
 
+    repaired_at은 수리 힐 윈도우 판정용(NEW_REPAIR01_SIM01)
     DB 미준비·조회 실패 시 빈 목록 반환, 도커에서 시드 전에 떠도 죽지 않게 처리
     """
     try:
         async with session_factory() as session:
             rows = await session.scalars(select(EquipmentMaster))
-            return [(e.equipment_id, e.process_type) for e in rows]
+            return [(e.equipment_id, e.process_type, e.repaired_at) for e in rows]
     except SQLAlchemyError as exc:
         log.warning("[simulator] 설비 목록 조회 실패: %s", exc)
         return []
@@ -96,6 +101,26 @@ def _confirm_persistence(reading: SensorReading, prev_candidate: dict[str, str |
     prev_candidate[reading.equipment_id] = candidate
 
 
+def _select_spec(
+    equipment_id: str,
+    repaired_at: datetime | None,
+    *,
+    now: datetime,
+    heal_window: timedelta,
+    scenario_map: dict[str, str] | None,
+    scenario,
+    target_equipment_id: str,
+):
+    # 설비별 시나리오 결정 (NEW_REPAIR01_SIM01)
+    # 수리 힐 윈도우 내면 시나리오 무관 정상 강제, 경과 후 원래 시나리오 재개(재고장)
+    if repaired_at is not None and now - repaired_at < heal_window:
+        return NORMAL
+    # preset이면 설비별 배치, 아니면 단일 target에만 시나리오 적용 후 나머지 정상
+    if scenario_map is not None:
+        return SCENARIOS[scenario_map.get(equipment_id, "normal")]
+    return scenario if equipment_id == target_equipment_id else NORMAL
+
+
 async def run_simulation(
     config: ScenarioConfig, session_factory: async_sessionmaker = SessionLocal
 ) -> None:
@@ -103,6 +128,8 @@ async def run_simulation(
     scenario = SCENARIOS[config.name]
     # preset 지정 시 설비별 시나리오 맵, 미지정 설비는 normal
     scenario_map = PRESETS[config.preset] if config.preset else None
+    # 수리 힐 윈도우, 수리 후 이 기간 동안 정상 강제 후 원래 시나리오 재개 (NEW_REPAIR01_SIM01)
+    heal_window = timedelta(minutes=get_settings().sim_repair_heal_minutes)
     prev_candidate: dict[str, str | None] = {}  # 설비별 직전 tick 후보 알람
     history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
     tick = 0
@@ -115,13 +142,18 @@ async def run_simulation(
             await asyncio.sleep(config.interval_seconds)
             continue
 
+        now = datetime.now(UTC)
         readings = []
-        for equipment_id, process_type in equipment:
-            # preset이면 설비별 배치, 아니면 단일 target에만 시나리오 적용 후 나머지 정상
-            if scenario_map is not None:
-                spec = SCENARIOS[scenario_map.get(equipment_id, "normal")]
-            else:
-                spec = scenario if equipment_id == config.target_equipment_id else NORMAL
+        for equipment_id, process_type, repaired_at in equipment:
+            spec = _select_spec(
+                equipment_id,
+                repaired_at,
+                now=now,
+                heal_window=heal_window,
+                scenario_map=scenario_map,
+                scenario=scenario,
+                target_equipment_id=config.target_equipment_id,
+            )
             window = history.setdefault(equipment_id, deque(maxlen=8))
             reading = generate_reading(
                 equipment_id,
