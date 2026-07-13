@@ -31,6 +31,14 @@ def test_message_unknown_code_falls_back_to_code():
     assert "ZZZ-000" in msg
 
 
+def test_message_localized_to_english():
+    # locale=en이면 영어 메시지
+    msg = build_notification_message("EQP-003", "ERR-402", locale="en")
+    assert msg.startswith("EQP-003")
+    assert "Cooling anomaly" in msg
+
+
 def test_all_simulator_codes_have_message():
-    # 실제 알람 코드 전부 메시지 보유
-    assert SIMULATOR_CODES <= set(ALARM_MESSAGES)
+    # 실제 알람 코드 전부 메시지 보유 (ko·en 모두)
+    assert SIMULATOR_CODES <= set(ALARM_MESSAGES["ko"])
+    assert SIMULATOR_CODES <= set(ALARM_MESSAGES["en"])
