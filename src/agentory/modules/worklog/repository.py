@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.modules.notification.models import Notification
 from agentory.modules.worklog.models import WorkLog
 
 
@@ -19,6 +20,9 @@ def _to_dict(row: WorkLog) -> dict[str, Any]:
         "owner_sub": row.owner_sub,
         "work_type": row.work_type,
         "worker_name": row.worker_name,
+        "source_notification_id": row.source_notification_id,
+        "equipment_id": row.equipment_id,
+        "alarm_code": row.alarm_code,
         "started_at": row.started_at,
         "ended_at": row.ended_at,
         "content": row.content,
@@ -37,12 +41,18 @@ async def create_work_log(
     ended_at: datetime | None,
     content: str,
     status: str,
+    source_notification_id: int | None = None,
+    equipment_id: str | None = None,
+    alarm_code: str | None = None,
 ) -> dict[str, Any]:
     # 작업 로그 1건 생성
     row = WorkLog(
         owner_sub=owner_sub,
         work_type=work_type,
         worker_name=worker_name,
+        source_notification_id=source_notification_id,
+        equipment_id=equipment_id,
+        alarm_code=alarm_code,
         started_at=started_at,
         ended_at=ended_at,
         content=content,
@@ -51,6 +61,20 @@ async def create_work_log(
     session.add(row)
     await session.flush()
     return _to_dict(row)
+
+
+async def get_notification_reference(
+    session: AsyncSession,
+    notification_id: int,
+) -> dict[str, Any] | None:
+    row = await session.get(Notification, notification_id)
+    if row is None:
+        return None
+    return {
+        "id": row.id,
+        "equipment_id": row.equipment_id,
+        "alarm_code": row.alarm_code,
+    }
 
 
 async def list_work_logs(session: AsyncSession) -> list[dict[str, Any]]:

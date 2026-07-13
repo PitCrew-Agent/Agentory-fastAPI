@@ -14,7 +14,19 @@ from agentory.modules.worklog.schemas import WorkLogCreate, WorkLogItem, WorkLog
 async def create_work_log(
     session: AsyncSession, payload: WorkLogCreate, *, owner_sub: str, worker_name: str
 ) -> WorkLogItem:
-    # 작성자=소유자, 진행자 이름은 로그인 사용자에서 자동
+    notification = None
+    if payload.source_notification_id is not None:
+        notification = await repository.get_notification_reference(
+            session,
+            payload.source_notification_id,
+        )
+        if notification is None:
+            raise NotFoundError(
+                "error.notification.not_found",
+                params={"id": payload.source_notification_id},
+            )
+
+    # 작성자와 진행자 자동 기록 (NEW_INCIDENT01_PLAN01)
     row = await repository.create_work_log(
         session,
         owner_sub=owner_sub,
@@ -24,6 +36,9 @@ async def create_work_log(
         ended_at=payload.ended_at,
         content=payload.content,
         status=payload.status,
+        source_notification_id=payload.source_notification_id,
+        equipment_id=notification["equipment_id"] if notification else None,
+        alarm_code=notification["alarm_code"] if notification else None,
     )
     await session.commit()
     return WorkLogItem(**row)
