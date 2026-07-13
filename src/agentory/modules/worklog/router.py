@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.common.response import ApiResponse
 from agentory.core.db import get_session
+from agentory.modules.auth.audit import audit
 from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.worklog import service
 from agentory.modules.worklog.schemas import WorkLogCreate, WorkLogItem, WorkLogUpdate
@@ -32,6 +33,7 @@ async def list_work_logs(
     response_model=ApiResponse[WorkLogItem],
     status_code=status.HTTP_201_CREATED,
     summary="작업 로그 작성",
+    dependencies=[Depends(audit("WORKLOG_CREATE"))],
 )
 async def create_work_log(
     payload: WorkLogCreate,
@@ -54,6 +56,7 @@ async def create_work_log(
         403: {"description": "본인 작업 로그만 수정 가능"},
         404: {"description": "작업 로그가 존재하지 않음"},
     },
+    dependencies=[Depends(audit("WORKLOG_UPDATE"))],
 )
 async def update_work_log(
     work_log_id: Annotated[int, Path(examples=[15])],
@@ -75,6 +78,7 @@ async def update_work_log(
         403: {"description": "본인 작업 로그만 삭제 가능"},
         404: {"description": "작업 로그가 존재하지 않음"},
     },
+    dependencies=[Depends(audit("WORKLOG_DELETE"))],
 )
 async def delete_work_log(
     work_log_id: int = Path(examples=[15]),

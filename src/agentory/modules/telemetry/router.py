@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentory.common.exceptions import NotFoundError
 from agentory.common.response import ApiResponse
 from agentory.core.db import get_session
+from agentory.modules.auth.audit import audit
 from agentory.modules.telemetry import service
 from agentory.modules.telemetry.schemas import (
     AlarmHistoryPage,
@@ -88,6 +89,7 @@ async def equipment_suggestions(
     response_model=ApiResponse[EquipmentDetail],
     summary="설비 알람 래치 해제",
     responses={404: {"description": "설비가 존재하지 않음"}},
+    dependencies=[Depends(audit("EQUIPMENT_CLEAR_ALARM"))],
 )
 async def clear_alarm(
     equipment_id: str = Path(examples=["EQP-A01"]),
