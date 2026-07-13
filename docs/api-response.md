@@ -41,4 +41,4 @@ HTTP 상태코드는 실제값(200·201·400·404 등)을 그대로 유지합니
 ## 남은 작업
 
 auth 모듈의 성공 응답(로그인 URL·현재 사용자·로그아웃) 래핑은 담당자 협의 후 별도 반영 예정이며,
-auth의 실패 응답은 전역 HTTPException 핸들러로 이미 ApiResponse 봉투로 통일되어 있습니다.
+auth의 실패 응답은 전역 HTTPException 핸들러로 이미 ApiResponse로 통일되어 있습니다.

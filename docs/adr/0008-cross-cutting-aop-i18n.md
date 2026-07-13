@@ -23,7 +23,7 @@ http_status·메시지로 직렬화합니다.
   `ValidationError(400)`·`ConflictError(409)`·`ExternalServiceError(502)`, 각 예외는 `message_code`(i18n 키)와
   `params`를 보유
 - 라우터 44곳의 try/except 제거, 서비스는 도메인 예외 raise
-- auth 모듈은 인증 프로토콜 오류·담당자 경계라 제외, 전역 `HTTPException` 핸들러로 봉투만 통일
+- auth 모듈은 인증 프로토콜 오류·담당자 경계라 제외, 전역 `HTTPException` 핸들러로 응답만 통일
 
 ### 2. 메시지 국제화 (#98, #100, #106)
 
@@ -40,7 +40,7 @@ http_status·메시지로 직렬화합니다.
 합의 완료). 상세 규약은 [docs/api-response.md](../api-response.md)입니다.
 
 - 성공은 엔드포인트가 `ApiResponse.ok(result)` 반환 + `response_model=ApiResponse[T]`로 Swagger 정합
-- 실패는 전역 핸들러가 `{success:false, ...}` 봉투 생성
+- 실패는 전역 핸들러가 `{success:false, ...}` ApiResponse 생성
 - HTTP status는 실제값 유지, 204 No-Content는 200 + `result:null`로 전환
 - SSE 스트림·리다이렉트는 래핑 제외
 
@@ -56,8 +56,8 @@ http_status·메시지로 직렬화합니다.
 | 대안 | 기각 사유 |
 | --- | --- |
 | 라우터 try/except 유지 | 44곳 중복, 상태코드·i18n 산개 |
-| 성공 응답 래핑 안 함(HTTP 네이티브) | 프론트 균일 파싱을 위해 팀 컨벤션으로 봉투 채택 |
-| 성공 봉투를 body 재작성 미들웨어로 | SSE·스트림 body 파싱 충돌, OpenAPI 드리프트 |
+| 성공 응답 래핑 안 함(HTTP 네이티브) | 프론트 균일 파싱을 위해 팀 컨벤션으로 ApiResponse 채택 |
+| 성공 응답을 body 재작성 미들웨어로 래핑 | SSE·스트림 body 파싱 충돌, OpenAPI 드리프트 |
 | enum 라벨(상태·작업유형) 백엔드 번역 | 저장 canonical 유지가 옳음, 표시 변환은 프론트 담당 |
 | i18n을 Babel gettext로 | 메시지 규모(~50)에 과함, 빌드 스텝 부담 |
 

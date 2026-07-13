@@ -26,6 +26,7 @@ from agentory.modules.admin.schemas import (
     RepairPage,
     RepairRequest,
 )
+from agentory.modules.auth.audit import audit
 from agentory.modules.auth.middleware import get_current_user
 
 # 전 엔드포인트 관리자 전용, 공통 401·403 응답을 문서에 표기
@@ -76,6 +77,7 @@ async def list_lines(
     status_code=status.HTTP_201_CREATED,
     summary="담당 라인 생성",
     responses={409: {"description": "동일한 code의 라인이 이미 존재"}},
+    dependencies=[Depends(audit("LINE_CREATE"))],
 )
 async def create_line(
     payload: LineCreate,
@@ -113,6 +115,7 @@ async def get_line(
         404: {"description": "라인이 존재하지 않음"},
         409: {"description": "변경하려는 code가 다른 라인과 중복"},
     },
+    dependencies=[Depends(audit("LINE_UPDATE"))],
 )
 async def update_line(
     line_id: Annotated[int, Path(examples=[3])],
@@ -133,6 +136,7 @@ async def update_line(
     response_model=ApiResponse[None],
     summary="담당 라인 삭제",
     responses={404: {"description": "라인이 존재하지 않음"}},
+    dependencies=[Depends(audit("LINE_DELETE"))],
 )
 async def delete_line(
     line_id: int = Path(examples=[3]),
@@ -187,6 +191,7 @@ async def get_user(
         400: {"description": "존재하지 않는 라인 id가 포함됨"},
         404: {"description": "유저가 존재하지 않음"},
     },
+    dependencies=[Depends(audit("USER_LINES_ASSIGN"))],
 )
 async def assign_user_lines(
     user_id: Annotated[int, Path(examples=[7])],
@@ -213,6 +218,7 @@ async def assign_user_lines(
         400: {"description": "존재하지 않는 유저 id"},
         404: {"description": "설비가 존재하지 않음"},
     },
+    dependencies=[Depends(audit("EQUIPMENT_MANAGER_ASSIGN"))],
 )
 async def assign_equipment_manager(
     equipment_id: Annotated[str, Path(examples=["EQP-A01"])],
@@ -237,6 +243,7 @@ async def assign_equipment_manager(
     status_code=status.HTTP_201_CREATED,
     summary="설비 수리 처리",
     responses={404: {"description": "설비가 존재하지 않음"}},
+    dependencies=[Depends(audit("EQUIPMENT_REPAIR"))],
 )
 async def repair_equipment(
     equipment_id: Annotated[str, Path(examples=["EQP-A05"])],
