@@ -76,3 +76,23 @@ async def test_not_found_translates_with_accept_language_en(client):
     )
     assert r.status_code == 404
     assert r.json()["message"] == "Work log not found: -1"
+
+
+async def test_telemetry_not_found_unified_across_modules(client):
+    # 롤아웃 검증: telemetry 미존재 설비도 통일 포맷 + i18n
+    r = await client.get(
+        f"{API}/telemetry/equipment/NOPE/alarms", headers={"Accept-Language": "en"}
+    )
+    assert r.status_code == 404
+    body = r.json()
+    assert body["code"] == "NOT_FOUND"
+    assert body["message"] == "Equipment not found: NOPE"
+
+
+async def test_notification_bad_cursor_unified_validation(client):
+    # 롤아웃 검증: 잘못된 커서(서비스 ValidationError)가 400 통일 포맷
+    r = await client.get(f"{API}/notifications", params={"before": "bad!!"})
+    assert r.status_code == 400
+    body = r.json()
+    assert body["code"] == "VALIDATION_ERROR"
+    assert "커서" in body["message"]  # ko 기본

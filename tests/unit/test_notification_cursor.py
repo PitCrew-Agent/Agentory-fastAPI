@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from agentory.common.exceptions import ValidationError
 from agentory.modules.notification.service import _decode_cursor, _encode_cursor
 
 
@@ -16,7 +17,7 @@ def test_cursor_roundtrip_preserves_time_and_id():
 
 
 def test_decode_invalid_base64_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         _decode_cursor("!!!not-base64!!!")
 
 
@@ -25,5 +26,5 @@ def test_decode_missing_id_delimiter_raises():
     import base64
 
     bad = base64.urlsafe_b64encode(b"foobar").decode()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         _decode_cursor(bad)

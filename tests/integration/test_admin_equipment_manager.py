@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.admin import repository, service
 from agentory.modules.admin.schemas import AssignManagerRequest
@@ -85,7 +86,7 @@ async def test_unassign_manager_clears(session):
 
 async def test_assign_unknown_user_raises(session):
     await _make_equipment(session)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         await service.assign_equipment_manager(session, EQUIP_ID, AssignManagerRequest(user_id=-1))
 
 

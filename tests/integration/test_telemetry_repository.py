@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.telemetry import repository, service
 from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
@@ -166,8 +167,8 @@ async def test_list_alarm_events_cursor_pagination(seeded_session):
 
 
 async def test_list_alarm_events_bad_cursor(seeded_session):
-    # 잘못된 커서는 ValueError (라우터에서 400)
-    with pytest.raises(ValueError):
+    # 잘못된 커서는 ValidationError (전역 핸들러가 400 변환)
+    with pytest.raises(ValidationError):
         await service.list_alarm_events(seeded_session, EQP, before="not-a-cursor!!")
 
 

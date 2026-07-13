@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import ConflictError, ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.admin import repository, service
 from agentory.modules.admin.schemas import AssignLinesRequest, LineCreate, LineUpdate
@@ -64,7 +65,7 @@ async def test_create_and_get_line(session):
 async def test_create_duplicate_code_raises(session):
     await _make_line(session)
     await session.flush()
-    with pytest.raises(ValueError):
+    with pytest.raises(ConflictError):
         await service.create_line(session, LineCreate(code=CODE_A, name="중복"))
 
 
@@ -111,7 +112,7 @@ async def test_assign_lines_replaces_and_refs(session):
 
 async def test_assign_unknown_line_raises(session):
     user = await _make_user(session, email="zzz-admin-tester2@example.com")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         await service.assign_user_lines(session, user.id, AssignLinesRequest(line_ids=[-1]))
 
 
