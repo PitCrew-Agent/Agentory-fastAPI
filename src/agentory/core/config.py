@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     app_env: str = "local"  # local | dev | prod
     log_level: str = "INFO"
+    # 요청 액세스 로그(메서드·경로·상태·소요시간) 활성화 (INFRA_AOP01)
+    access_log_enabled: bool = True
 
     # Database (PostgreSQL + pgvector)
     database_url: str = "postgresql+asyncpg://agentory:agentory@localhost:5432/agentory"
