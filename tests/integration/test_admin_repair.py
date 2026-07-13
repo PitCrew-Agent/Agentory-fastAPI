@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.admin import service
 from agentory.modules.admin.schemas import RepairRequest
@@ -137,7 +138,7 @@ async def test_list_repairs_cursor_pagination(session):
 
 
 async def test_list_repairs_bad_cursor(session):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         await service.list_repairs(session, before="not-a-cursor!!")
 
 

@@ -21,6 +21,47 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko": "서버 오류가 발생했습니다",
         "en": "Internal server error",
     },
+    "error.forbidden": {
+        "ko": "권한이 없습니다",
+        "en": "Forbidden",
+    },
+    "error.cursor.invalid": {
+        "ko": "잘못된 커서: {cursor}",
+        "en": "Invalid cursor: {cursor}",
+    },
+    # 설비·라인·유저·알림·대화 (전 모듈 롤아웃)
+    "error.equipment.not_found": {
+        "ko": "설비 없음: {id}",
+        "en": "Equipment not found: {id}",
+    },
+    "error.line.not_found": {
+        "ko": "라인 없음: {id}",
+        "en": "Line not found: {id}",
+    },
+    "error.line.code_conflict": {
+        "ko": "이미 존재하는 라인 코드: {code}",
+        "en": "Line code already exists: {code}",
+    },
+    "error.line.unknown": {
+        "ko": "존재하지 않는 라인: {ids}",
+        "en": "Unknown line: {ids}",
+    },
+    "error.user.not_found": {
+        "ko": "유저 없음: {id}",
+        "en": "User not found: {id}",
+    },
+    "error.user.unknown": {
+        "ko": "존재하지 않는 유저: {id}",
+        "en": "Unknown user: {id}",
+    },
+    "error.notification.not_found": {
+        "ko": "알림 없음: {id}",
+        "en": "Notification not found: {id}",
+    },
+    "error.chat_session.not_found": {
+        "ko": "대화 세션 없음: {id}",
+        "en": "Chat session not found: {id}",
+    },
     # 작업 로그 (Phase 1 파일럿)
     "error.work_log.not_found": {
         "ko": "작업 로그 없음: {id}",
