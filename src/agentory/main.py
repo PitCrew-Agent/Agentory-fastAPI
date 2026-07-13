@@ -49,7 +49,7 @@ OPENAPI_TAGS = [
 ]
 
 
-# HTTP 상태코드 -> 에러 code 파생 (봉투 code 필드용), 미매핑은 HTTP_{status}
+# HTTP 상태코드 -> 에러 code 파생 (ApiResponse code 필드용), 미매핑은 HTTP_{status}
 _STATUS_CODE_NAMES = {
     400: "BAD_REQUEST",
     401: "UNAUTHORIZED",
@@ -64,7 +64,7 @@ _STATUS_CODE_NAMES = {
 
 
 def _fail(status_code: int, code: str, message: str, result: object = None) -> JSONResponse:
-    # 실패 응답 봉투 {success:false, code, message, result} (INFRA_AOP01)
+    # 실패 ApiResponse 응답 {success:false, code, message, result} (INFRA_AOP01)
     return JSONResponse(
         status_code=status_code,
         content={"success": False, "code": code, "message": message, "result": result},
@@ -72,7 +72,7 @@ def _fail(status_code: int, code: str, message: str, result: object = None) -> J
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
-    # 도메인 예외·검증 오류·잔여 HTTPException을 ApiResponse 실패 봉투로 통일 (INFRA_AOP01)
+    # 도메인 예외·검증 오류·잔여 HTTPException을 ApiResponse 실패 응답으로 통일 (INFRA_AOP01)
     # 메시지는 요청 로케일(Accept-Language)로 번역, 라우터별 try/except 대체
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
@@ -81,13 +81,13 @@ def _register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        # 검증 오류도 통일 봉투, 필드별 상세는 result에 실어 프론트가 활용
+        # 검증 오류도 통일 ApiResponse, 필드별 상세는 result에 실어 프론트가 활용
         message = translate("error.validation", get_locale())
         return _fail(422, "VALIDATION_ERROR", message, jsonable_encoder(exc.errors()))
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        # 잔여 HTTPException(auth 프로토콜 오류·미매칭 경로 등)도 봉투로 통일
+        # 잔여 HTTPException(auth 프로토콜 오류·미매칭 경로 등)도 ApiResponse로 통일
         code = _STATUS_CODE_NAMES.get(exc.status_code, f"HTTP_{exc.status_code}")
         return _fail(exc.status_code, code, str(exc.detail))
 
