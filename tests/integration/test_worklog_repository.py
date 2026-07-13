@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import NotFoundError, PermissionDeniedError
 from agentory.core.config import get_settings
 from agentory.modules.worklog import repository, service
 from agentory.modules.worklog.schemas import WorkLogStatus, WorkLogUpdate
@@ -87,24 +88,27 @@ async def test_update_partial_keeps_other_fields(session):
 
 async def test_service_update_forbidden_for_non_owner(session):
     created = await _make(session)
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionDeniedError):
         await service.update_work_log(
             session, created["id"], WorkLogUpdate(status=WorkLogStatus.DONE), requester_sub=OTHER
         )
 
 
 async def test_service_update_not_found(session):
-    result = await service.update_work_log(
-        session, -1, WorkLogUpdate(status=WorkLogStatus.DONE), requester_sub=OWNER
-    )
-    assert result is None
+    # 미존재는 NotFoundError(전역 핸들러가 404 변환)
+    with pytest.raises(NotFoundError):
+        await service.update_work_log(
+            session, -1, WorkLogUpdate(status=WorkLogStatus.DONE), requester_sub=OWNER
+        )
 
 
 async def test_service_delete_forbidden_for_non_owner(session):
     created = await _make(session)
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionDeniedError):
         await service.delete_work_log(session, created["id"], requester_sub=OTHER)
 
 
 async def test_service_delete_not_found(session):
-    assert await service.delete_work_log(session, -1, requester_sub=OWNER) is False
+    # 미존재는 NotFoundError(전역 핸들러가 404 변환)
+    with pytest.raises(NotFoundError):
+        await service.delete_work_log(session, -1, requester_sub=OWNER)
