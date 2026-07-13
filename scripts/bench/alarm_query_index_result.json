@@ -1,0 +1,153 @@
+{
+  "rows": 2000000,
+  "alarm_rows": 11978,
+  "target_equipment": "EQP-007",
+  "target_equipment_alarm_rows": 579,
+  "reps": 50,
+  "results": [
+    {
+      "index_config": "none",
+      "index_kb": 0,
+      "query": "timeline_first",
+      "scan_type": "Seq Scan",
+      "planner_exec_ms": 38.861,
+      "client_median_ms": 39.478,
+      "client_p95_ms": 42.011
+    },
+    {
+      "index_config": "none",
+      "index_kb": 0,
+      "query": "timeline_range",
+      "scan_type": "Seq Scan",
+      "planner_exec_ms": 38.034,
+      "client_median_ms": 39.118,
+      "client_p95_ms": 41.034
+    },
+    {
+      "index_config": "none",
+      "index_kb": 0,
+      "query": "timeline_code",
+      "scan_type": "Seq Scan",
+      "planner_exec_ms": 39.281,
+      "client_median_ms": 39.079,
+      "client_p95_ms": 40.967
+    },
+    {
+      "index_config": "none",
+      "index_kb": 0,
+      "query": "summary_aggregate",
+      "scan_type": "Seq Scan",
+      "planner_exec_ms": 39.217,
+      "client_median_ms": 39.201,
+      "client_p95_ms": 40.837
+    },
+    {
+      "index_config": "equip_time",
+      "index_kb": 61624,
+      "query": "timeline_first",
+      "scan_type": "Index Scan",
+      "planner_exec_ms": 0.497,
+      "client_median_ms": 0.47,
+      "client_p95_ms": 0.788
+    },
+    {
+      "index_config": "equip_time",
+      "index_kb": 61624,
+      "query": "timeline_range",
+      "scan_type": "Index Scan",
+      "planner_exec_ms": 0.606,
+      "client_median_ms": 2.477,
+      "client_p95_ms": 3.717
+    },
+    {
+      "index_config": "equip_time",
+      "index_kb": 61624,
+      "query": "timeline_code",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 36.322,
+      "client_median_ms": 40.706,
+      "client_p95_ms": 47.859
+    },
+    {
+      "index_config": "equip_time",
+      "index_kb": 61624,
+      "query": "summary_aggregate",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 39.111,
+      "client_median_ms": 40.415,
+      "client_p95_ms": 42.511
+    },
+    {
+      "index_config": "equip_time_partial",
+      "index_kb": 384,
+      "query": "timeline_first",
+      "scan_type": "Index Scan",
+      "planner_exec_ms": 0.026,
+      "client_median_ms": 0.358,
+      "client_p95_ms": 0.764
+    },
+    {
+      "index_config": "equip_time_partial",
+      "index_kb": 384,
+      "query": "timeline_range",
+      "scan_type": "Index Scan",
+      "planner_exec_ms": 0.025,
+      "client_median_ms": 0.336,
+      "client_p95_ms": 1.119
+    },
+    {
+      "index_config": "equip_time_partial",
+      "index_kb": 384,
+      "query": "timeline_code",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 0.678,
+      "client_median_ms": 0.469,
+      "client_p95_ms": 0.573
+    },
+    {
+      "index_config": "equip_time_partial",
+      "index_kb": 384,
+      "query": "summary_aggregate",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 0.21,
+      "client_median_ms": 0.482,
+      "client_p95_ms": 0.592
+    },
+    {
+      "index_config": "equip_code_time",
+      "index_kb": 79344,
+      "query": "timeline_first",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 0.534,
+      "client_median_ms": 0.556,
+      "client_p95_ms": 0.791
+    },
+    {
+      "index_config": "equip_code_time",
+      "index_kb": 79344,
+      "query": "timeline_range",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 0.054,
+      "client_median_ms": 0.384,
+      "client_p95_ms": 0.505
+    },
+    {
+      "index_config": "equip_code_time",
+      "index_kb": 79344,
+      "query": "timeline_code",
+      "scan_type": "Index Scan",
+      "planner_exec_ms": 0.018,
+      "client_median_ms": 0.316,
+      "client_p95_ms": 0.427
+    },
+    {
+      "index_config": "equip_code_time",
+      "index_kb": 79344,
+      "query": "summary_aggregate",
+      "scan_type": "Bitmap Heap Scan",
+      "planner_exec_ms": 0.5,
+      "client_median_ms": 0.476,
+      "client_p95_ms": 0.559
+    }
+  ]
+}

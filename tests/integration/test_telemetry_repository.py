@@ -108,6 +108,90 @@ async def test_fetch_alarm_history_aggregates(seeded_session):
     assert alarms[0]["count"] == 2  # NULL 알람은 집계 제외
 
 
+async def test_fetch_alarm_events_timeline_desc(seeded_session):
+    # 알람 있는 tick만 발생 역순, NULL 알람 제외 (NEW_ALARM01_HISTORY01)
+    events = await repository.fetch_alarm_events(seeded_session, equipment_id=EQP, limit=10)
+    assert len(events) == 2  # minute 15·30만, minute 0(None)은 제외
+    assert events[0]["occurred_at"] > events[1]["occurred_at"]  # 발생 역순
+    assert all(e["alarm_code"] == "ERR-402" for e in events)
+
+
+async def test_fetch_alarm_events_code_filter(seeded_session):
+    # 특정 코드로 좁힘, 미존재 코드는 빈 목록
+    hit = await repository.fetch_alarm_events(
+        seeded_session, equipment_id=EQP, alarm_code="ERR-402", limit=10
+    )
+    assert len(hit) == 2
+    miss = await repository.fetch_alarm_events(
+        seeded_session, equipment_id=EQP, alarm_code="ERR-999", limit=10
+    )
+    assert miss == []
+
+
+async def test_fetch_alarm_events_empty_range(seeded_session):
+    # 데이터 없는 기간은 빈 목록
+    events = await repository.fetch_alarm_events(
+        seeded_session,
+        equipment_id=EQP,
+        start_time=datetime(2019, 1, 1, tzinfo=UTC),
+        end_time=datetime(2019, 1, 2, tzinfo=UTC),
+        limit=10,
+    )
+    assert events == []
+
+
+async def test_list_alarm_events_severity_and_page(seeded_session):
+    # 서비스 페이지, 심각도 매핑(ERR→위험), 한 페이지에 다 담기면 has_more False
+    page = await service.list_alarm_events(seeded_session, EQP, limit=10)
+    assert page is not None
+    assert len(page.items) == 2
+    assert page.has_more is False
+    assert page.next_cursor is None
+    assert page.items[0].severity == StatusLevel.CRITICAL
+
+
+async def test_list_alarm_events_cursor_pagination(seeded_session):
+    # limit=1이면 has_more True·커서 발급, 커서로 다음 페이지 조회 시 나머지 1건
+    first = await service.list_alarm_events(seeded_session, EQP, limit=1)
+    assert first is not None
+    assert len(first.items) == 1
+    assert first.has_more is True
+    assert first.next_cursor is not None
+    second = await service.list_alarm_events(seeded_session, EQP, limit=1, before=first.next_cursor)
+    assert second is not None
+    assert len(second.items) == 1
+    assert second.has_more is False
+    # 두 페이지 항목은 서로 다른 시각(발생 역순 연속)
+    assert first.items[0].occurred_at > second.items[0].occurred_at
+
+
+async def test_list_alarm_events_bad_cursor(seeded_session):
+    # 잘못된 커서는 ValueError (라우터에서 400)
+    with pytest.raises(ValueError):
+        await service.list_alarm_events(seeded_session, EQP, before="not-a-cursor!!")
+
+
+async def test_list_alarm_events_not_found(seeded_session):
+    # 미존재 설비는 None (라우터 404)
+    assert await service.list_alarm_events(seeded_session, "NO-SUCH") is None
+
+
+async def test_get_alarm_summary_aggregates_and_severity(seeded_session):
+    # 코드별 집계 요약 + 심각도 매핑, 기간 미지정 시 전체 이력
+    summary = await service.get_alarm_summary(seeded_session, EQP)
+    assert summary is not None
+    assert len(summary) == 1
+    assert summary[0].alarm_code == "ERR-402"
+    assert summary[0].count == 2
+    assert summary[0].severity == StatusLevel.CRITICAL
+    assert summary[0].first_seen < summary[0].last_seen
+
+
+async def test_get_alarm_summary_not_found(seeded_session):
+    # 미존재 설비는 None (라우터 404)
+    assert await service.get_alarm_summary(seeded_session, "NO-SUCH") is None
+
+
 async def test_fetch_equipment_metadata(seeded_session):
     rows = await repository.fetch_equipment_metadata(seeded_session, equipment_id=EQP)
     assert len(rows) == 1
