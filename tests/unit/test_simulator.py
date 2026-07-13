@@ -7,11 +7,13 @@ SPC 동적 밴드 모델의 정상·급성(ERR-402)·드리프트(WRN-70x)·변�
 
 import random
 from collections import deque
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 
 from simulator.generator import ERR402, generate_reading
+from simulator.main import _select_spec
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 
@@ -193,3 +195,66 @@ def test_acute_offset_keeps_value_within_fault_clamp():
     )
     # 가스유량 USL 660 초과이나 클램프 상한 720 이내
     assert 660.0 < float(reading.gas_flow) <= 720.0
+
+
+# --- 수리 힐 윈도우 시나리오 결정 (NEW_REPAIR01_SIM01) ---
+
+_NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+_HEAL = timedelta(minutes=60)
+_MAP = {"EQP-A05": "err402_temp_rise"}  # preset 배치상 고장 설비
+
+
+def test_heal_window_forces_normal_within_window():
+    # 수리 직후(윈도우 내)면 preset이 고장이어도 정상 강제
+    spec = _select_spec(
+        "EQP-A05",
+        _NOW - timedelta(minutes=10),
+        now=_NOW,
+        heal_window=_HEAL,
+        scenario_map=_MAP,
+        scenario=NORMAL,
+        target_equipment_id="EQP-003",
+    )
+    assert spec is NORMAL
+
+
+def test_heal_window_resumes_scenario_after_window():
+    # 힐 윈도우 경과(1시간 초과)면 원래 preset 고장 시나리오 재개(재고장)
+    spec = _select_spec(
+        "EQP-A05",
+        _NOW - timedelta(minutes=61),
+        now=_NOW,
+        heal_window=_HEAL,
+        scenario_map=_MAP,
+        scenario=NORMAL,
+        target_equipment_id="EQP-003",
+    )
+    assert spec is SCENARIOS["err402_temp_rise"]
+
+
+def test_no_repair_keeps_scenario():
+    # 수리 이력 없으면(repaired_at None) preset 그대로
+    spec = _select_spec(
+        "EQP-A05",
+        None,
+        now=_NOW,
+        heal_window=_HEAL,
+        scenario_map=_MAP,
+        scenario=NORMAL,
+        target_equipment_id="EQP-003",
+    )
+    assert spec is SCENARIOS["err402_temp_rise"]
+
+
+def test_heal_window_target_mode_after_window():
+    # preset 미사용(target 모드)에서도 윈도우 경과 후 target 설비는 시나리오 재개
+    spec = _select_spec(
+        "EQP-003",
+        _NOW - timedelta(minutes=90),
+        now=_NOW,
+        heal_window=_HEAL,
+        scenario_map=None,
+        scenario=SCENARIOS["temperature_acute"],
+        target_equipment_id="EQP-003",
+    )
+    assert spec is SCENARIOS["temperature_acute"]
