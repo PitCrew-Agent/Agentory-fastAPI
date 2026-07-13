@@ -153,8 +153,9 @@ async def test_me_reads_opaque_session(monkeypatch):
         res = await client.get("/api/v1/auth/me")
 
     assert res.status_code == 200
-    assert res.json()["email"] == "user@example.com"
-    assert res.json()["lines"] == []
+    # ApiResponse 구조: 실제 사용자 정보는 result 안
+    assert res.json()["result"]["email"] == "user@example.com"
+    assert res.json()["result"]["lines"] == []
 
 
 async def test_refresh_updates_server_session_without_returning_tokens(monkeypatch):
@@ -207,7 +208,8 @@ async def test_refresh_updates_server_session_without_returning_tokens(monkeypat
         res = await client.post("/api/v1/auth/refresh")
 
     assert res.status_code == 200
-    assert res.json() == {
+    # ApiResponse 구조: 사용자 정보는 result 안
+    assert res.json()["result"] == {
         "id": 1,
         "email": "user@example.com",
         "name": "User",
@@ -264,7 +266,7 @@ async def test_logout_deletes_server_session_and_cookie(monkeypatch):
         res = await client.post("/api/v1/auth/logout")
 
     assert res.status_code == 200
-    assert res.json()["refresh_token_revoked"] is True
+    assert res.json()["result"]["refresh_token_revoked"] is True
     assert deleted == ["opaque-session-id"]
     assert "agentory_session=" in res.headers["set-cookie"]
     assert "Max-Age=0" in res.headers["set-cookie"]
