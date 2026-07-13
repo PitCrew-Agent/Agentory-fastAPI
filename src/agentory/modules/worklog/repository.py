@@ -17,6 +17,7 @@ def _to_dict(row: WorkLog) -> dict[str, Any]:
     return {
         "id": row.id,
         "owner_sub": row.owner_sub,
+        "work_type": row.work_type,
         "worker_name": row.worker_name,
         "started_at": row.started_at,
         "ended_at": row.ended_at,
@@ -30,6 +31,7 @@ async def create_work_log(
     session: AsyncSession,
     *,
     owner_sub: str,
+    work_type: str,
     worker_name: str,
     started_at: datetime,
     ended_at: datetime | None,
@@ -39,6 +41,7 @@ async def create_work_log(
     # 작업 로그 1건 생성
     row = WorkLog(
         owner_sub=owner_sub,
+        work_type=work_type,
         worker_name=worker_name,
         started_at=started_at,
         ended_at=ended_at,

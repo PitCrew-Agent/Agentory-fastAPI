@@ -29,6 +29,10 @@ class WorkLog(Base):
     __tablename__ = "work_logs"
     __table_args__ = (
         CheckConstraint("status IN ('대기', '진행중', '완료')", name="ck_work_logs_status"),
+        CheckConstraint(
+            "work_type IN ('정기점검', '수리점검', '예방점검', '긴급수리', '기타')",
+            name="ck_work_logs_work_type",
+        ),
         # 미삭제 목록을 시작 시각 역순으로 조회하는 패턴 대응
         Index(
             "ix_work_logs_active_started",
@@ -40,6 +44,7 @@ class WorkLog(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     owner_sub: Mapped[str] = mapped_column(String(255), nullable=False)  # 작성자=소유자 sub
+    work_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 작업 유형(단일 선택)
     worker_name: Mapped[str] = mapped_column(String(100), nullable=False)  # 진행자 표시명
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 진행중이면 NULL
