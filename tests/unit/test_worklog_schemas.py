@@ -20,6 +20,7 @@ def test_create_defaults_to_pending():
     # 상태 미지정 시 대기
     wl = WorkLogCreate(work_type=WorkLogType.REGULAR, started_at=S, ended_at=E, content="점검")
     assert wl.status == WorkLogStatus.PENDING
+    assert wl.source_notification_id is None
 
 
 def test_create_allows_open_ended():
@@ -54,6 +55,26 @@ def test_create_rejects_unknown_work_type():
     # 정의되지 않은 유형은 거부 (단일 선택 enum)
     with pytest.raises(ValidationError):
         WorkLogCreate(work_type="점검아님", started_at=S, content="잘못된 유형")
+
+
+def test_create_accepts_source_notification_id():
+    wl = WorkLogCreate(
+        work_type=WorkLogType.EMERGENCY,
+        started_at=S,
+        content="장애 대응",
+        source_notification_id=42,
+    )
+    assert wl.source_notification_id == 42
+
+
+def test_create_rejects_non_positive_source_notification_id():
+    with pytest.raises(ValidationError):
+        WorkLogCreate(
+            work_type=WorkLogType.EMERGENCY,
+            started_at=S,
+            content="장애 대응",
+            source_notification_id=0,
+        )
 
 
 def test_update_exclude_unset_only_provided():
