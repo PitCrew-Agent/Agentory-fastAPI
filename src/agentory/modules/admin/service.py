@@ -4,6 +4,10 @@ code 중복은 ValueError, 대상 미존재는 LookupError로 신호 (라우터�
 쓰기 경로는 명시적 commit (get_session은 자동 커밋 안 함)
 """
 
+import base64
+import binascii
+from datetime import datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.admin import repository
@@ -16,8 +20,15 @@ from agentory.modules.admin.schemas import (
     LineItem,
     LineRef,
     LineUpdate,
+    RepairItem,
+    RepairPage,
+    RepairRequest,
 )
 from agentory.modules.telemetry.schemas import EquipmentManager
+
+# 수리 이력 페이지 크기 기본값·상한
+DEFAULT_REPAIR_PAGE_SIZE = 10
+MAX_REPAIR_PAGE_SIZE = 50
 
 
 async def create_line(session: AsyncSession, payload: LineCreate) -> LineItem:
@@ -129,3 +140,85 @@ async def assign_equipment_manager(
         return None
     await session.commit()
     return EquipmentManagerItem(equipment_id=equipment_id, manager=manager)
+
+
+def _encode_repair_cursor(repaired_at: datetime, repair_id: int) -> str:
+    # 커서는 마지막 항목의 (수리시각, id)를 base64로 감싼 불투명 토큰
+    raw = f"{repaired_at.isoformat()}|{repair_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_repair_cursor(cursor: str) -> tuple[datetime, int]:
+    # 잘못된 커서는 ValueError (라우터에서 400)
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        at_str, id_str = raw.rsplit("|", 1)
+        return datetime.fromisoformat(at_str), int(id_str)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError(f"잘못된 커서: {cursor}") from exc
+
+
+async def repair_equipment(
+    session: AsyncSession,
+    equipment_id: str,
+    payload: RepairRequest,
+    *,
+    repaired_by: int | None,
+) -> RepairItem | None:
+    # 설비 수리 처리(NEW_REPAIR01_REPAIR01), 설비 미존재는 None(404)
+    row = await repository.create_repair(
+        session, equipment_id=equipment_id, repaired_by=repaired_by, note=payload.note
+    )
+    if row is None:
+        return None
+    await session.commit()
+    return RepairItem(**row)
+
+
+async def list_repairs(
+    session: AsyncSession,
+    *,
+    equipment_id: str | None = None,
+    repaired_by: int | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    before: str | None = None,
+    limit: int = DEFAULT_REPAIR_PAGE_SIZE,
+) -> RepairPage:
+    # 수리 작업 현황 목록(NEW_REPAIR01_HISTORY01), 수리 역순 키셋 커서 페이지네이션
+    cursor = _decode_repair_cursor(before) if before else None
+    page_size = max(1, min(limit, MAX_REPAIR_PAGE_SIZE))
+    rows = await repository.fetch_repairs_page(
+        session,
+        equipment_id=equipment_id,
+        repaired_by=repaired_by,
+        start=start,
+        end=end,
+        before=cursor,
+        limit=page_size + 1,
+    )
+    has_more = len(rows) > page_size
+    items = rows[:page_size]
+    next_cursor = (
+        _encode_repair_cursor(items[-1]["repaired_at"], items[-1]["id"])
+        if has_more and items
+        else None
+    )
+    return RepairPage(
+        items=[RepairItem(**row) for row in items],
+        next_cursor=next_cursor,
+        has_more=has_more,
+    )
+
+
+async def list_equipment_repairs(
+    session: AsyncSession,
+    equipment_id: str,
+    *,
+    before: str | None = None,
+    limit: int = DEFAULT_REPAIR_PAGE_SIZE,
+) -> RepairPage | None:
+    # 특정 설비 수리 이력, 설비 미존재는 None(404)
+    if not await repository.equipment_exists(session, equipment_id):
+        return None
+    return await list_repairs(session, equipment_id=equipment_id, before=before, limit=limit)

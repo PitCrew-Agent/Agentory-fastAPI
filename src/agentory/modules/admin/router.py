@@ -4,6 +4,7 @@
 유저 조회는 부서 대신 담당 라인 리스트를 함께 반환
 """
 
+from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -19,6 +20,9 @@ from agentory.modules.admin.schemas import (
     LineCreate,
     LineItem,
     LineUpdate,
+    RepairItem,
+    RepairPage,
+    RepairRequest,
 )
 from agentory.modules.auth.middleware import get_current_user
 
@@ -36,6 +40,15 @@ router = APIRouter(
 async def require_admin(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     # 관리자 role만 허용, 그 외 403
     if user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return user
+
+
+async def require_field_or_admin(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    # 수리·수리 이력은 관리자·현장 책임자 모두 허용 (전체 설비 대상)
+    if user.get("role") not in ("admin", "field_engineer"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     return user
 
@@ -217,3 +230,105 @@ async def assign_equipment_manager(
     if item is None:
         raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
     return item
+
+
+# --- 설비 수리·수리 이력 (관리자·현장 책임자 공용) ---
+
+
+@router.post(
+    "/equipment/{equipment_id}/repair",
+    response_model=RepairItem,
+    status_code=status.HTTP_201_CREATED,
+    summary="설비 수리 처리",
+    responses={404: {"description": "설비가 존재하지 않음"}},
+)
+async def repair_equipment(
+    equipment_id: Annotated[str, Path(examples=["EQP-A05"])],
+    payload: RepairRequest,
+    user: dict[str, Any] = Depends(require_field_or_admin),
+    session: AsyncSession = Depends(get_session),
+) -> RepairItem:
+    """설비 수리 처리 (수리자는 로그인 유저 자동 기록, 힐 윈도우 동안 시뮬레이터 정상화)"""
+    item = await service.repair_equipment(
+        session, equipment_id, payload, repaired_by=user.get("user_id")
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return item
+
+
+@router.get(
+    "/repairs",
+    response_model=RepairPage,
+    summary="수리 작업 현황 조회 (커서 페이지네이션)",
+    responses={400: {"description": "before 커서 형식이 잘못됨"}},
+)
+async def list_repairs(
+    equipment_id: str | None = Query(
+        default=None, description="지정 시 해당 설비만", examples=["EQP-A05"]
+    ),
+    repaired_by: int | None = Query(
+        default=None, description="지정 시 해당 책임자만", examples=[7]
+    ),
+    start: datetime | None = Query(default=None, examples=["2026-07-13T00:00:00+09:00"]),
+    end: datetime | None = Query(default=None, examples=["2026-07-13T23:59:59+09:00"]),
+    before: str | None = Query(
+        default=None, description="이전 페이지 마지막 항목 커서, 첫 페이지는 생략"
+    ),
+    limit: int = Query(
+        default=service.DEFAULT_REPAIR_PAGE_SIZE,
+        ge=1,
+        le=service.MAX_REPAIR_PAGE_SIZE,
+        examples=[10],
+    ),
+    _: dict[str, Any] = Depends(require_field_or_admin),
+    session: AsyncSession = Depends(get_session),
+) -> RepairPage:
+    """수리 작업 현황, 수리 역순 커서 페이지네이션 (설비·책임자·기간 필터)"""
+    try:
+        return await service.list_repairs(
+            session,
+            equipment_id=equipment_id,
+            repaired_by=repaired_by,
+            start=start,
+            end=end,
+            before=before,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@router.get(
+    "/equipment/{equipment_id}/repairs",
+    response_model=RepairPage,
+    summary="설비별 수리 이력 조회",
+    responses={
+        400: {"description": "before 커서 형식이 잘못됨"},
+        404: {"description": "설비가 존재하지 않음"},
+    },
+)
+async def list_equipment_repairs(
+    equipment_id: Annotated[str, Path(examples=["EQP-A05"])],
+    before: str | None = Query(
+        default=None, description="이전 페이지 마지막 항목 커서, 첫 페이지는 생략"
+    ),
+    limit: int = Query(
+        default=service.DEFAULT_REPAIR_PAGE_SIZE,
+        ge=1,
+        le=service.MAX_REPAIR_PAGE_SIZE,
+        examples=[10],
+    ),
+    _: dict[str, Any] = Depends(require_field_or_admin),
+    session: AsyncSession = Depends(get_session),
+) -> RepairPage:
+    """특정 설비 수리 이력, 수리 역순 커서 페이지네이션"""
+    try:
+        page = await service.list_equipment_repairs(
+            session, equipment_id, before=before, limit=limit
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    if page is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return page

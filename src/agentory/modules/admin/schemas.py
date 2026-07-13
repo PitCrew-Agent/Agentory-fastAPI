@@ -87,3 +87,40 @@ class EquipmentManagerItem(BaseModel):
     manager: EquipmentManager | None = Field(
         default=None, description="지정된 책임자 유저, 미지정 시 null"
     )
+
+
+class RepairRequest(BaseModel):
+    # 설비 수리 처리 요청, 수리자는 로그인 유저로 자동 기록
+    note: str | None = Field(
+        default=None, description="수리 비고", examples=["냉각 라인 교체 후 정상 확인"]
+    )
+
+
+class RepairItem(BaseModel):
+    # 수리 이력 항목 (작업 현황·장비별 이력)
+    id: int = Field(description="수리 이력 id", examples=[42])
+    equipment_id: str = Field(description="수리한 설비 id", examples=["EQP-A05"])
+    repaired_by: int | None = Field(
+        default=None, description="수리 책임자 유저 id, 유저 삭제 시 null", examples=[7]
+    )
+    repaired_by_name: str | None = Field(
+        default=None, description="수리 책임자 이름, 미지정 시 null", examples=["김억산"]
+    )
+    repaired_at: datetime = Field(
+        description="수리 시각 (ISO 8601)", examples=["2026-07-13T10:15:00+09:00"]
+    )
+    alarm_code_before: str | None = Field(
+        default=None, description="수리 직전 알람 코드, 없으면 null", examples=["ERR-402"]
+    )
+    note: str | None = Field(default=None, description="수리 비고", examples=["냉각 라인 교체"])
+
+
+class RepairPage(BaseModel):
+    # 수리 이력 한 페이지 (커서 기반), next_cursor로 다음 페이지 요청
+    items: list[RepairItem] = Field(description="이번 페이지의 수리 이력 (수리 역순)")
+    next_cursor: str | None = Field(
+        default=None,
+        description="다음 페이지 요청 시 before에 넣을 커서, 더 없으면 null",
+        examples=["MjAyNi0wNy0xM1QxMDoxNTowMCswOTowMHw0Mg"],
+    )
+    has_more: bool = Field(description="다음 페이지 존재 여부", examples=[True])

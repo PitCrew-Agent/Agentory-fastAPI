@@ -6,12 +6,12 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentory.modules.admin.models import Line, UserLine
+from agentory.modules.admin.models import EquipmentRepair, Line, UserLine
 from agentory.modules.auth.models import User
-from agentory.modules.telemetry.models import EquipmentMaster
+from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
 
 
 def _line_to_dict(row: Line) -> dict[str, Any]:
@@ -172,3 +172,102 @@ async def set_equipment_manager(
     equip.manager_user_id = manager_user_id
     await session.flush()
     return True
+
+
+def _repair_to_dict(row: EquipmentRepair, repaired_by_name: str | None) -> dict[str, Any]:
+    # 수리 이력 행을 응답 공용 dict로 변환
+    return {
+        "id": row.id,
+        "equipment_id": row.equipment_id,
+        "repaired_by": row.repaired_by,
+        "repaired_by_name": repaired_by_name,
+        "repaired_at": row.repaired_at,
+        "alarm_code_before": row.alarm_code_before,
+        "note": row.note,
+    }
+
+
+async def create_repair(
+    session: AsyncSession,
+    *,
+    equipment_id: str,
+    repaired_by: int | None,
+    note: str | None,
+) -> dict[str, Any] | None:
+    # 설비 수리 처리(NEW_REPAIR01_REPAIR01), 설비 미존재면 None
+    # 직전 알람 스냅샷 후 이력 적재 + 마스터 수리 래치·점검일·알람 해제 시각 동시 갱신
+    # commit은 서비스 계층 담당 (get_session 자동 커밋 없음)
+    equip = await session.get(EquipmentMaster, equipment_id)
+    if equip is None:
+        return None
+    # 수리 직전 최신 tick 알람 코드 스냅샷 (없으면 None)
+    alarm_before = await session.scalar(
+        select(EquipmentTelemetry.alarm_code)
+        .where(EquipmentTelemetry.equipment_id == equipment_id)
+        .order_by(EquipmentTelemetry.timestamp.desc())
+        .limit(1)
+    )
+    now = datetime.now(UTC)
+    repair = EquipmentRepair(
+        equipment_id=equipment_id,
+        repaired_by=repaired_by,
+        repaired_at=now,
+        alarm_code_before=alarm_before,
+        note=note,
+    )
+    session.add(repair)
+    # 시뮬레이터 힐 윈도우 래치 + 점검일 + 알람 래치 해제 시각 동시 반영
+    equip.repaired_at = now
+    equip.last_inspection_at = now.date()
+    equip.alarm_cleared_at = now
+    await session.flush()
+    name = await session.scalar(select(User.name).where(User.id == repaired_by))
+    return _repair_to_dict(repair, name)
+
+
+async def fetch_repairs_page(
+    session: AsyncSession,
+    *,
+    equipment_id: str | None = None,
+    repaired_by: int | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    before: tuple[datetime, int] | None = None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    # 수리 이력 목록(NEW_REPAIR01_HISTORY01), 수리 역순 (repaired_at, id) 키셋 페이지네이션
+    # 책임자 이름 표기 위해 users 좌외부조인, 유저 삭제(SET NULL) 이력도 노출
+    stmt = select(EquipmentRepair, User.name).outerjoin(
+        User, User.id == EquipmentRepair.repaired_by
+    )
+    if equipment_id:
+        stmt = stmt.where(EquipmentRepair.equipment_id == equipment_id)
+    if repaired_by is not None:
+        stmt = stmt.where(EquipmentRepair.repaired_by == repaired_by)
+    if start is not None:
+        stmt = stmt.where(EquipmentRepair.repaired_at >= start)
+    if end is not None:
+        stmt = stmt.where(EquipmentRepair.repaired_at <= end)
+    if before is not None:
+        cur_at, cur_id = before
+        stmt = stmt.where(
+            or_(
+                EquipmentRepair.repaired_at < cur_at,
+                and_(EquipmentRepair.repaired_at == cur_at, EquipmentRepair.id < cur_id),
+            )
+        )
+    stmt = stmt.order_by(EquipmentRepair.repaired_at.desc(), EquipmentRepair.id.desc()).limit(limit)
+    rows = await session.execute(stmt)
+    return [_repair_to_dict(repair, name) for repair, name in rows]
+
+
+async def equipment_exists(session: AsyncSession, equipment_id: str) -> bool:
+    # 설비 존재 확인 (장비별 이력 조회 404 판정용)
+    return (
+        await session.scalar(
+            select(func.count())
+            .select_from(EquipmentMaster)
+            .where(EquipmentMaster.equipment_id == equipment_id)
+        )
+        > 0
+    )
