@@ -91,3 +91,36 @@ class SensorPoint(BaseModel):
     pressure: float | None = Field(default=None, description="압력(mTorr)", examples=[41.11])
     rf_power: float | None = Field(default=None, description="RF 파워(kW)", examples=[2.79])
     gas_flow: float | None = Field(default=None, description="가스 유량(sccm)", examples=[617.0])
+
+
+class AlarmEventItem(BaseModel):
+    # 장비별 알람 이력 타임라인 항목 (NEW_ALARM01_HISTORY01), 발생 tick 하나
+    occurred_at: datetime = Field(
+        description="알람 발생 시각 (ISO 8601)", examples=["2026-07-10T15:43:25+09:00"]
+    )
+    alarm_code: str = Field(description="알람 코드", examples=["ERR-402"])
+    severity: StatusLevel = Field(description="알람 심각도 (주의·위험)", examples=["위험"])
+
+
+class AlarmHistoryPage(BaseModel):
+    # 장비별 알람 이력 한 페이지 (커서 기반), next_cursor로 다음 페이지 요청
+    items: list[AlarmEventItem] = Field(description="이번 페이지의 알람 이력 (발생 역순)")
+    next_cursor: str | None = Field(
+        default=None,
+        description="다음 페이지 요청 시 before에 넣을 커서, 더 없으면 null",
+        examples=["MjAyNi0wNy0xMFQxNTo0MzoyNSswOTowMHwxMDI0"],
+    )
+    has_more: bool = Field(description="다음 페이지 존재 여부", examples=[True])
+
+
+class AlarmSummaryItem(BaseModel):
+    # 장비별 알람 코드 집계 항목 (NEW_ALARM01_HISTORY02), 다발순 정렬
+    alarm_code: str = Field(description="알람 코드", examples=["ERR-402"])
+    severity: StatusLevel = Field(description="알람 심각도 (주의·위험)", examples=["위험"])
+    count: int = Field(description="기간 내 발생 횟수", examples=[42])
+    first_seen: datetime = Field(
+        description="최초 발생 시각", examples=["2026-07-09T06:40:18+09:00"]
+    )
+    last_seen: datetime = Field(
+        description="최근 발생 시각", examples=["2026-07-13T02:07:15+09:00"]
+    )

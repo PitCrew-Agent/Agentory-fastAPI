@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentory.core.db import get_session
 from agentory.modules.telemetry import service
 from agentory.modules.telemetry.schemas import (
+    AlarmHistoryPage,
+    AlarmSummaryItem,
     EquipmentDetail,
     EquipmentStatusItem,
     EquipmentSuggestionsResponse,
@@ -92,6 +94,77 @@ async def clear_alarm(
     if detail is None:
         raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
     return detail
+
+
+@router.get(
+    "/equipment/{equipment_id}/alarms",
+    response_model=AlarmHistoryPage,
+    summary="설비 알람 이력 조회 (발생 이벤트 타임라인)",
+    responses={
+        400: {"description": "before 커서 형식이 잘못됨"},
+        404: {"description": "설비가 존재하지 않음"},
+    },
+)
+async def equipment_alarms(
+    equipment_id: str = Path(examples=["EQP-A01"]),
+    alarm_code: str | None = Query(
+        default=None, description="지정 시 해당 코드만", examples=["ERR-402"]
+    ),
+    start: datetime | None = Query(default=None, examples=["2026-07-10T00:00:00+09:00"]),
+    end: datetime | None = Query(default=None, examples=["2026-07-10T23:59:59+09:00"]),
+    before: str | None = Query(
+        default=None,
+        description="이전 페이지 마지막 항목 커서, 첫 페이지는 생략",
+        examples=["MjAyNi0wNy0xMFQxNTo0MzoyNSswOTowMHwxMDI0"],
+    ),
+    limit: int = Query(
+        default=service.DEFAULT_ALARM_PAGE_SIZE,
+        ge=1,
+        le=service.MAX_ALARM_PAGE_SIZE,
+        examples=[10],
+    ),
+    session: AsyncSession = Depends(get_session),
+) -> AlarmHistoryPage:
+    """설비 알람 발생 이력, 발생 역순 커서 페이지네이션(기본 10개)"""
+    try:
+        page = await service.list_alarm_events(
+            session,
+            equipment_id,
+            start=start,
+            end=end,
+            alarm_code=alarm_code,
+            before=before,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    if page is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return page
+
+
+@router.get(
+    "/equipment/{equipment_id}/alarms/summary",
+    response_model=list[AlarmSummaryItem],
+    summary="설비 알람 코드별 집계 요약",
+    responses={404: {"description": "설비가 존재하지 않음"}},
+)
+async def equipment_alarm_summary(
+    equipment_id: str = Path(examples=["EQP-A01"]),
+    alarm_code: str | None = Query(
+        default=None, description="지정 시 해당 코드만", examples=["ERR-402"]
+    ),
+    start: datetime | None = Query(default=None, examples=["2026-07-10T00:00:00+09:00"]),
+    end: datetime | None = Query(default=None, examples=["2026-07-10T23:59:59+09:00"]),
+    session: AsyncSession = Depends(get_session),
+) -> list[AlarmSummaryItem]:
+    """설비 알람 코드별 발생 횟수·최초/최근 시각 집계 (기간 미지정 시 전체)"""
+    summary = await service.get_alarm_summary(
+        session, equipment_id, start=start, end=end, alarm_code=alarm_code
+    )
+    if summary is None:
+        raise HTTPException(status_code=404, detail=f"설비 없음: {equipment_id}")
+    return summary
 
 
 @router.get(

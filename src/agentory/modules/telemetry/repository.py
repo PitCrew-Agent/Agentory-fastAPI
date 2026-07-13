@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.core.config import get_settings
@@ -74,12 +74,13 @@ async def fetch_alarm_history(
     session: AsyncSession,
     *,
     equipment_id: str,
-    start_time: datetime,
-    end_time: datetime,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
     alarm_code: str | None = None,
 ) -> list[dict[str, Any]]:
-    # 알람 이력 집계 (BE_MCP02_TELEMETRY02)
+    # 알람 이력 집계 (BE_MCP02_TELEMETRY02 / NEW_ALARM01_HISTORY02)
     # 알람 코드별 발생 횟수·최초/최근 시각 집계, 다발 순 정렬 (NULL 알람 제외)
+    # 기간(start/end) 미지정 시 전체 이력 대상 (REST 요약 조회는 기본 전체)
     stmt = (
         select(
             EquipmentTelemetry.alarm_code,
@@ -90,12 +91,14 @@ async def fetch_alarm_history(
         .where(
             EquipmentTelemetry.equipment_id == equipment_id,
             EquipmentTelemetry.alarm_code.is_not(None),
-            EquipmentTelemetry.timestamp >= start_time,
-            EquipmentTelemetry.timestamp <= end_time,
         )
         .group_by(EquipmentTelemetry.alarm_code)
         .order_by(func.count().desc())
     )
+    if start_time is not None:
+        stmt = stmt.where(EquipmentTelemetry.timestamp >= start_time)
+    if end_time is not None:
+        stmt = stmt.where(EquipmentTelemetry.timestamp <= end_time)
     if alarm_code:
         # 특정 알람 코드로 좁힘
         stmt = stmt.where(EquipmentTelemetry.alarm_code == alarm_code)
@@ -110,6 +113,50 @@ async def fetch_alarm_history(
             "last_seen": last_seen.isoformat(),
         }
         for code, count, first_seen, last_seen in rows
+    ]
+
+
+async def fetch_alarm_events(
+    session: AsyncSession,
+    *,
+    equipment_id: str,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    alarm_code: str | None = None,
+    before: tuple[datetime, int] | None = None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    # 장비별 알람 발생 이벤트 타임라인 (NEW_ALARM01_HISTORY01)
+    # 원본 텔레메트리에서 alarm_code 있는 tick만 발생 역순 (timestamp, log_id) 키셋 페이지네이션
+    # 새 알람이 위에 쌓여도 경계가 밀리지 않도록 offset 대신 키셋 사용
+    stmt = select(EquipmentTelemetry).where(
+        EquipmentTelemetry.equipment_id == equipment_id,
+        EquipmentTelemetry.alarm_code.is_not(None),
+    )
+    if start_time is not None:
+        stmt = stmt.where(EquipmentTelemetry.timestamp >= start_time)
+    if end_time is not None:
+        stmt = stmt.where(EquipmentTelemetry.timestamp <= end_time)
+    if alarm_code:
+        # 특정 알람 코드로 좁힘
+        stmt = stmt.where(EquipmentTelemetry.alarm_code == alarm_code)
+    if before is not None:
+        cur_ts, cur_id = before
+        stmt = stmt.where(
+            or_(
+                EquipmentTelemetry.timestamp < cur_ts,
+                and_(
+                    EquipmentTelemetry.timestamp == cur_ts,
+                    EquipmentTelemetry.log_id < cur_id,
+                ),
+            )
+        )
+    stmt = stmt.order_by(
+        EquipmentTelemetry.timestamp.desc(), EquipmentTelemetry.log_id.desc()
+    ).limit(limit)
+    rows = await session.scalars(stmt)
+    return [
+        {"occurred_at": r.timestamp, "alarm_code": r.alarm_code, "log_id": r.log_id} for r in rows
     ]
 
 

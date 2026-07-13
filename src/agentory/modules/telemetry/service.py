@@ -4,6 +4,8 @@
 상태 판정 규칙은 전체 상태 목록과 선택 설비 상세가 공유
 """
 
+import base64
+import binascii
 from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,9 @@ from agentory.modules.agent.equipment_suggest import generate_equipment_suggesti
 from agentory.modules.telemetry import repository
 from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist_items
 from agentory.modules.telemetry.schemas import (
+    AlarmEventItem,
+    AlarmHistoryPage,
+    AlarmSummaryItem,
     ChecklistItem,
     EquipmentDetail,
     EquipmentManager,
@@ -24,6 +29,10 @@ from agentory.modules.telemetry.schemas import (
 
 # 시계열 기간 미지정 시 최신 텔레메트리 기준 기본 조회 폭
 DEFAULT_SERIES_WINDOW = timedelta(hours=6)
+
+# 장비별 알람 이력 페이지 크기 기본값·상한
+DEFAULT_ALARM_PAGE_SIZE = 10
+MAX_ALARM_PAGE_SIZE = 50
 
 
 def assess_status(alarm_code: str | None) -> StatusLevel:
@@ -160,6 +169,100 @@ async def get_equipment_suggestions(session: AsyncSession, equipment_id: str) ->
             "gas_flow": detail.gas_flow,
         },
     )
+
+
+def _encode_alarm_cursor(occurred_at: datetime, log_id: int) -> str:
+    # 커서는 마지막 항목의 (발생시각, log_id)를 base64로 감싼 불투명 토큰
+    raw = f"{occurred_at.isoformat()}|{log_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_alarm_cursor(cursor: str) -> tuple[datetime, int]:
+    # 잘못된 커서는 ValueError (라우터에서 400)
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        occurred_str, id_str = raw.rsplit("|", 1)
+        return datetime.fromisoformat(occurred_str), int(id_str)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError(f"잘못된 커서: {cursor}") from exc
+
+
+async def list_alarm_events(
+    session: AsyncSession,
+    equipment_id: str,
+    *,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    alarm_code: str | None = None,
+    before: str | None = None,
+    limit: int = DEFAULT_ALARM_PAGE_SIZE,
+) -> AlarmHistoryPage | None:
+    # 장비별 알람 발생 이벤트 타임라인 (NEW_ALARM01_HISTORY01)
+    # 설비 존재 확인, 미존재면 None(라우터에서 404), 알람 없으면 빈 페이지
+    if not await repository.fetch_equipment_metadata(session, equipment_id=equipment_id):
+        return None
+    cursor = _decode_alarm_cursor(before) if before else None
+    page_size = max(1, min(limit, MAX_ALARM_PAGE_SIZE))
+    # 다음 페이지 존재 여부 판단 위해 한 개 더 조회
+    rows = await repository.fetch_alarm_events(
+        session,
+        equipment_id=equipment_id,
+        start_time=start,
+        end_time=end,
+        alarm_code=alarm_code,
+        before=cursor,
+        limit=page_size + 1,
+    )
+    has_more = len(rows) > page_size
+    page_rows = rows[:page_size]
+    next_cursor = (
+        _encode_alarm_cursor(page_rows[-1]["occurred_at"], page_rows[-1]["log_id"])
+        if has_more and page_rows
+        else None
+    )
+    return AlarmHistoryPage(
+        items=[
+            AlarmEventItem(
+                occurred_at=row["occurred_at"],
+                alarm_code=row["alarm_code"],
+                severity=assess_status(row["alarm_code"]),
+            )
+            for row in page_rows
+        ],
+        next_cursor=next_cursor,
+        has_more=has_more,
+    )
+
+
+async def get_alarm_summary(
+    session: AsyncSession,
+    equipment_id: str,
+    *,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    alarm_code: str | None = None,
+) -> list[AlarmSummaryItem] | None:
+    # 장비별 알람 코드 집계 요약 (NEW_ALARM01_HISTORY02)
+    # 설비 존재 확인, 미존재면 None(라우터에서 404), 알람 없으면 빈 목록
+    if not await repository.fetch_equipment_metadata(session, equipment_id=equipment_id):
+        return None
+    rows = await repository.fetch_alarm_history(
+        session,
+        equipment_id=equipment_id,
+        start_time=start,
+        end_time=end,
+        alarm_code=alarm_code,
+    )
+    return [
+        AlarmSummaryItem(
+            alarm_code=row["alarm_code"],
+            severity=assess_status(row["alarm_code"]),
+            count=row["count"],
+            first_seen=row["first_seen"],
+            last_seen=row["last_seen"],
+        )
+        for row in rows
+    ]
 
 
 async def clear_equipment_alarm(session: AsyncSession, equipment_id: str) -> EquipmentDetail | None:
