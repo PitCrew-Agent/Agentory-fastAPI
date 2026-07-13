@@ -3,9 +3,15 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from agentory.common.context import get_locale
+from agentory.common.exceptions import AppError
+from agentory.common.i18n import translate
+from agentory.common.middleware import ContextMiddleware
 from agentory.core.config import get_settings
 from agentory.core.logging import setup_logging
 from agentory.modules.admin.router import router as admin_router
@@ -40,6 +46,26 @@ OPENAPI_TAGS = [
 ]
 
 
+def _register_exception_handlers(app: FastAPI) -> None:
+    # 도메인 예외·검증 오류를 통일 에러 포맷({code, message})으로 직렬화 (INFRA_AOP01)
+    # 메시지는 요청 로케일(Accept-Language)로 번역, 라우터별 try/except 대체
+    @app.exception_handler(AppError)
+    async def _app_error(request: Request, exc: AppError) -> JSONResponse:
+        message = translate(exc.message_code, get_locale(), **exc.params)
+        return JSONResponse(
+            status_code=exc.http_status, content={"code": exc.code, "message": message}
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # 검증 오류도 통일 포맷, 상세(detail)는 디버깅용으로 함께 노출
+        message = translate("error.validation", get_locale())
+        return JSONResponse(
+            status_code=422,
+            content={"code": "VALIDATION_ERROR", "message": message, "detail": exc.errors()},
+        )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -50,7 +76,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    _register_exception_handlers(app)
+
     app.middleware("http")(oidc_auth_middleware)
+    # 컨텍스트(request_id·locale)는 인증보다 먼저 설정되도록 인증 다음에 등록(더 바깥)
+    app.add_middleware(ContextMiddleware)
     # CORS는 최외곽에 두어 preflight가 인증 미들웨어보다 먼저 처리되도록 마지막에 등록
     # HttpOnly 쿠키 인증을 위해 credentials 허용
     app.add_middleware(
