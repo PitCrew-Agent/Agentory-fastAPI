@@ -7,7 +7,7 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.core.db import get_session
@@ -60,15 +60,8 @@ async def update_work_log(
     session: AsyncSession = Depends(get_session),
 ) -> WorkLogItem:
     """작업 로그 부분 수정 (작성자만)"""
-    try:
-        item = await service.update_work_log(
-            session, work_log_id, payload, requester_sub=user["email"]
-        )
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="본인 작업 로그만 수정 가능") from None
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"작업 로그 없음: {work_log_id}")
-    return item
+    # 미존재·권한 오류는 서비스가 도메인 예외로 raise, 전역 핸들러가 통일 포맷 응답
+    return await service.update_work_log(session, work_log_id, payload, requester_sub=user["email"])
 
 
 @router.delete(
@@ -87,9 +80,5 @@ async def delete_work_log(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """작업 로그 삭제 (작성자만, soft delete)"""
-    try:
-        deleted = await service.delete_work_log(session, work_log_id, requester_sub=user["email"])
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="본인 작업 로그만 삭제 가능") from None
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"작업 로그 없음: {work_log_id}")
+    # 미존재·권한 오류는 서비스가 도메인 예외로 raise, 전역 핸들러가 통일 포맷 응답
+    await service.delete_work_log(session, work_log_id, requester_sub=user["email"])

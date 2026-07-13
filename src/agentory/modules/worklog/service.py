@@ -6,6 +6,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.common.exceptions import NotFoundError, PermissionDeniedError
 from agentory.modules.worklog import repository
 from agentory.modules.worklog.schemas import WorkLogCreate, WorkLogItem, WorkLogUpdate
 
@@ -35,13 +36,13 @@ async def list_work_logs(session: AsyncSession) -> list[WorkLogItem]:
 
 async def update_work_log(
     session: AsyncSession, work_log_id: int, payload: WorkLogUpdate, *, requester_sub: str
-) -> WorkLogItem | None:
-    # 미존재는 None(404), 비소유자는 PermissionError(403)
+) -> WorkLogItem:
+    # 미존재는 NotFoundError(404), 비소유자는 PermissionDeniedError(403)
     row = await repository.get_work_log(session, work_log_id)
     if row is None:
-        return None
+        raise NotFoundError("error.work_log.not_found", params={"id": work_log_id})
     if row["owner_sub"] != requester_sub:
-        raise PermissionError("작업 로그 소유자만 수정 가능")
+        raise PermissionDeniedError("error.work_log.update_forbidden")
     fields = payload.model_dump(exclude_unset=True)
     if not fields:
         return WorkLogItem(**row)
@@ -50,13 +51,12 @@ async def update_work_log(
     return WorkLogItem(**updated)
 
 
-async def delete_work_log(session: AsyncSession, work_log_id: int, *, requester_sub: str) -> bool:
-    # 미존재는 False(404), 비소유자는 PermissionError(403), 삭제는 soft delete
+async def delete_work_log(session: AsyncSession, work_log_id: int, *, requester_sub: str) -> None:
+    # 미존재는 NotFoundError(404), 비소유자는 PermissionDeniedError(403), 삭제는 soft delete
     row = await repository.get_work_log(session, work_log_id)
     if row is None:
-        return False
+        raise NotFoundError("error.work_log.not_found", params={"id": work_log_id})
     if row["owner_sub"] != requester_sub:
-        raise PermissionError("작업 로그 소유자만 삭제 가능")
+        raise PermissionDeniedError("error.work_log.delete_forbidden")
     await repository.soft_delete_work_log(session, work_log_id)
     await session.commit()
-    return True
