@@ -109,7 +109,8 @@ erDiagram
 `(equipment_id, timestamp)` 복합 인덱스(`ix_telemetry_equipment_time`)로 설비별 기간 조회에
 대응합니다. 장비별 알람 이력 조회(NEW_ALARM01_HISTORY01/02)는 알람이 희소한 특성을 살려
 `(equipment_id, timestamp) WHERE alarm_code IS NOT NULL` 부분 인덱스(`ix_telemetry_equip_alarm_time`)로
-대응하며, 인덱스 조합별 성능 비교는 docs/bench/alarm-query-index.md에 정리되어 있습니다.
+대응합니다. 설계 결정 배경은 docs/adr/0006-alarm-history-query.md, 인덱스 조합별 성능 비교는
+docs/bench/alarm-query-index.md에 정리되어 있습니다.
 rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다. 압력은 시뮬레이터
 구현 참고서 §2 기준으로 mTorr 단위를 사용합니다. 알람 코드는 급성 이상 `ERR-\d{3}`과
 드리프트/PM·SPC 확장 `WRN-\d{3}`을 함께 사용하며, 에이전트는 두 접두어를 모두 인식합니다.
