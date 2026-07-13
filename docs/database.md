@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | `equipment_masters` | 설비 고유 정보와 메타데이터 관리 | DEV_DATABASE, BE_MCP03_MASTER01 |
 | `equipment_telemetries` | 설비 센서 수치와 알람 로그 적재 | DEV_DATABASE, BE_MCP02_TELEMETRY01/02 |
+| `equipment_repairs` | 설비 수리 이력(책임자·시각·직전 알람) 적재 | NEW_REPAIR01_HISTORY01 |
 | `knowledge_collection` | 매뉴얼 청크와 임베딩 벡터 저장·검색 | DEV_VECTORDB, BE_MCP04_RAG01 |
 | `chat_session` | 사용자 대화 세션 관리 | BE_CHAT01_QUERY01 |
 | `chat_message` | 대화 메시지와 추론 기록 저장 | BE_CHAT01_QUERY01 |

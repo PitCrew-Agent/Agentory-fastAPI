@@ -46,6 +46,37 @@ class Line(Base):
     )
 
 
+class EquipmentRepair(Base):
+    """설비 수리 이력 (NEW_REPAIR01_HISTORY01)
+
+    누가·언제·어떤 설비를 수리했는지 영속, 작업 현황 조회와 재정비 에이전트(타 팀)의 원천
+    수리 시 설비를 힐 윈도우 동안 정상 강제(NEW_REPAIR01_SIM01), 직전 알람 코드도 함께 스냅샷
+    """
+
+    __tablename__ = "equipment_repairs"
+    __table_args__ = (
+        Index("ix_equipment_repairs_equip_time", "equipment_id", "repaired_at"),
+        Index("ix_equipment_repairs_repaired_by", "repaired_by"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    equipment_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("equipment_masters.equipment_id"), nullable=False
+    )
+    # 수리 책임자 유저, 유저 삭제 시 이력은 유지하고 참조만 해제
+    repaired_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    repaired_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    alarm_code_before: Mapped[str | None] = mapped_column(String(20))  # 수리 직전 알람 스냅샷
+    note: Mapped[str | None] = mapped_column(Text)  # 수리 비고
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class UserLine(Base):
     """유저 담당 라인 연결 (M2M), 유저·라인 삭제 시 연쇄 정리"""
 
