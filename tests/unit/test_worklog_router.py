@@ -60,7 +60,8 @@ async def test_create_uses_session_user_keys(monkeypatch):
     payload = WorkLogCreate(work_type=WorkLogType.REGULAR, started_at=S, content="점검 완료")
     result = await wl_router.create_work_log(payload, user=_user(), session=None)
 
-    assert result.worker_name == "홍길동"
+    # 라우터가 ApiResponse로 감싸므로 실제 항목은 result.result
+    assert result.result.worker_name == "홍길동"
     assert captured["owner_sub"] == "owner@test"  # email을 소유자 식별자로 사용
     assert captured["worker_name"] == "홍길동"
 

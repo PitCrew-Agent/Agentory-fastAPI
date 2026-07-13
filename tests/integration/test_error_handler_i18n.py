@@ -57,14 +57,26 @@ async def client():
         await engine.dispose()
 
 
+async def test_success_uses_apiresponse_envelope(client):
+    # 성공 응답도 ApiResponse 봉투 {success, code, message, result}
+    r = await client.get(f"{API}/work-logs")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    assert body["code"] == "COMMON200"
+    assert body["message"] == "성공입니다"
+    assert isinstance(body["result"], list)
+
+
 async def test_not_found_uses_unified_envelope_ko(client):
-    # 미존재 작업 로그 수정 -> 404 {code, message}, 기본 로케일 ko
+    # 미존재 작업 로그 수정 -> 404 ApiResponse 실패 봉투, 기본 로케일 ko
     r = await client.patch(f"{API}/work-logs/-1", json={"status": "완료"})
     assert r.status_code == 404
     body = r.json()
+    assert body["success"] is False
     assert body["code"] == "NOT_FOUND"
     assert body["message"] == "작업 로그 없음: -1"
-    assert "detail" not in body  # 통일 포맷은 detail 대신 message
+    assert body["result"] is None
 
 
 async def test_not_found_translates_with_accept_language_en(client):

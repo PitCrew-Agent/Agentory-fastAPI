@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.common.exceptions import NotFoundError, PermissionDeniedError
+from agentory.common.response import ApiResponse
 from agentory.core.db import get_session
 from agentory.modules.admin import service
 from agentory.modules.admin.schemas import (
@@ -57,21 +58,21 @@ async def require_field_or_admin(
 # --- 라인 마스터 CRUD ---
 
 
-@router.get("/lines", response_model=list[LineItem], summary="담당 라인 목록 조회")
+@router.get("/lines", response_model=ApiResponse[list[LineItem]], summary="담당 라인 목록 조회")
 async def list_lines(
     include_inactive: bool = Query(
         default=False, description="true면 비활성 라인도 포함", examples=[False]
     ),
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> list[LineItem]:
+) -> ApiResponse[list[LineItem]]:
     """담당 라인 목록 (기본 활성만)"""
-    return await service.list_lines(session, include_inactive=include_inactive)
+    return ApiResponse.ok(await service.list_lines(session, include_inactive=include_inactive))
 
 
 @router.post(
     "/lines",
-    response_model=LineItem,
+    response_model=ApiResponse[LineItem],
     status_code=status.HTTP_201_CREATED,
     summary="담당 라인 생성",
     responses={409: {"description": "동일한 code의 라인이 이미 존재"}},
@@ -80,15 +81,15 @@ async def create_line(
     payload: LineCreate,
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> LineItem:
+) -> ApiResponse[LineItem]:
     """담당 라인 생성 (code 고유, 설비 line_name과 매칭)"""
     # code 중복은 서비스가 ConflictError raise, 전역 핸들러가 409 통일 응답
-    return await service.create_line(session, payload)
+    return ApiResponse.ok(await service.create_line(session, payload))
 
 
 @router.get(
     "/lines/{line_id}",
-    response_model=LineItem,
+    response_model=ApiResponse[LineItem],
     summary="담당 라인 상세 조회",
     responses={404: {"description": "라인이 존재하지 않음"}},
 )
@@ -96,17 +97,17 @@ async def get_line(
     line_id: int = Path(examples=[3]),
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> LineItem:
+) -> ApiResponse[LineItem]:
     """담당 라인 상세"""
     item = await service.get_line(session, line_id)
     if item is None:
         raise NotFoundError("error.line.not_found", params={"id": line_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 @router.patch(
     "/lines/{line_id}",
-    response_model=LineItem,
+    response_model=ApiResponse[LineItem],
     summary="담당 라인 수정",
     responses={
         404: {"description": "라인이 존재하지 않음"},
@@ -118,49 +119,51 @@ async def update_line(
     payload: LineUpdate,
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> LineItem:
+) -> ApiResponse[LineItem]:
     """담당 라인 부분 수정 (status=inactive로 비활성화)"""
     # code 중복은 서비스가 ConflictError raise, 전역 핸들러가 409 통일 응답
     item = await service.update_line(session, line_id, payload)
     if item is None:
         raise NotFoundError("error.line.not_found", params={"id": line_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 @router.delete(
     "/lines/{line_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=ApiResponse[None],
     summary="담당 라인 삭제",
-    responses={
-        204: {"description": "삭제 성공 (본문 없음)"},
-        404: {"description": "라인이 존재하지 않음"},
-    },
+    responses={404: {"description": "라인이 존재하지 않음"}},
 )
 async def delete_line(
     line_id: int = Path(examples=[3]),
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> None:
+) -> ApiResponse[None]:
     """담당 라인 삭제 (연결된 유저 담당 라인도 제거)"""
     if not await service.delete_line(session, line_id):
         raise NotFoundError("error.line.not_found", params={"id": line_id})
+    return ApiResponse.ok()
 
 
 # --- 유저 관리·담당 라인 지정 ---
 
 
-@router.get("/users", response_model=list[AdminUserItem], summary="유저 목록 조회 (담당 라인 포함)")
+@router.get(
+    "/users",
+    response_model=ApiResponse[list[AdminUserItem]],
+    summary="유저 목록 조회 (담당 라인 포함)",
+)
 async def list_users(
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> list[AdminUserItem]:
+) -> ApiResponse[list[AdminUserItem]]:
     """유저 목록 (부서 대신 담당 라인 포함)"""
-    return await service.list_users(session)
+    return ApiResponse.ok(await service.list_users(session))
 
 
 @router.get(
     "/users/{user_id}",
-    response_model=AdminUserItem,
+    response_model=ApiResponse[AdminUserItem],
     summary="유저 상세 조회 (담당 라인 포함)",
     responses={404: {"description": "유저가 존재하지 않음"}},
 )
@@ -168,17 +171,17 @@ async def get_user(
     user_id: int = Path(examples=[7]),
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> AdminUserItem:
+) -> ApiResponse[AdminUserItem]:
     """유저 상세 (담당 라인 포함)"""
     item = await service.get_user(session, user_id)
     if item is None:
         raise NotFoundError("error.user.not_found", params={"id": user_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 @router.put(
     "/users/{user_id}/lines",
-    response_model=AdminUserItem,
+    response_model=ApiResponse[AdminUserItem],
     summary="유저 담당 라인 지정 (전체 교체)",
     responses={
         400: {"description": "존재하지 않는 라인 id가 포함됨"},
@@ -190,13 +193,13 @@ async def assign_user_lines(
     payload: AssignLinesRequest,
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> AdminUserItem:
+) -> ApiResponse[AdminUserItem]:
     """유저 담당 라인 전체 교체 (빈 배열이면 전부 해제)"""
     # 없는 라인 포함은 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
     item = await service.assign_user_lines(session, user_id, payload)
     if item is None:
         raise NotFoundError("error.user.not_found", params={"id": user_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 # --- 설비 책임자 지정 ---
@@ -204,7 +207,7 @@ async def assign_user_lines(
 
 @router.put(
     "/equipment/{equipment_id}/manager",
-    response_model=EquipmentManagerItem,
+    response_model=ApiResponse[EquipmentManagerItem],
     summary="설비 책임자 지정",
     responses={
         400: {"description": "존재하지 않는 유저 id"},
@@ -216,13 +219,13 @@ async def assign_equipment_manager(
     payload: AssignManagerRequest,
     _: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
-) -> EquipmentManagerItem:
+) -> ApiResponse[EquipmentManagerItem]:
     """설비 책임자 유저 지정 (user_id=null이면 해제)"""
     # 없는 유저 지정은 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
     item = await service.assign_equipment_manager(session, equipment_id, payload)
     if item is None:
         raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 # --- 설비 수리·수리 이력 (관리자·현장 책임자 공용) ---
@@ -230,7 +233,7 @@ async def assign_equipment_manager(
 
 @router.post(
     "/equipment/{equipment_id}/repair",
-    response_model=RepairItem,
+    response_model=ApiResponse[RepairItem],
     status_code=status.HTTP_201_CREATED,
     summary="설비 수리 처리",
     responses={404: {"description": "설비가 존재하지 않음"}},
@@ -240,19 +243,19 @@ async def repair_equipment(
     payload: RepairRequest,
     user: dict[str, Any] = Depends(require_field_or_admin),
     session: AsyncSession = Depends(get_session),
-) -> RepairItem:
+) -> ApiResponse[RepairItem]:
     """설비 수리 처리 (수리자는 로그인 유저 자동 기록, 힐 윈도우 동안 시뮬레이터 정상화)"""
     item = await service.repair_equipment(
         session, equipment_id, payload, repaired_by=user.get("user_id")
     )
     if item is None:
         raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
-    return item
+    return ApiResponse.ok(item)
 
 
 @router.get(
     "/repairs",
-    response_model=RepairPage,
+    response_model=ApiResponse[RepairPage],
     summary="수리 작업 현황 조회 (커서 페이지네이션)",
     responses={400: {"description": "before 커서 형식이 잘못됨"}},
 )
@@ -276,10 +279,10 @@ async def list_repairs(
     ),
     _: dict[str, Any] = Depends(require_field_or_admin),
     session: AsyncSession = Depends(get_session),
-) -> RepairPage:
+) -> ApiResponse[RepairPage]:
     """수리 작업 현황, 수리 역순 커서 페이지네이션 (설비·책임자·기간 필터)"""
     # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
-    return await service.list_repairs(
+    page = await service.list_repairs(
         session,
         equipment_id=equipment_id,
         repaired_by=repaired_by,
@@ -288,11 +291,12 @@ async def list_repairs(
         before=before,
         limit=limit,
     )
+    return ApiResponse.ok(page)
 
 
 @router.get(
     "/equipment/{equipment_id}/repairs",
-    response_model=RepairPage,
+    response_model=ApiResponse[RepairPage],
     summary="설비별 수리 이력 조회",
     responses={
         400: {"description": "before 커서 형식이 잘못됨"},
@@ -312,10 +316,10 @@ async def list_equipment_repairs(
     ),
     _: dict[str, Any] = Depends(require_field_or_admin),
     session: AsyncSession = Depends(get_session),
-) -> RepairPage:
+) -> ApiResponse[RepairPage]:
     """특정 설비 수리 이력, 수리 역순 커서 페이지네이션"""
     # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
     page = await service.list_equipment_repairs(session, equipment_id, before=before, limit=limit)
     if page is None:
         raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
-    return page
+    return ApiResponse.ok(page)

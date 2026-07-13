@@ -12,6 +12,11 @@ SUPPORTED_LOCALES = ("ko", "en")
 
 # 메시지 코드 -> {로케일: 템플릿}, 템플릿은 str.format 보간 사용
 MESSAGES: dict[str, dict[str, str]] = {
+    # 성공
+    "success.ok": {
+        "ko": "성공입니다",
+        "en": "OK",
+    },
     # 공통·검증
     "error.validation": {
         "ko": "요청 값이 올바르지 않습니다",
