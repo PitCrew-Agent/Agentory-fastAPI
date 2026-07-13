@@ -16,6 +16,7 @@ from sqlalchemy import (
     Numeric,
     String,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -61,7 +62,18 @@ class EquipmentTelemetry(Base):
     """
 
     __tablename__ = "equipment_telemetries"
-    __table_args__ = (Index("ix_telemetry_equipment_time", "equipment_id", "timestamp"),)
+    __table_args__ = (
+        Index("ix_telemetry_equipment_time", "equipment_id", "timestamp"),
+        # 장비별 알람 이력 조회 부분 인덱스 (NEW_ALARM01_HISTORY01/02)
+        # 알람은 전체의 1% 미만이라 alarm_code 있는 행만 인덱싱, 타임라인·코드필터·요약 모두 sub-ms
+        # (equipment_id, timestamp) 인덱스는 코드필터·집계에서 풀 설비 스캔으로 저하되어 별도 필요
+        Index(
+            "ix_telemetry_equip_alarm_time",
+            "equipment_id",
+            "timestamp",
+            postgresql_where=text("alarm_code IS NOT NULL"),
+        ),
+    )
 
     log_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     equipment_id: Mapped[str] = mapped_column(
