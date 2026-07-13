@@ -11,6 +11,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
+    ForeignKey,
     Identity,
     Index,
     String,
@@ -40,12 +41,28 @@ class WorkLog(Base):
             postgresql_where=text("deleted_at IS NULL"),
         ),
         Index("ix_work_logs_owner", "owner_sub"),
+        Index(
+            "ix_work_logs_source_notification_id",
+            "source_notification_id",
+        ),
+        Index("ix_work_logs_equipment_id", "equipment_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     owner_sub: Mapped[str] = mapped_column(String(255), nullable=False)  # 작성자=소유자 sub
     work_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 작업 유형(단일 선택)
     worker_name: Mapped[str] = mapped_column(String(100), nullable=False)  # 진행자 표시명
+    source_notification_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("notifications.id"),
+        nullable=True,
+    )
+    equipment_id: Mapped[str | None] = mapped_column(
+        String(50),
+        ForeignKey("equipment_masters.equipment_id"),
+        nullable=True,
+    )
+    alarm_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 진행중이면 NULL
     content: Mapped[str] = mapped_column(Text, nullable=False)

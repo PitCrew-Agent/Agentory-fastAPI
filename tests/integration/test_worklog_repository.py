@@ -13,6 +13,8 @@ from sqlalchemy.pool import NullPool
 
 from agentory.common.exceptions import NotFoundError, PermissionDeniedError
 from agentory.core.config import get_settings
+from agentory.modules.notification.models import Notification
+from agentory.modules.telemetry.models import EquipmentMaster
 from agentory.modules.worklog import repository, service
 from agentory.modules.worklog.schemas import WorkLogStatus, WorkLogUpdate
 
@@ -84,6 +86,43 @@ async def test_update_partial_keeps_other_fields(session):
     updated = await repository.update_work_log(session, created["id"], {"status": "완료"})
     assert updated["status"] == "완료"
     assert updated["content"] == "원본"
+
+
+async def test_notification_link_allows_multiple_active_logs(session):
+    equipment_id = "ZZZ-WORKLOG-LINK"
+    session.add(
+        EquipmentMaster(
+            equipment_id=equipment_id,
+            line_name="ZZZ-LINE",
+            process_type="Etching",
+        )
+    )
+    notification = Notification(
+        occurred_at=S,
+        equipment_id=equipment_id,
+        alarm_code="ERR-402",
+        message="냉각 계통 이상",
+        bucket_hour=S.replace(minute=0),
+    )
+    session.add(notification)
+    await session.flush()
+
+    first = await _make(
+        session,
+        source_notification_id=notification.id,
+        equipment_id=equipment_id,
+        alarm_code="ERR-402",
+    )
+    second = await _make(
+        session,
+        source_notification_id=notification.id,
+        equipment_id=equipment_id,
+        alarm_code="ERR-402",
+    )
+
+    assert first["id"] != second["id"]
+    assert second["source_notification_id"] == notification.id
+    assert second["equipment_id"] == equipment_id
 
 
 async def test_service_update_forbidden_for_non_owner(session):

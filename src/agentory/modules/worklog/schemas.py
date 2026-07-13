@@ -42,6 +42,11 @@ class WorkLogCreate(BaseModel):
     status: WorkLogStatus = Field(
         default=WorkLogStatus.PENDING, description="진행 상태", examples=["진행중"]
     )
+    source_notification_id: int | None = Field(
+        default=None,
+        ge=1,
+        description="대응을 시작한 알림 id",
+    )
 
     @model_validator(mode="after")
     def _check_range(self) -> "WorkLogCreate":
@@ -65,6 +70,9 @@ class WorkLogItem(BaseModel):
     id: int = Field(description="작업 로그 id", examples=[15])
     work_type: WorkLogType = Field(description="작업 유형", examples=["수리점검"])
     worker_name: str = Field(description="진행자 이름 (작성자)", examples=["홍길동"])
+    source_notification_id: int | None = Field(default=None, description="연결 알림 id")
+    equipment_id: str | None = Field(default=None, description="연결 설비 id")
+    alarm_code: str | None = Field(default=None, description="연결 알람 코드")
     started_at: datetime = Field(description="작업 시작 시각")
     ended_at: datetime | None = Field(default=None, description="작업 종료 시각, 진행중이면 null")
     content: str = Field(description="작업 내용")
