@@ -6,7 +6,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.admin.models import EquipmentRepair, Line, UserLine
@@ -249,13 +249,9 @@ async def fetch_repairs_page(
     if end is not None:
         stmt = stmt.where(EquipmentRepair.repaired_at <= end)
     if before is not None:
-        cur_at, cur_id = before
-        stmt = stmt.where(
-            or_(
-                EquipmentRepair.repaired_at < cur_at,
-                and_(EquipmentRepair.repaired_at == cur_at, EquipmentRepair.id < cur_id),
-            )
-        )
+        # row-value 튜플 비교로 커서, OR 펼침 대비 sargable 해 인덱스 커서 위치로 직접 seek
+        # 전역 페이지는 ix_equipment_repairs_repaired_at_id 활용
+        stmt = stmt.where(tuple_(EquipmentRepair.repaired_at, EquipmentRepair.id) < before)
     stmt = stmt.order_by(EquipmentRepair.repaired_at.desc(), EquipmentRepair.id.desc()).limit(limit)
     rows = await session.execute(stmt)
     return [_repair_to_dict(repair, name) for repair, name in rows]

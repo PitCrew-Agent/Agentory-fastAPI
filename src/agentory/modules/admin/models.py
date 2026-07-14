@@ -57,6 +57,8 @@ class EquipmentRepair(Base):
     __table_args__ = (
         Index("ix_equipment_repairs_equip_time", "equipment_id", "repaired_at"),
         Index("ix_equipment_repairs_repaired_by", "repaired_by"),
+        # 설비 미지정 전역 페이지 정렬용 (NEW_REPAIR01_HISTORY01), row-value 커서 seek 지원
+        Index("ix_equipment_repairs_repaired_at_id", "repaired_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
