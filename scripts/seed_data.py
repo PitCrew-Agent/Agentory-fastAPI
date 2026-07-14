@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import delete
 
 from agentory.core.db import SessionLocal
+from agentory.modules.admin.models import EquipmentRepair
 from agentory.modules.auth import models as _auth_models  # noqa: F401  users FK 대상 등록
 from agentory.modules.telemetry.models import (
     EquipmentAlarm,
@@ -204,6 +205,45 @@ def build_telemetry(
     return rows, alarms
 
 
+# 데모용 수리 이력 (BE_MCP05_MAINT01), 일부는 동일 알람 재발로 반복 고장 패턴 재현
+# (equipment_id, repaired_at, alarm_code_before, note)
+REPAIRS: list[tuple[str, datetime, str, str]] = [
+    (
+        "EQP-A05",
+        datetime(2026, 6, 18, 9, 0, tzinfo=UTC),
+        "ERR-401",
+        "온도 급상승, 냉각 밸브 점검·교체",
+    ),
+    (
+        "EQP-A05",
+        datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
+        "ERR-401",
+        "동일 증상 재발, 냉각수 라인 세정",
+    ),
+    ("EQP-B03", datetime(2026, 6, 25, 11, 0, tzinfo=UTC), "ERR-301", "압력 이상, 배관 누설 보수"),
+    (
+        "EQP-B06",
+        datetime(2026, 6, 30, 16, 0, tzinfo=UTC),
+        "ERR-201",
+        "RF 파워 이상, 매칭 네트워크 조정",
+    ),
+]
+
+
+def build_repairs() -> list[EquipmentRepair]:
+    # 데모 수리 이력, 책임자 유저는 시드 범위 밖이라 repaired_by 미지정(NULL)
+    return [
+        EquipmentRepair(
+            equipment_id=equipment_id,
+            repaired_by=None,
+            repaired_at=repaired_at,
+            alarm_code_before=alarm_code,
+            note=note,
+        )
+        for equipment_id, repaired_at, alarm_code, note in REPAIRS
+    ]
+
+
 async def seed() -> None:
     masters = build_masters()
 
@@ -216,20 +256,24 @@ async def seed() -> None:
             telemetry.extend(rows)
             alarms.extend(alarm_rows)
 
+    repairs = build_repairs()
+
     async with SessionLocal() as session:
         # 개발용 시드라 기존 데이터 비우고 재적재, FK 때문에 자식 테이블 먼저 삭제
         await session.execute(delete(EquipmentAlarm))
         await session.execute(delete(EquipmentTelemetry))
+        await session.execute(delete(EquipmentRepair))
         await session.execute(delete(EquipmentMaster))
         session.add_all(masters)
-        await session.flush()  # 마스터 선적재로 자식(telemetry·alarms) FK 보장
+        await session.flush()  # 마스터 선적재로 자식(telemetry·alarms·repairs) FK 보장
         session.add_all(telemetry)
         session.add_all(alarms)
+        session.add_all(repairs)
         await session.commit()
 
     print(
         f"[seed] 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건, "
-        f"알람 이벤트 {len(alarms)}건 적재 완료"
+        f"알람 이벤트 {len(alarms)}건, 수리 이력 {len(repairs)}건 적재 완료"
     )
 
 
