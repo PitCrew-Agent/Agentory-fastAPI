@@ -2,7 +2,7 @@
 
 - 상태: 승인 (2026-07-13)
 - 결정자: 주희정
-- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [docs/bench/alarm-query-index.md](../bench/alarm-query-index.md), [docs/database.md](../database.md), feature/91-alarm-history(#91)
+- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [docs/bench/alarm-query-index.md](../bench/alarm-query-index.md), [docs/database.md](../database.md), feature/91-alarm-history(#91), feature/121-per-variable-alarms(#122)
 
 ## 배경
 
@@ -49,6 +49,27 @@
 (`ix_telemetry_equip_alarm_time`, 마이그레이션 0014)를 추가합니다. 알람 행이 전체의 1% 미만으로
 희소한 특성을 살려, 알람 행만 담는 작은 인덱스로 타임라인·코드 필터·집계를 모두 커버합니다.
 
+### 5. per-variable 알람 저널 확장 (feature/121-per-variable-alarms #122)
+
+위 1~4는 tick당 `alarm_code` 1개(대표 코드) 모델을 전제합니다. 그러나 한 설비가 온도 급성과 압력
+드리프트를 동시에 갖는 실제 상황을 담지 못하고, 복합 코드(ERR-402=온도+압력, ERR-901=RF+온도)가 한
+코드로 두 변수에 걸쳐 도넛 차트의 센서별 구분을 흐렸습니다. 실무 알람 모델(ISA-18.2)대로 값과 알람을
+분리한 **센서 변수별 알람 저널** `equipment_alarms`를 신설했습니다(상세 스키마는 [database.md](../database.md)).
+
+- `equipment_alarms`: `equipment_id`·`metric`(temperature/pressure/rf_power/gas_flow)·`alarm_code`·
+  `severity`·`raised_at`·`cleared_at`(NULL=활성), 발생~해제 생명주기를 변수별로 기록
+- 도넛 센서별 집계 `GET /telemetry/equipment/{id}/alarms/sensors`: `metric` 기준 `GROUP BY` 집계
+- 기존 `equipment_telemetries.alarm_code`는 **활성 알람 worst-of 대표값으로 파생 유지**해 incident·
+  notification·worklog·SSE 계약을 무변경으로 보존
+- 복합 코드(ERR-402·ERR-901)는 변수 간 코드 전이를 유발하므로 은퇴, 이상은 항상 단일변수 코드로 발생
+
+| 지표 | 기존 | 현재 |
+| --- | --- | --- |
+| 설비당 동시 표현 알람 | 1 (tick당 코드 1개) | 4 (센서 변수 독립) |
+| 도넛 집계 단위 | alarm_code | metric(센서) |
+| 변수 간 코드 전이(복합코드) | 존재 (ERR-402·901) | 0 (단일변수 코드) |
+| 하위 소비 모듈·SSE 계약 변경 | 해당 없음 | 0건 (대표값 파생) |
+
 ## 정량 평가 (실측)
 
 인덱스 구성 4종을 별도 벤치 테이블(2,000,000행, 알람 0.6%)에서 비교했습니다. 측정 하네스는
@@ -86,7 +107,8 @@
 
 ## 결과 / 미해결
 
-- 신규 테이블·컬럼 없이 기존 원본 텔레메트리 위에 부분 인덱스 하나만 추가해 조회를 성립시켰습니다.
+- (1~4) 신규 테이블·컬럼 없이 기존 원본 텔레메트리 위에 부분 인덱스 하나만 추가해 조회를 성립시켰습니다.
+  이후 §5(#122)에서 센서 변수별 알람 저널 `equipment_alarms`를 신설해 per-variable 모델로 확장했습니다.
 - 벤치는 별도 테이블에서 수행 후 제거하므로 운영 시드·autogenerate 드리프트에 영향이 없습니다.
 - 남은 리스크로 기록합니다. 텔레메트리 데이터가 장기 누적되면 요약 집계 비용이 다시 커질 수 있으며,
   이 경우 기간 필수화 또는 코드별 사전 집계 테이블을 후속 과제로 검토합니다.

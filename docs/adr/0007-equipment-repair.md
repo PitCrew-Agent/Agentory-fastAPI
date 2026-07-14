@@ -2,7 +2,7 @@
 
 - 상태: 승인 (2026-07-13)
 - 결정자: 주희정
-- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [ADR-0005](0005-simulator-spc.md), [ADR-0006](0006-alarm-history-query.md), [docs/simulator.md](../simulator.md)
+- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [ADR-0005](0005-simulator-spc.md), [ADR-0006](0006-alarm-history-query.md), [docs/simulator.md](../simulator.md), [docs/mcp/maintenance.md](../mcp/maintenance.md), feature/125-maintenance-worker(#127), feature/132-worklog-plan-completion(#133)
 
 ## 배경
 
@@ -57,6 +57,25 @@ if repaired_at is not None and now - repaired_at < heal_window:
 
 수리 권한은 관리자(admin)와 현장 책임자(field_engineer)를 모두 허용하고, 현재는 전체 설비를 대상으로
 합니다. `repaired_by`는 로그인 유저로 자동 기록합니다.
+
+### 4. 소비자·적재 경로 확장 (feature/125 #127, feature/132 #133)
+
+배경에서 "재정비 에이전트(타 팀)의 입력"으로 예정했던 `equipment_repairs` 소비자가 구체화되었습니다.
+재진단 워커는 서비스에서 제거되었고, 대신 두 지점이 이 테이블과 계약합니다.
+
+- 읽기: maintenance 워커(BE_MCP05_MAINT01)가 `get_repair_history`·`get_maintenance_summary`로 조회해
+  챗봇 진단에 과거 수리·재발 이력을 반영합니다([docs/mcp/maintenance.md](../mcp/maintenance.md)).
+- 쓰기: 작업 로그 완료 `POST /work-logs/{id}/complete`의 수리류(긴급수리·수리점검) 처리가 기존
+  `create_repair`를 재사용해 이력을 적재합니다(NEW_LOOP01_WORKLOG01).
+
+즉 수리 적재 경로가 수리 API 1개에서 2개(수리 API + 작업 로그 완료)로 늘었으나, 둘 다 `create_repair`로
+단일화되어 `alarm_code_before` 스냅샷·힐 윈도우 갱신 동작이 동일합니다.
+
+| 지표 | 기존 | 현재 |
+| --- | --- | --- |
+| 수리 이력 적재 경로 | 1 (수리 API) | 2 (수리 API + 작업 로그 완료) |
+| 수리 이력 소비자 | 재정비 에이전트(예정) | maintenance 워커(조회) |
+| 적재 구현 | create_repair | create_repair (단일화 유지) |
 
 ## 결과 / 미해결
 
