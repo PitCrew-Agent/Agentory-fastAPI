@@ -7,7 +7,7 @@ telemetry 알람을 notifications로 멱등 동기화(sync-on-read), 읽음 상�
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,13 +102,9 @@ async def fetch_notifications_page(
     if unread_only:
         stmt = stmt.where(Notification.is_read.is_(False))
     if before is not None:
-        cur_occurred, cur_id = before
-        stmt = stmt.where(
-            or_(
-                Notification.occurred_at < cur_occurred,
-                and_(Notification.occurred_at == cur_occurred, Notification.id < cur_id),
-            )
-        )
+        # row-value 튜플 비교로 커서, OR 펼침 대비 sargable 해 인덱스 커서 위치로 직접 seek
+        # 깊은 페이지에서도 상수 시간, ix_notifications_occurred_at 그대로 활용
+        stmt = stmt.where(tuple_(Notification.occurred_at, Notification.id) < before)
     stmt = stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc()).limit(limit)
     rows = await session.scalars(stmt)
     return [_to_dict(r) for r in rows]
