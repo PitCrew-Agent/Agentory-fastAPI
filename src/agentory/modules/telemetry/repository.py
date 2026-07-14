@@ -9,8 +9,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import case, func, or_, select, true, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from agentory.core.config import get_settings
 from agentory.modules.auth.models import User
@@ -45,24 +46,41 @@ async def fetch_sensor_logs(
 ) -> list[dict[str, Any]]:
     # 센서 로그 조회 (BE_MCP02_TELEMETRY01)
     # 지정 기간 필터 + 시간순 정렬
-    stmt = select(EquipmentTelemetry).where(
-        EquipmentTelemetry.timestamp >= start_time,
-        EquipmentTelemetry.timestamp <= end_time,
-    )
-    if equipment_id:
-        # 단일 설비로 좁힘
-        stmt = stmt.where(EquipmentTelemetry.equipment_id == equipment_id)
-    elif line_name:
-        # 라인 소속 설비 id 서브쿼리로 필터
-        line_equipment = select(EquipmentMaster.equipment_id).where(
-            EquipmentMaster.line_name == line_name
-        )
-        stmt = stmt.where(EquipmentTelemetry.equipment_id.in_(line_equipment))
-
     # 행수 상한(BE_MCP02_TELEMETRY01), 대용량 구간 조회가 LLM 컨텍스트를 넘기지 않도록
     # 최근 행 우선으로 LIMIT 후 시간 오름차순으로 되돌려 반환
     limit = get_settings().sensor_log_max_rows
-    stmt = stmt.order_by(EquipmentTelemetry.timestamp.desc()).limit(limit)
+    if line_name and not equipment_id:
+        # 라인 소속 설비별 top-N을 LATERAL로 뽑아 병합, 라인 전체 스캔·정렬 회피
+        # 설비마다 (equipment_id, timestamp) 인덱스 후방 스캔 limit건 후 병합해 최종 limit건
+        per_equipment = (
+            select(EquipmentTelemetry)
+            .where(
+                EquipmentTelemetry.equipment_id == EquipmentMaster.equipment_id,
+                EquipmentTelemetry.timestamp >= start_time,
+                EquipmentTelemetry.timestamp <= end_time,
+            )
+            .order_by(EquipmentTelemetry.timestamp.desc())
+            .limit(limit)
+            .lateral()
+        )
+        telem = aliased(EquipmentTelemetry, per_equipment)
+        stmt = (
+            select(telem)
+            .select_from(EquipmentMaster)
+            .join(telem, true())
+            .where(EquipmentMaster.line_name == line_name)
+            .order_by(telem.timestamp.desc())
+            .limit(limit)
+        )
+    else:
+        stmt = select(EquipmentTelemetry).where(
+            EquipmentTelemetry.timestamp >= start_time,
+            EquipmentTelemetry.timestamp <= end_time,
+        )
+        if equipment_id:
+            # 단일 설비로 좁힘, (equipment_id, timestamp) 인덱스 후방 스캔
+            stmt = stmt.where(EquipmentTelemetry.equipment_id == equipment_id)
+        stmt = stmt.order_by(EquipmentTelemetry.timestamp.desc()).limit(limit)
 
     rows = list(await session.scalars(stmt))
     rows.reverse()
@@ -141,16 +159,8 @@ async def fetch_alarm_events(
         # 특정 알람 코드로 좁힘
         stmt = stmt.where(EquipmentTelemetry.alarm_code == alarm_code)
     if before is not None:
-        cur_ts, cur_id = before
-        stmt = stmt.where(
-            or_(
-                EquipmentTelemetry.timestamp < cur_ts,
-                and_(
-                    EquipmentTelemetry.timestamp == cur_ts,
-                    EquipmentTelemetry.log_id < cur_id,
-                ),
-            )
-        )
+        # row-value 튜플 비교로 커서, OR 펼침 대비 sargable 해 인덱스 커서 위치로 직접 seek
+        stmt = stmt.where(tuple_(EquipmentTelemetry.timestamp, EquipmentTelemetry.log_id) < before)
     stmt = stmt.order_by(
         EquipmentTelemetry.timestamp.desc(), EquipmentTelemetry.log_id.desc()
     ).limit(limit)
@@ -218,14 +228,17 @@ async def fetch_latest_status_rows(
 ) -> list[dict[str, Any]]:
     # 전체 설비의 현재 상태 (NEW_TWIN01_SYNC01), 텔레메트리 없는 설비도 포함
     # 3D 뷰는 실시간 최신 tick의 alarm_code를 그대로 반영, 래치(sticky)는 판정에서 제외
-    # 설비별 최신 tick 한 건을 DISTINCT ON으로 추림, 최신이 정상이면 alarm_code NULL(양호)
+    # 설비별 최신 tick 한 건을 LATERAL로 추림, 마스터 각 행마다 (equipment_id, timestamp)
+    # 인덱스 역방향 1건만 읽어 DISTINCT ON 전체 정렬(대용량 디스크 머지) 회피
+    # 행수 증가에도 상수 시간, 최신이 정상이면 alarm_code NULL(양호)
     m = EquipmentMaster
     t = EquipmentTelemetry
     latest = (
-        select(t.equipment_id, t.alarm_code)
-        .distinct(t.equipment_id)
-        .order_by(t.equipment_id, t.timestamp.desc())
-        .subquery()
+        select(t.alarm_code)
+        .where(t.equipment_id == m.equipment_id)
+        .order_by(t.timestamp.desc())
+        .limit(1)
+        .lateral()
     )
     # 마스터 기준 좌외부조인, 텔레메트리 없는 설비는 alarm_code NULL(양호)
     # 3D 배치값(위치·회전·shape 등)을 함께 반환해 프론트가 상태 색상과 배치를 한 번에 렌더
@@ -242,7 +255,7 @@ async def fetch_latest_status_rows(
             m.position_z,
             m.rotation_y,
         )
-        .outerjoin(latest, m.equipment_id == latest.c.equipment_id)
+        .outerjoin(latest, true())
         .order_by(m.line_name, m.display_order, m.equipment_id)
     )
     if line_name:
