@@ -33,7 +33,9 @@ class Settings(BaseSettings):
     llm_finalizer_max_tokens: int = 0
 
     # Agent
-    agent_max_steps: int = 4  # 전역 반복 예산 (AI_AGENT03_FALLBACK01), 과다 반복·지연 방지
+    # 전역 반복 예산 (AI_AGENT03_FALLBACK01), 워커 3종 경로가 안 잘릴 최소치
+    # 지연은 Supervisor 조기 종료 규율(프롬프트)로 억제
+    agent_max_steps: int = 6
     # Grounding 자가 검증 on/off (NEW_TRUST02), off면 답변당 LLM 1회 절감
     agent_grounding_enabled: bool = False
     agent_suggestions_enabled: bool = True  # 후속 추천 질문 생성 on/off (BE_CHAT02_SUGGEST01)
