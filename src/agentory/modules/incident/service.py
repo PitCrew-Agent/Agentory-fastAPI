@@ -286,7 +286,7 @@ async def create_incident_plan(
         work_type=_work_type(notification["alarm_code"]),
         started_at=now or datetime.now(UTC),
         ended_at=None,
-        content=_work_log_content(context, deviations, plan, citations),
+        plan=_work_log_content(context, deviations, plan, citations),
         status=WorkLogStatus.IN_PROGRESS,
         source_notification_id=notification_id,
     )

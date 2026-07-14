@@ -65,7 +65,9 @@ class WorkLog(Base):
     alarm_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 진행중이면 NULL
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    plan: Mapped[str] = mapped_column(Text, nullable=False)  # 작업 계획 (작성 시 필수)
+    completion: Mapped[str | None] = mapped_column(Text)  # 작업 완료 내용, 완료 시 작성
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 완료 제출 시각
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="대기")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # soft delete
     created_at: Mapped[datetime] = mapped_column(

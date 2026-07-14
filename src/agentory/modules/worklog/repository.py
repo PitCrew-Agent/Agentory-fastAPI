@@ -25,7 +25,9 @@ def _to_dict(row: WorkLog) -> dict[str, Any]:
         "alarm_code": row.alarm_code,
         "started_at": row.started_at,
         "ended_at": row.ended_at,
-        "content": row.content,
+        "plan": row.plan,
+        "completion": row.completion,
+        "completed_at": row.completed_at,
         "status": row.status,
         "created_at": row.created_at,
     }
@@ -39,7 +41,7 @@ async def create_work_log(
     worker_name: str,
     started_at: datetime,
     ended_at: datetime | None,
-    content: str,
+    plan: str,
     status: str,
     source_notification_id: int | None = None,
     equipment_id: str | None = None,
@@ -55,7 +57,7 @@ async def create_work_log(
         alarm_code=alarm_code,
         started_at=started_at,
         ended_at=ended_at,
-        content=content,
+        plan=plan,
         status=status,
     )
     session.add(row)
@@ -105,6 +107,21 @@ async def update_work_log(
         return None
     for key, value in fields.items():
         setattr(row, key, value)
+    await session.flush()
+    return _to_dict(row)
+
+
+async def complete_work_log(
+    session: AsyncSession, work_log_id: int, *, completion: str, completed_at: datetime
+) -> dict[str, Any] | None:
+    # 완료 내용·완료 시각 기록 + 상태 완료 전환, 대상(미삭제) 없으면 None
+    stmt = select(WorkLog).where(WorkLog.id == work_log_id, WorkLog.deleted_at.is_(None))
+    row = await session.scalar(stmt)
+    if row is None:
+        return None
+    row.completion = completion
+    row.completed_at = completed_at
+    row.status = "완료"
     await session.flush()
     return _to_dict(row)
 
