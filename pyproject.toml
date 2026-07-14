@@ -39,6 +39,7 @@ dev = [
 agentory-api = "agentory.main:run"
 mcp-realtime = "mcp_realtime.server:run"
 mcp-knowledge = "mcp_knowledge.server:run"
+mcp-maintenance = "mcp_maintenance.server:run"
 simulator = "simulator.main:run"
 
 [build-system]
@@ -50,6 +51,7 @@ packages = [
     "src/agentory",
     "src/mcp_realtime",
     "src/mcp_knowledge",
+    "src/mcp_maintenance",
     "src/simulator",
 ]
 

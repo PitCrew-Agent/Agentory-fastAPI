@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     # MCP 서버
     mcp_realtime_url: str = "http://localhost:8101/mcp"
     mcp_knowledge_url: str = "http://localhost:8102/mcp"
+    mcp_maintenance_url: str = "http://localhost:8103/mcp"  # 정비 이력 (BE_MCP05_MAINT01)
     # 센서 로그 단일 조회 최대 행수, 초과 시 최근 행 우선 반환 (BE_MCP02_TELEMETRY01)
     sensor_log_max_rows: int = 500
     # 수리 후 시뮬레이터가 정상 강제하는 힐 윈도우(분), 경과 후 원래 시나리오 재개 (NEW_REPAIR01)
