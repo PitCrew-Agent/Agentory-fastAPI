@@ -1,0 +1,50 @@
+{
+  "row_scales": [
+    330000,
+    2000000
+  ],
+  "equipment": 20,
+  "reps": 50,
+  "results": [
+    {
+      "rows": 330000,
+      "equipment": 20,
+      "query": "distinct_on",
+      "scan_type": "Seq Scan",
+      "sort_disk_kb": 8424,
+      "planner_exec_ms": 232.373,
+      "client_median_ms": 205.166,
+      "client_p95_ms": 218.773
+    },
+    {
+      "rows": 330000,
+      "equipment": 20,
+      "query": "lateral",
+      "scan_type": "Index Scan",
+      "sort_disk_kb": 0,
+      "planner_exec_ms": 0.32,
+      "client_median_ms": 0.346,
+      "client_p95_ms": 0.429
+    },
+    {
+      "rows": 2000000,
+      "equipment": 20,
+      "query": "distinct_on",
+      "scan_type": "Seq Scan",
+      "sort_disk_kb": 51016,
+      "planner_exec_ms": 1501.763,
+      "client_median_ms": 1408.81,
+      "client_p95_ms": 1444.536
+    },
+    {
+      "rows": 2000000,
+      "equipment": 20,
+      "query": "lateral",
+      "scan_type": "Index Scan",
+      "sort_disk_kb": 0,
+      "planner_exec_ms": 0.427,
+      "client_median_ms": 0.422,
+      "client_p95_ms": 0.511
+    }
+  ]
+}
