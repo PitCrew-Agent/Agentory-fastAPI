@@ -100,17 +100,46 @@ async def test_upsert_returns_count_and_search_finds_top1(maker):
     assert results[0]["score"] > 0.99  # 동일 벡터라 코사인 거리 ~0
 
 
-async def test_search_respects_equipment_type_filter(maker):
+async def test_search_filters_by_type_when_matches_exist(maker):
+    # 요청 유형에 맞는 청크가 있으면 그 유형만 반환, 더 가까운 타 유형 청크가 있어도 제외
+    embedder = FakeEmbedder()
+    store = PgVectorStore(session_factory=maker)
+    vec_alpha, vec_beta = await embedder.embed(["alpha", "beta"])
+    await store.upsert(
+        [
+            {
+                "doc_id": DOC_ID,
+                "chunk_index": 0,
+                "equipment_type": EQUIP,
+                "alarm_code": "ERR-999",
+                "content": "alpha",
+                "embedding": vec_alpha,
+            },
+            {
+                "doc_id": DOC_ID,
+                "chunk_index": 1,
+                "equipment_type": "ZZZ-OtherType",
+                "alarm_code": "ERR-999",
+                "content": "beta",
+                "embedding": vec_beta,
+            },
+        ]
+    )
+    # alpha로 질의해도 ZZZ-OtherType 필터면 매칭이 있으므로 폴백 없이 beta만 반환
+    results = await store.search(vec_alpha, top_k=5, equipment_type="ZZZ-OtherType")
+    assert {row["content"] for row in results} == {"beta"}
+
+
+async def test_search_falls_back_when_type_has_no_match(maker):
+    # 요청 유형에 맞는 청크가 없으면 미필터로 폴백해 근거를 놓치지 않음 (태그 미스매치 대응)
     embedder = FakeEmbedder()
     store = PgVectorStore(session_factory=maker)
     await store.upsert(await _chunks_for(embedder, ["에칭 절차"], equipment_type=EQUIP))
     query_vec = (await embedder.embed(["에칭 절차"]))[0]
 
-    included = await store.search(query_vec, top_k=5, equipment_type=EQUIP)
-    assert any(row["doc_id"] == DOC_ID for row in included)
-
-    excluded = await store.search(query_vec, top_k=5, equipment_type="NoSuchType")
-    assert all(row["doc_id"] != DOC_ID for row in excluded)
+    # 존재하지 않는 유형으로 필터해도 폴백으로 결과를 반환하고 해당 문서를 포함
+    results = await store.search(query_vec, top_k=5, equipment_type="ZZZ-NoSuchType")
+    assert any(row["doc_id"] == DOC_ID for row in results)
 
 
 async def test_upsert_is_idempotent_by_doc_id(maker):
