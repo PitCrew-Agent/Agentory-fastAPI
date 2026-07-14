@@ -15,7 +15,12 @@ from agentory.core.db import get_session
 from agentory.modules.auth.audit import audit
 from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.worklog import service
-from agentory.modules.worklog.schemas import WorkLogCreate, WorkLogItem, WorkLogUpdate
+from agentory.modules.worklog.schemas import (
+    WorkLogComplete,
+    WorkLogCreate,
+    WorkLogItem,
+    WorkLogUpdate,
+)
 
 router = APIRouter(prefix="/work-logs", tags=["work-logs"])
 
@@ -67,6 +72,34 @@ async def update_work_log(
     """작업 로그 부분 수정 (작성자만)"""
     # 미존재·권한 오류는 서비스가 도메인 예외로 raise, 전역 핸들러가 통일 포맷 응답
     item = await service.update_work_log(session, work_log_id, payload, requester_sub=user["email"])
+    return ApiResponse.ok(item)
+
+
+@router.post(
+    "/{work_log_id}/complete",
+    response_model=ApiResponse[WorkLogItem],
+    summary="작업 완료 처리 (작성자만)",
+    responses={
+        403: {"description": "본인 작업 로그만 완료 가능"},
+        404: {"description": "작업 로그가 존재하지 않음"},
+    },
+    dependencies=[Depends(audit("WORKLOG_COMPLETE"))],
+)
+async def complete_work_log(
+    work_log_id: Annotated[int, Path(examples=[15])],
+    payload: WorkLogComplete,
+    user: dict[str, Any] = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[WorkLogItem]:
+    """작업 완료 처리, 완료 시각 기록 + 작업 유형별 도메인 이력 적재 (작성자만)"""
+    # 수리류 완료는 수리 책임자로 로그인 유저 id 기록(create_repair), 미보유 시 None
+    item = await service.complete_work_log(
+        session,
+        work_log_id,
+        payload,
+        requester_sub=user["email"],
+        repaired_by=user.get("user_id"),
+    )
     return ApiResponse.ok(item)
 
 

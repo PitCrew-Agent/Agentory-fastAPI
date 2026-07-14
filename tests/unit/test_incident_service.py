@@ -93,8 +93,8 @@ async def test_create_plan_returns_work_log_draft(monkeypatch):
     assert result.work_log_draft.status == WorkLogStatus.IN_PROGRESS
     assert result.work_log_draft.started_at == STARTED_AT
     assert result.work_log_draft.source_notification_id == 42
-    assert "[대응 계획]" in result.work_log_draft.content
-    assert "MAN-402" in result.work_log_draft.content
+    assert "[대응 계획]" in result.work_log_draft.plan
+    assert "MAN-402" in result.work_log_draft.plan
     assert result.citations[0].doc_id == "MAN-402"
     assert result.warnings == []
 
@@ -110,7 +110,7 @@ async def test_create_plan_falls_back_without_manual(monkeypatch):
     monkeypatch.setattr(service.repository, "fetch_incident_context", fake_context)
     result = await service.create_incident_plan(None, 42, manual_search=empty_search)
 
-    assert "라인 정지 없이 압력 밸브 상태 확인" in result.work_log_draft.content
+    assert "라인 정지 없이 압력 밸브 상태 확인" in result.work_log_draft.plan
     assert result.citations == []
     assert any("기본 체크리스트" in warning for warning in result.warnings)
 

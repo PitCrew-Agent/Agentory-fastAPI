@@ -50,7 +50,7 @@ async def _make(session, **over):
         "worker_name": WORKER,
         "started_at": S,
         "ended_at": E,
-        "content": "작업",
+        "plan": "작업",
         "status": "대기",
     }
     kw.update(over)
@@ -82,10 +82,10 @@ async def test_soft_delete_then_get_none(session):
 
 
 async def test_update_partial_keeps_other_fields(session):
-    created = await _make(session, content="원본")
+    created = await _make(session, plan="원본")
     updated = await repository.update_work_log(session, created["id"], {"status": "완료"})
     assert updated["status"] == "완료"
-    assert updated["content"] == "원본"
+    assert updated["plan"] == "원본"
 
 
 async def test_notification_link_allows_multiple_active_logs(session):
