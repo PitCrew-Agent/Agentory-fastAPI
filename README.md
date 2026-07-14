@@ -66,5 +66,6 @@ docs/                    # ADR·SSE 계약 문서
 - 데이터베이스 설계: [docs/database.md](docs/database.md)
 - 센서 데이터 시뮬레이터: [docs/simulator.md](docs/simulator.md)
 - MCP 서버: [docs/mcp/](docs/mcp/)
+- RAG 인제스트·재적재: [docs/rag-ingest.md](docs/rag-ingest.md)
 - SSE 이벤트 계약: [docs/sse-events.md](docs/sse-events.md)
 - 골든 질의 셋 포맷: [tests/golden/README.md](tests/golden/README.md)
