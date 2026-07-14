@@ -129,7 +129,7 @@ rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다
 | equipment_type | varchar(50) |  | 메타 필터용 공정 유형 |
 | alarm_code | varchar(20) |  | 메타 필터용 알람 코드 |
 | content | text | NN | 청크 본문 |
-| embedding | vector(1536) |  | 임베딩 벡터 |
+| embedding | vector(1536) | NN | 임베딩 벡터 |
 | created_at | timestamptz | NN, default now | 적재 시각 |
 
 임베딩 컬럼에는 HNSW 인덱스(`ix_knowledge_embedding_hnsw`, vector_cosine_ops)를 두어 코사인
