@@ -40,7 +40,7 @@ def _item(owner_sub: str, worker_name: str) -> WorkLogItem:
         work_type=WorkLogType.REGULAR,
         worker_name=worker_name,
         started_at=S,
-        content="점검 완료",
+        plan="점검 완료",
         status=WorkLogStatus.PENDING,
         created_at=S,
     )
@@ -57,7 +57,7 @@ async def test_create_uses_session_user_keys(monkeypatch):
         return _item(owner_sub, worker_name)
 
     monkeypatch.setattr(wl_router.service, "create_work_log", fake_create)
-    payload = WorkLogCreate(work_type=WorkLogType.REGULAR, started_at=S, content="점검 완료")
+    payload = WorkLogCreate(work_type=WorkLogType.REGULAR, started_at=S, plan="점검 완료")
     result = await wl_router.create_work_log(payload, user=_user(), session=None)
 
     # 라우터가 ApiResponse로 감싸므로 실제 항목은 result.result

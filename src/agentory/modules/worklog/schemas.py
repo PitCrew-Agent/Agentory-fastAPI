@@ -36,8 +36,8 @@ class WorkLogCreate(BaseModel):
         description="작업 종료 시각, 진행중이면 생략",
         examples=["2026-07-10T11:30:00+09:00"],
     )
-    content: str = Field(
-        min_length=1, description="작업 내용", examples=["EQP-A05 챔버 압력 센서 교체"]
+    plan: str = Field(
+        min_length=1, description="작업 계획", examples=["EQP-A05 챔버 압력 센서 교체 예정"]
     )
     status: WorkLogStatus = Field(
         default=WorkLogStatus.PENDING, description="진행 상태", examples=["진행중"]
@@ -57,12 +57,19 @@ class WorkLogCreate(BaseModel):
 
 
 class WorkLogUpdate(BaseModel):
-    # 부분 수정, 전달된 필드만 반영 (유형·상태 변경 등)
+    # 부분 수정, 전달된 필드만 반영 (유형·상태·계획 변경 등), 완료는 별도 complete 엔드포인트
     work_type: WorkLogType | None = None
     started_at: datetime | None = None
     ended_at: datetime | None = None
-    content: str | None = Field(default=None, min_length=1)
+    plan: str | None = Field(default=None, min_length=1)
     status: WorkLogStatus | None = None
+
+
+class WorkLogComplete(BaseModel):
+    # 작업 완료 제출, completed_at은 서버 시각으로 기록되며 유형별 도메인 이력에 적재
+    completion: str = Field(
+        min_length=1, description="작업 완료 내용", examples=["압력 센서 교체 완료, 정상 확인"]
+    )
 
 
 class WorkLogItem(BaseModel):
@@ -75,6 +82,10 @@ class WorkLogItem(BaseModel):
     alarm_code: str | None = Field(default=None, description="연결 알람 코드")
     started_at: datetime = Field(description="작업 시작 시각")
     ended_at: datetime | None = Field(default=None, description="작업 종료 시각, 진행중이면 null")
-    content: str = Field(description="작업 내용")
+    plan: str = Field(description="작업 계획")
+    completion: str | None = Field(default=None, description="작업 완료 내용, 미완료면 null")
+    completed_at: datetime | None = Field(
+        default=None, description="작업 완료 제출 시각, 미완료면 null"
+    )
     status: WorkLogStatus = Field(description="진행 상태", examples=["완료"])
     created_at: datetime = Field(description="로그 생성 시각")
