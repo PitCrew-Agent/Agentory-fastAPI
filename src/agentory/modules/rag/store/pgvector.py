@@ -40,7 +40,24 @@ class PgVectorStore:
         top_k: int = 3,
         equipment_type: str | None = None,
     ) -> list[dict[str, Any]]:
-        """코사인 유사도 Top-K 검색, 반환: [{doc_id, content, score}]"""
+        """코사인 유사도 Top-K 검색, 반환: [{doc_id, content, score}]
+
+        equipment_type 필터가 결과 0건이면 미필터로 폴백해 잘못된 태그로 검색이 죽는 것을 방지
+        (적재 메타 태그와 워커가 넘긴 값이 불일치해도 유사도 근거를 놓치지 않게 함)
+        """
+        results = await self._search(query_embedding, top_k=top_k, equipment_type=equipment_type)
+        if not results and equipment_type is not None:
+            results = await self._search(query_embedding, top_k=top_k, equipment_type=None)
+        return results
+
+    async def _search(
+        self,
+        query_embedding: list[float],
+        *,
+        top_k: int,
+        equipment_type: str | None,
+    ) -> list[dict[str, Any]]:
+        # 단일 벡터 검색(필터 적용/미적용 공용), 폴백 로직은 search가 담당
         distance = KnowledgeChunk.embedding.cosine_distance(query_embedding)
         stmt = select(KnowledgeChunk, distance.label("distance"))
         if equipment_type is not None:
