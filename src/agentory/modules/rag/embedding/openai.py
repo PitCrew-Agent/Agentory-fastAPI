@@ -2,12 +2,13 @@
 
 llm/base.py의 챗 모델 팩토리와 동일 패턴, settings 기반 구성
 EMBEDDING_MODEL 미설정 시 text-embedding-3-small(1536차원)로 폴백
+운영 기본 임베더는 KURE-v1(1024차원), 이 어댑터는 EMBEDDING_PROVIDER=openai 선택 시 사용
+차원이 달라 전환 시 벡터 컬럼 마이그레이션과 전체 재적재 필요
 """
 
 from langchain_openai import OpenAIEmbeddings
 
 from agentory.core.config import get_settings
-from agentory.modules.rag.embedding.base import Embedder
 
 # 1536차원, EMBEDDING_DIM 기본값·knowledge_collection 스키마와 일치
 _DEFAULT_MODEL = "text-embedding-3-small"
@@ -26,8 +27,3 @@ class OpenAIEmbedder:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """텍스트 목록을 임베딩 벡터 목록으로 변환 (차원: settings.embedding_dim)"""
         return await self._client.aembed_documents(texts)
-
-
-def get_embedder() -> Embedder:
-    """settings 기반 기본 임베더 반환"""
-    return OpenAIEmbedder()

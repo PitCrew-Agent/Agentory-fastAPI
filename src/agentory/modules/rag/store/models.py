@@ -2,7 +2,7 @@
 
 pgvector 확장 필요 (docker-compose의 pgvector 이미지 사용)
 embedding 차원은 settings.embedding_dim과 일치 필수
-EMBEDDING_DIM은 text-embedding-3-small 기준 1536으로 확정
+EMBEDDING_DIM은 KURE-v1 dense 기준 1024 (AI_RAG01_CHUNK01, 기존 text-embedding-3-small은 1536)
 임베딩 모델 변경 시 컬럼 차원 마이그레이션과 전체 재적재 필요
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from agentory.core.db import Base
 
-EMBEDDING_DIM = 1536
+EMBEDDING_DIM = 1024
 
 
 class KnowledgeChunk(Base):

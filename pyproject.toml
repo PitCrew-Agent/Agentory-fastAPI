@@ -23,6 +23,10 @@ dependencies = [
     "langchain-mcp-adapters>=0.3.0",
     "langchain-openai>=1.3.3",
     "docling>=2.0",
+    # docling HybridChunker 토크나이저(cl100k_base) 기준, 청크 토큰 상한 산정용
+    "tiktoken>=0.7",
+    # KURE-v1 로컬 임베딩 추론, torch는 docling 의존성으로 이미 포함
+    "sentence-transformers>=3.0",
     "pyyaml>=6.0",
 ]
 

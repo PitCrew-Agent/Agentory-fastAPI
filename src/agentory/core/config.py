@@ -44,9 +44,19 @@ class Settings(BaseSettings):
     # 멀티턴 history 로드 상한(최근 N개), 대화가 길어질수록 커지는 프롬프트 지연 방지
     agent_history_max_messages: int = 12
 
-    # 임베딩
-    embedding_model: str = ""
-    embedding_dim: int = 1536
+    # 임베딩 (AI_RAG01_CHUNK01), provider: kure-v1 | openai
+    # provider마다 벡터 차원이 달라 교체 시 컬럼 마이그레이션과 전체 재적재 필요
+    embedding_provider: str = "kure-v1"
+    embedding_model: str = ""  # openai provider 전용, 비우면 text-embedding-3-small
+    embedding_dim: int = 1024
+    # KURE-v1 로컬 추론 설정, device 미지정 시 sentence-transformers 기본 선택(가용하면 cuda)
+    kure_model: str = "nlpai-lab/KURE-v1"
+    kure_device: str = ""
+    kure_batch_size: int = 32
+
+    # 청킹 (AI_RAG01_CHUNK01), docling HybridChunker 토큰 상한
+    # 고정 크기가 아니라 초과 시 재분할하는 상한, 임베딩 스윕의 공통 통제변수와 동일 값
+    chunk_max_tokens: int = 1024
 
     # RAG 매뉴얼 검색 (BE_MCP04_RAG01)
     rag_search_top_k: int = 3  # 검색 기본 Top-K

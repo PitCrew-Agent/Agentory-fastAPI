@@ -1,6 +1,7 @@
 """임베딩 포트, 교체 가능 지점 ② (비기능: 확장성)
 
-기본 구현은 embedding/openai.py의 OpenAIEmbedder, 다른 모델 어댑터도 이 패키지에 추가
+기본 구현은 embedding/kure.py의 KureEmbedder, 다른 모델 어댑터도 이 패키지에 추가
+어댑터 선택은 embedding/factory.py의 get_embedder(EMBEDDING_PROVIDER 기반)가 담당
 """
 
 from typing import Protocol

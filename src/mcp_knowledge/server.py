@@ -9,7 +9,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from agentory.core.config import get_settings
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding.factory import get_embedder
 from agentory.modules.rag.store.pgvector import PgVectorStore
 
 mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
@@ -75,5 +75,17 @@ async def search_similar_cases(
     raise NotImplementedError
 
 
+def _warmup() -> None:
+    """로컬 임베딩 모델 선로드, 첫 검색이 모델 로드 지연을 떠안지 않도록 기동 시 수행
+
+    warmup을 노출하지 않는 임베더(OpenAI 등)는 건너뜀
+    """
+    embedder, _ = _get_search_deps()
+    warmup = getattr(embedder, "warmup", None)
+    if warmup is not None:
+        warmup()
+
+
 def run() -> None:
+    _warmup()
     mcp.run(transport="streamable-http")

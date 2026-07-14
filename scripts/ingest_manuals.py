@@ -1,8 +1,9 @@
 """매뉴얼 인제스트 실행 (AI_RAG01_CHUNK01)
 
 실행: uv run python scripts/ingest_manuals.py [--manuals-dir 경로] [--manifest 경로]
-매니페스트의 각 문서를 파싱→청킹→임베딩→knowledge_collection 적재
-doc_id별 재적재 멱등, OPENAI_API_KEY·DB 필요
+매니페스트의 각 문서를 Docling 변환→구조 청킹→임베딩→knowledge_collection 적재
+doc_id별 재적재 멱등, DB 필요 (EMBEDDING_PROVIDER=openai면 OPENAI_API_KEY 추가 필요)
+임베딩 모델 교체 후에는 벡터 차원이 달라지므로 마이그레이션 선행 후 전체 재적재 필요
 """
 
 import argparse
@@ -10,7 +11,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding.factory import get_embedder
 from agentory.modules.rag.ingest import ingest_document
 from agentory.modules.rag.store.pgvector import PgVectorStore
 

@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding.factory import get_embedder
 from agentory.modules.rag.eval import evaluate_retrieval
 from agentory.modules.rag.store.pgvector import PgVectorStore
 

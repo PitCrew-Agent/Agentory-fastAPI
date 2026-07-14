@@ -18,7 +18,7 @@ from agentory.core.config import get_settings
 from agentory.modules.agent.llm.base import get_chat_model
 from agentory.modules.agent.runner import RECURSION_LIMIT, initial_state
 from agentory.modules.agent.supervisor.graph import build_agent_graph
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding.factory import get_embedder
 from agentory.modules.rag.store.models import KnowledgeChunk
 from agentory.modules.rag.store.pgvector import PgVectorStore
 from agentory.modules.telemetry import repository
