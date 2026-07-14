@@ -15,7 +15,11 @@ from sqlalchemy.pool import NullPool
 from agentory.common.exceptions import ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.telemetry import repository, service
-from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
+from agentory.modules.telemetry.models import (
+    EquipmentAlarm,
+    EquipmentMaster,
+    EquipmentTelemetry,
+)
 from agentory.modules.telemetry.schemas import StatusLevel
 
 # 실데이터와 겹치지 않는 테스트 전용 식별자·시간대
@@ -331,3 +335,47 @@ async def test_clear_alarm_missing_equipment(seeded_session):
     # 미존재 설비 해제는 False (라우터 404 유도)
     assert await repository.clear_equipment_alarm(seeded_session, "NO-SUCH") is False
     assert await service.clear_equipment_alarm(seeded_session, "NO-SUCH") is None
+
+
+# --- 센서 변수별 알람 집계 (NEW_ALARM01_HISTORY02, 도넛) ---
+
+
+async def test_alarm_sensor_summary_groups_by_metric(seeded_session):
+    # 같은 설비의 변수별 알람을 metric 단위로 분리 집계, 한 변수 이상이 다른 변수로 새지 않음
+    seeded_session.add_all(
+        [
+            EquipmentAlarm(
+                equipment_id=EQP,
+                metric="temperature",
+                alarm_code="ERR-401",
+                severity="위험",
+                raised_at=T0.replace(minute=5),
+            ),
+            EquipmentAlarm(
+                equipment_id=EQP,
+                metric="temperature",
+                alarm_code="ERR-401",
+                severity="위험",
+                raised_at=T0.replace(minute=25),
+            ),
+            EquipmentAlarm(
+                equipment_id=EQP,
+                metric="pressure",
+                alarm_code="WRN-702",
+                severity="주의",
+                raised_at=T0.replace(minute=10),
+            ),
+        ]
+    )
+    await seeded_session.flush()
+
+    summary = await service.get_alarm_sensor_summary(seeded_session, EQP)
+    by_metric = {item.metric: item.count for item in summary}
+    assert by_metric == {"temperature": 2, "pressure": 1}
+    # 다발 순 정렬, 온도(2건)가 압력(1건)보다 앞
+    assert summary[0].metric == "temperature"
+
+
+async def test_alarm_sensor_summary_missing_equipment_returns_none(seeded_session):
+    # 미존재 설비는 None (라우터 404 유도)
+    assert await service.get_alarm_sensor_summary(seeded_session, "NO-SUCH") is None

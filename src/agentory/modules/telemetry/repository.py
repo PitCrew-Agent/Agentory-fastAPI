@@ -15,7 +15,11 @@ from sqlalchemy.orm import aliased
 
 from agentory.core.config import get_settings
 from agentory.modules.auth.models import User
-from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
+from agentory.modules.telemetry.models import (
+    EquipmentAlarm,
+    EquipmentMaster,
+    EquipmentTelemetry,
+)
 
 
 def _num(value: Decimal | None) -> float | None:
@@ -220,7 +224,53 @@ async def clear_equipment_alarm(session: AsyncSession, equipment_id: str) -> boo
         .values(alarm_cleared_at=func.now(), last_inspection_at=func.current_date())
     )
     result = await session.execute(stmt)
+    # 수동 해제 시 변수별 열린 알람도 함께 종료해 저널 정합 유지
+    await session.execute(
+        update(EquipmentAlarm)
+        .where(
+            EquipmentAlarm.equipment_id == equipment_id,
+            EquipmentAlarm.cleared_at.is_(None),
+        )
+        .values(cleared_at=func.now())
+    )
     return result.rowcount > 0
+
+
+async def fetch_alarm_sensor_summary(
+    session: AsyncSession,
+    *,
+    equipment_id: str,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[dict[str, Any]]:
+    # 센서 변수(metric)별 알람 발생 횟수·최초/최근 발생 시각 집계 (NEW_ALARM01_HISTORY02)
+    # 도넛 차트용 센서별 집계, 기간(start/end) 미지정 시 전체 이력 대상
+    stmt = (
+        select(
+            EquipmentAlarm.metric,
+            func.count().label("count"),
+            func.min(EquipmentAlarm.raised_at).label("first_seen"),
+            func.max(EquipmentAlarm.raised_at).label("last_seen"),
+        )
+        .where(EquipmentAlarm.equipment_id == equipment_id)
+        .group_by(EquipmentAlarm.metric)
+        .order_by(func.count().desc())
+    )
+    if start is not None:
+        stmt = stmt.where(EquipmentAlarm.raised_at >= start)
+    if end is not None:
+        stmt = stmt.where(EquipmentAlarm.raised_at <= end)
+
+    rows = await session.execute(stmt)
+    return [
+        {
+            "metric": metric,
+            "count": count,
+            "first_seen": first_seen.isoformat(),
+            "last_seen": last_seen.isoformat(),
+        }
+        for metric, count, first_seen, last_seen in rows
+    ]
 
 
 async def fetch_latest_status_rows(

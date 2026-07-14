@@ -16,6 +16,7 @@ from agentory.modules.auth.audit import audit
 from agentory.modules.telemetry import service
 from agentory.modules.telemetry.schemas import (
     AlarmHistoryPage,
+    AlarmSensorSummaryItem,
     AlarmSummaryItem,
     EquipmentDetail,
     EquipmentStatusItem,
@@ -166,6 +167,25 @@ async def equipment_alarm_summary(
     summary = await service.get_alarm_summary(
         session, equipment_id, start=start, end=end, alarm_code=alarm_code
     )
+    if summary is None:
+        raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
+    return ApiResponse.ok(summary)
+
+
+@router.get(
+    "/equipment/{equipment_id}/alarms/sensors",
+    response_model=ApiResponse[list[AlarmSensorSummaryItem]],
+    summary="설비 센서 변수별 알람 집계 (도넛)",
+    responses={404: {"description": "설비가 존재하지 않음"}},
+)
+async def equipment_alarm_sensor_summary(
+    equipment_id: str = Path(examples=["EQP-A01"]),
+    start: datetime | None = Query(default=None, examples=["2026-07-10T00:00:00+09:00"]),
+    end: datetime | None = Query(default=None, examples=["2026-07-10T23:59:59+09:00"]),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[list[AlarmSensorSummaryItem]]:
+    """설비 센서 변수별 알람 발생 횟수 집계 (도넛 차트용, 기간 미지정 시 전체)"""
+    summary = await service.get_alarm_sensor_summary(session, equipment_id, start=start, end=end)
     if summary is None:
         raise NotFoundError("error.equipment.not_found", params={"id": equipment_id})
     return ApiResponse.ok(summary)

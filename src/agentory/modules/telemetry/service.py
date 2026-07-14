@@ -17,6 +17,7 @@ from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist
 from agentory.modules.telemetry.schemas import (
     AlarmEventItem,
     AlarmHistoryPage,
+    AlarmSensorSummaryItem,
     AlarmSummaryItem,
     ChecklistItem,
     EquipmentDetail,
@@ -258,6 +259,31 @@ async def get_alarm_summary(
         AlarmSummaryItem(
             alarm_code=row["alarm_code"],
             severity=assess_status(row["alarm_code"]),
+            count=row["count"],
+            first_seen=row["first_seen"],
+            last_seen=row["last_seen"],
+        )
+        for row in rows
+    ]
+
+
+async def get_alarm_sensor_summary(
+    session: AsyncSession,
+    equipment_id: str,
+    *,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[AlarmSensorSummaryItem] | None:
+    # 센서 변수별 알람 발생 집계 (NEW_ALARM01_HISTORY02), 도넛 센서별 세그먼트
+    # 설비 존재 확인, 미존재면 None(라우터에서 404), 알람 없으면 빈 목록
+    if not await repository.fetch_equipment_metadata(session, equipment_id=equipment_id):
+        return None
+    rows = await repository.fetch_alarm_sensor_summary(
+        session, equipment_id=equipment_id, start=start, end=end
+    )
+    return [
+        AlarmSensorSummaryItem(
+            metric=row["metric"],
             count=row["count"],
             first_seen=row["first_seen"],
             last_seen=row["last_seen"],
