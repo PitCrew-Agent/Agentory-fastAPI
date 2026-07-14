@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | `equipment_masters` | 설비 고유 정보와 메타데이터 관리 | DEV_DATABASE, BE_MCP03_MASTER01 |
 | `equipment_telemetries` | 설비 센서 수치와 알람 로그 적재 | DEV_DATABASE, BE_MCP02_TELEMETRY01/02 |
+| `equipment_alarms` | 센서 변수별 알람 이벤트(발생~해제) 저널 | NEW_ALARM01_HISTORY02 |
 | `equipment_repairs` | 설비 수리 이력(책임자·시각·직전 알람) 적재 | NEW_REPAIR01_HISTORY01 |
 | `knowledge_collection` | 매뉴얼 청크와 임베딩 벡터 저장·검색 | DEV_VECTORDB, BE_MCP04_RAG01 |
 | `chat_session` | 사용자 대화 세션 관리 | BE_CHAT01_QUERY01 |
@@ -105,7 +106,7 @@ erDiagram
 | pressure | decimal(5,2) |  | 압력 mTorr |
 | rf_power | decimal(6,2) |  | RF 파워 kW (ERD v2 신규) |
 | gas_flow | decimal(7,2) |  | 가스 유량 sccm (ERD v2 신규) |
-| alarm_code | varchar(20) |  | 알람 코드 (예: ERR-402, WRN-702) |
+| alarm_code | varchar(20) |  | 대표 알람 코드, 활성 변수별 알람 중 최고 심각도 파생값 |
 
 `(equipment_id, timestamp)` 복합 인덱스(`ix_telemetry_equipment_time`)로 설비별 기간 조회에
 대응합니다. 장비별 알람 이력 조회(NEW_ALARM01_HISTORY01/02)는 알람이 희소한 특성을 살려
@@ -115,6 +116,30 @@ docs/bench/alarm-query-index.md에 정리되어 있습니다.
 rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다. 압력은 시뮬레이터
 구현 참고서 §2 기준으로 mTorr 단위를 사용합니다. 알람 코드는 급성 이상 `ERR-\d{3}`과
 드리프트/PM·SPC 확장 `WRN-\d{3}`을 함께 사용하며, 에이전트는 두 접두어를 모두 인식합니다.
+`alarm_code`는 센서 변수별 알람 저널(`equipment_alarms`)의 활성 알람 중 최고 심각도를 파생한
+대표값으로, 실시간 상태·알림·SSE가 그대로 소비합니다. 변수별 상세 발생 이력은 저널을 참조합니다.
+
+### equipment_alarms (§8.2a)
+
+이 테이블은 센서 변수별 알람을 값 시계열과 분리해 이벤트로 기록하는 알람 저널입니다(NEW_ALARM01_HISTORY02).
+한 설비가 온도 급성(ERR-401)과 압력 드리프트(WRN-702)를 동시에 갖는 것처럼, 각 센서 변수는
+독립적으로 발생~해제 생명주기를 가집니다. 도넛 차트의 센서별 발생 횟수는 이 테이블을 `metric` 기준으로
+집계해 산출합니다.
+
+| 컬럼 | 타입 | 제약 | 설명 |
+| --- | --- | --- | --- |
+| alarm_id | bigint | PK, identity | 알람 이벤트 ID |
+| equipment_id | varchar(50) | FK, NN | equipment_masters 참조 |
+| metric | varchar(20) | NN | 센서 변수 키 (temperature/pressure/rf_power/gas_flow) |
+| alarm_code | varchar(20) | NN | 단일변수 알람 코드 (예: ERR-401) |
+| severity | varchar(10) | NN | 심각도 (주의/위험) |
+| raised_at | timestamptz | NN, default now | 발생 시각 |
+| cleared_at | timestamptz |  | 해제 시각, NULL이면 활성 |
+
+`(equipment_id, metric, raised_at)` 인덱스(`ix_equipment_alarms_equip_metric_time`)로 센서별 이력·집계에
+대응하고, 활성 알람 조회·발생/해제 전이 판정은 `cleared_at IS NULL` 부분 인덱스(`ix_equipment_alarms_active`)로
+대응합니다. 시뮬레이터가 변수별 확정 알람의 상태전이(발생·해제)를 이 테이블에 적재하며, 복합 코드
+(과거 ERR-402·ERR-901)는 변수 간 코드 전이를 유발하므로 사용하지 않고 항상 단일변수 코드로 발생시킵니다.
 
 ### knowledge_collection (§8.3)
 
