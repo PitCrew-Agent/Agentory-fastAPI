@@ -1,0 +1,160 @@
+{
+  "rows": [
+    {
+      "label": "data",
+      "latency": 71.58970037498511,
+      "calls": 7,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata",
+        "get_sensor_logs"
+      ],
+      "rep": 0
+    },
+    {
+      "label": "data",
+      "latency": 52.0068583751563,
+      "calls": 7,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata",
+        "get_sensor_logs"
+      ],
+      "rep": 1
+    },
+    {
+      "label": "knowledge",
+      "latency": 55.16852708416991,
+      "calls": 5,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "search_manuals"
+      ],
+      "rep": 0
+    },
+    {
+      "label": "knowledge",
+      "latency": 87.00980604090728,
+      "calls": 10,
+      "steps": 3,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata",
+        "get_sensor_logs",
+        "search_manuals"
+      ],
+      "rep": 1
+    },
+    {
+      "label": "maintenance",
+      "latency": 27.743560625007376,
+      "calls": 5,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_repair_history"
+      ],
+      "rep": 0
+    },
+    {
+      "label": "maintenance",
+      "latency": 42.31892037508078,
+      "calls": 8,
+      "steps": 3,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 1
+    },
+    {
+      "label": "chitchat",
+      "latency": 3.3970329998992383,
+      "calls": 2,
+      "steps": 1,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 0
+    },
+    {
+      "label": "chitchat",
+      "latency": 3.7716401249635965,
+      "calls": 2,
+      "steps": 1,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 1
+    }
+  ],
+  "summary": [
+    {
+      "case": "data",
+      "n": 2,
+      "p50_s": 61.8,
+      "mean_calls": 7,
+      "mean_steps": 2,
+      "pass_rate": 1.0
+    },
+    {
+      "case": "knowledge",
+      "n": 2,
+      "p50_s": 71.1,
+      "mean_calls": 7.5,
+      "mean_steps": 2.5,
+      "pass_rate": 1.0
+    },
+    {
+      "case": "maintenance",
+      "n": 2,
+      "p50_s": 35.0,
+      "mean_calls": 6.5,
+      "mean_steps": 2.5,
+      "pass_rate": 1.0
+    },
+    {
+      "case": "chitchat",
+      "n": 2,
+      "p50_s": 3.6,
+      "mean_calls": 2,
+      "mean_steps": 1,
+      "pass_rate": 1.0
+    }
+  ],
+  "overall": {
+    "overall_pass_rate": 1.0,
+    "routing_ok_rate": 1.0,
+    "keyword_ok_rate": 1.0,
+    "median_latency_s": 47.2
+  }
+}

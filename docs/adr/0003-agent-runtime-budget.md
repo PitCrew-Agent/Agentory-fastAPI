@@ -2,7 +2,7 @@
 
 - 상태: 승인 (2026-07-09)
 - 결정자: 주희정
-- 관련: [ADR-0001](0001-architecture.md), [docs/agent/architecture.md](../agent/architecture.md), feature/52-context-overflow-fix(#53), feature/66-chatbot-perf(#67), feature/56-suggest-scope-filter(#57)
+- 관련: [ADR-0001](0001-architecture.md), [docs/agent/architecture.md](../agent/architecture.md), feature/52-context-overflow-fix(#53), feature/66-chatbot-perf(#67), feature/56-suggest-scope-filter(#57), feature/130-supervisor-finish-discipline(#131)
 
 ## 배경
 
@@ -50,6 +50,53 @@
 프롬프트에 `[확인된 컨텍스트]`를 주입하고, 코드 후처리(`_within_known_scope`)로 확인 범위를
 벗어난 식별자를 언급한 추천을 하드 차단합니다.
 
+### 5. 워커 ReAct 턴을 예산에서 제외 (feature/130-supervisor-finish-discipline #131)
+
+아래 "측정으로 드러난 한계"에서 후속 과제로 기록한 문제(`step_count`를 supervisor와 워커가 함께
+증가시켜 워커 하나가 예산을 소진하는 문제)를 해소했습니다. 워커가 3종(data_analysis·knowledge·
+maintenance)으로 늘면서 이 문제가 실제 진단을 잘라먹었기 때문입니다. 워커 agent 노드의 `step_count`
+증가를 제거해 예산이 **Supervisor 위임 횟수만** 세도록 바로잡고, 3워커 경로가 잘리지 않도록
+`agent_max_steps`를 상향했습니다. 워커 내부 루프는 도구 미호출 복귀·동일 호출 반복 차단·
+`RECURSION_LIMIT`(40)로 이미 보호되므로 예산 공유가 불필요합니다.
+
+| 항목 | 기존 | 현재 |
+| --- | --- | --- |
+| `step_count` 카운팅 | supervisor + 워커 ReAct 턴 공유 | Supervisor 위임 전용 |
+| `agent_max_steps` | 4 | 6 |
+| 3워커 심층 질의 step_count | 8 (워커 턴 포함) | 3 (위임 수) |
+| 3워커 심층 질의 종료 | 예산 강제 FINISH, knowledge 단계 잘림 | 자연 FINISH, 3워커 완주 |
+| 단순 질의 | 1스텝·워커 0개 | 동일 (규율 유지) |
+
+라이브 실측(실 gpt-5-mini + MCP 3서버) 기준입니다. 아울러 Supervisor 프롬프트에 "필요한 워커만
+최소 위임, 정보 모이면 즉시 FINISH" 규율을 강화해, 천장 상향이 습관적 전 워커 호출로 이어지지 않게
+했습니다. 단 심층 질의 지연은 예산이 아니라 실제 작업량(워커별 ReAct + finalizer 순차 호출)에서
+오므로, 완주는 보장되나 지연 절감은 조건부 grounding·꼬리 병렬화 등 별도 최적화 과제입니다.
+
+### 답변 품질·속도 실측 (현재 구성)
+
+워커 3종·`max_steps=6`·워커 턴 예산 제외 구성의 답변 품질과 속도를 실측했습니다. 하네스는
+`scripts/bench/agent_quality_bench.py`(원자료 `agent_quality_result.json`)이며, 질의당 지연·LLM
+호출수·steps와 품질을 집계합니다. 품질은 골든 방식의 객관 기준으로 판정합니다(라우팅: 기대 도구
+호출 여부, 정답 키워드: 답변 내 기대 엔티티·코드 포함, 인용: knowledge 질의의 citations 유무).
+
+- 측정 환경: 로컬, gpt-5-mini(전 역할), MCP 3서버 기동, DB 시드(EQP-A05=ERR-401+WRN-702·수리 2건),
+  워커 3종 경로 + 범위밖 잡담 4종, 케이스당 2회(n=8), 2026-07-14
+
+| 케이스 | 라우팅 | p50 지연 | LLM 호출 | steps | 품질 pass |
+| --- | --- | --- | --- | --- | --- |
+| data (진단) | data_analysis | 61.8s | 7.0 | 2.0 | 2/2 |
+| knowledge (지식) | knowledge(±data) | 71.1s | 7.5 | 2.5 | 2/2 |
+| maintenance (정비) | maintenance | 35.0s | 6.5 | 2.5 | 2/2 |
+| chitchat (잡담) | 워커 미호출 | 3.6s | 2.0 | 1.0 | 2/2 |
+
+- 품질: 전 케이스 pass, 라우팅 정확도 100%·정답 키워드 포함 100%·인용 100%입니다. 3종 워커가 각 질의를
+  올바르게 담당하고, 잡담은 워커를 부르지 않고 즉시 종료합니다.
+- 속도: 잡담 3.6s로 규율이 워커 0개를 유지하고, 심층 진단은 35~71s입니다. steps는 전 케이스 3 이하로
+  예산 잘림 없이 자연 종료합니다.
+- 지연의 성격: 심층 질의 지연은 작업량에서 옵니다. 예를 들어 진단 질의는 도구 3회(센서·알람·메타) +
+  finalizer로 LLM을 7회 순차 호출합니다. 추가 절감은 조건부 grounding·꼬리 병렬화·워커 도구 배치 호출이
+  후속 과제입니다.
+
 ## 정량 평가 (실측)
 
 위 튜닝의 효과를 실측으로 확인했습니다. 측정 하네스는 `scripts/bench/agent_budget_bench.py`이며,
@@ -92,7 +139,9 @@
 - 그 결과 B의 총토큰 범위는 16,812~424,220, 지연은 최대 112초로 편차가 매우 큼
 
 즉 `max_steps` 축소는 **평균·중앙 비용은 확실히 낮추지만 worst-case를 보장하지 못합니다.**
-워커 내부 반복에 별도 상한(예: 워커별 tool 왕복 상한)을 두는 것이 후속 과제입니다.
+이 예산 공유 문제는 위 §5(feature/130 #131)에서 워커 턴의 `step_count` 증가를 제거해 해소했습니다.
+다만 워커 내부 반복 자체의 별도 상한(워커별 tool 왕복 상한)은 여전히 미도입 상태로, `RECURSION_LIMIT`
+(40)이 유일한 backstop입니다.
 
 ### 측정 한계
 
@@ -126,6 +175,7 @@
     트레이드오프가 현재 성능 쪽으로 고정되어 있습니다.
   - 관찰값 40000자 상한은 실패 방지 backstop이지 경량화 수단은 아니며, 단계마다 재주입되면
     누적 컨텍스트가 여전히 큽니다.
-  - `max_steps`는 supervisor 방문 기준 상한이라 워커 내부 ReAct 루프를 제한하지 못합니다.
-    실측에서 max_steps=4에도 단일 워커가 13스텝·입력토큰 42만까지 폭주한 사례가 재현되었으며
-    (정량 평가 참조), worst-case 제어를 위해 워커별 반복 상한 도입이 후속 과제입니다.
+  - (해결, §5) `step_count`를 supervisor·워커가 공유해 워커 하나가 예산을 소진하던 문제는
+    feature/130(#131)에서 워커 턴의 증가를 제거해 예산을 위임 전용으로 바로잡았습니다. 3워커
+    심층 질의 step_count가 8→3으로 줄고 knowledge 단계 잘림이 사라졌습니다. 단 워커 내부 반복
+    자체의 상한(워커별 tool 왕복 상한)은 여전히 미도입이며 `RECURSION_LIMIT`(40)이 유일한 backstop입니다.

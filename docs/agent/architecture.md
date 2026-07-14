@@ -97,7 +97,7 @@ flowchart TD
 | --- | --- | --- |
 | `messages` | 대화·추론 누적 (add_messages) | - |
 | `entities` | Observation에서 추출한 컨텍스트 장부 | AI_AGENT02_CHAIN01 |
-| `step_count` | 전역 반복 예산 | AI_AGENT03_FALLBACK01 |
+| `step_count` | Supervisor 위임 예산 (워커 ReAct 턴 제외) | AI_AGENT03_FALLBACK01 |
 | `next` | Supervisor가 정한 다음 목적지 | 라우팅 |
 | `citations` | 답변 근거 (doc_id·데이터 기준 시각) | NEW_TRUST01_CITE01 |
 
@@ -150,11 +150,14 @@ tool 노드가 Observation에서 핵심 엔티티(equipment_id·alarm_code·시�
 
 | 계층 | 장치 | 동작 |
 | --- | --- | --- |
-| 전역 | step 예산(기본 10) + recursion_limit | 초과 시 Finalizer로 강제 이동, 부분 결과 + 한계 명시 답변 |
+| 전역 | step 예산(기본 6, Supervisor 위임 기준) + recursion_limit | 초과 시 Finalizer로 강제 이동, 부분 결과 + 한계 명시 답변 |
 | 도구 | 호출 실패 1회 재시도 | 재실패 시 에러를 Observation으로 주입, LLM이 대안 선택 |
 | 반복 | 동일 도구+인자 해시 감지 | 같은 호출 반복 차단, "이미 시도한 호출" 피드백 주입 |
 
-세 계층이 겹쳐 있어 무한 루프가 구조적으로 발생하지 않습니다.
+세 계층이 겹쳐 있어 무한 루프가 구조적으로 발생하지 않습니다. `step_count`는 Supervisor 위임 횟수만
+세며 워커 내부 ReAct 턴은 증가시키지 않습니다(feature/130 #131). 초기에는 워커 턴도 함께 세어 워커
+하나가 예산을 소진하고 후속 워커가 잘리는 문제가 있었고, 워커 3종 도입 시점에 이를 분리했습니다(3워커
+심층 질의 step_count 8→3, 예산 값 4→6). 배경·실측은 [ADR-0003 §5](../adr/0003-agent-runtime-budget.md)에 있습니다.
 
 ### 4.5 Finalizer + Grounding (신규-신뢰성)
 
