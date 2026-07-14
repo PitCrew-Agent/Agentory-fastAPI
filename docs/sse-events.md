@@ -31,7 +31,7 @@ thought → action → observation → (반복) → answer(delta 스트림) → 
 | `error` | `{code, message}` | 사용자 친화적 오류 |
 | `done` | `{citations[], grounded?, suggested_questions[]}` | 종료. `citations`=출처 인용(NEW_TRUST01), `grounded`=자가 검증 결과(NEW_TRUST02), `suggested_questions`=후속 추천 질문(BE_CHAT02_SUGGEST01) |
 
-- `agent` 값: `supervisor` \| `data_analysis` \| `knowledge` \| `rediagnosis`
+- `agent` 값: `supervisor` \| `data_analysis` \| `knowledge`
 - `citations[]` 항목: `{doc_id, snippet?, data_as_of?}`
 - `suggested_questions[]` 항목: 후속 추천 질문 문자열, 프론트 퀵 리플라이 칩용 (없으면 빈 배열)
 
