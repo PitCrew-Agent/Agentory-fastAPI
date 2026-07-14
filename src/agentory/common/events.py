@@ -18,7 +18,6 @@ class AgentName(StrEnum):
     SUPERVISOR = "supervisor"
     DATA_ANALYSIS = "data_analysis"
     KNOWLEDGE = "knowledge"
-    REDIAGNOSIS = "rediagnosis"
 
 
 class ThoughtEvent(BaseModel):

@@ -4,6 +4,23 @@
 Supervisor가 워커를 동적으로 라우팅하고, 각 워커가 MCP 도구를 ReAct 루프로 호출하는
 구조이며, LangGraph로 그래프를 직접 구성합니다.
 
+## 에이전트 사용 지점
+
+에이전트 계층은 두 형태로 쓰입니다. 하나는 챗봇의 Supervisor+ReAct 멀티턴 흐름이고,
+다른 하나는 다른 모듈이 필요할 때 호출하는 경량 LLM 보조 기능입니다. 보조 기능은 그래프를
+돌지 않고 단발 구조화 출력(또는 도구 1회 호출)으로 동작하며, 실패해도 빈 결과·기본값으로
+격리해 주 응답에 지장을 주지 않습니다.
+
+| 사용 지점 | 형태 | 호출 위치 | 기능 ID |
+| --- | --- | --- | --- |
+| 챗봇 질의 응답 | Supervisor+ReAct 멀티턴 (data_analysis·knowledge 워커) | chat 스트리밍 | AI_AGENT01_REACT01 |
+| 장비 추천 | 경량 LLM 1회 구조화 출력 | telemetry 장비 상세 | NEW_TWIN01_SUGGEST01 |
+| 후속 추천 질문 | 경량 LLM 1회 구조화 출력 | chat done 직후 | BE_CHAT02_SUGGEST01 |
+| 장애 대응 계획 | LLM + knowledge MCP 도구 | incident 계획 생성 | NEW_INCIDENT01_PLAN01 |
+
+이 문서 §1~§8은 챗봇 Supervisor+ReAct 흐름을 다루며, 보조 기능은 `llm/base.py`(챗 모델
+팩토리)와 `mcp_client`(도구 로드)를 재사용하는 단발 호출이라 그래프 조립과 무관합니다.
+
 ## 1. 전체 구조
 
 ```mermaid
@@ -12,7 +29,6 @@ flowchart TD
 
     SUP["Supervisor (LLM 라우터)<br/>구조화 출력: next + reason + task"] -->|data_analysis| DA
     SUP -->|knowledge| KN
-    SUP -->|rediagnosis| RD
     SUP -->|FINISH| FIN
 
     subgraph W1["Data Analysis 워커 (ReAct 서브그래프)"]
@@ -23,14 +39,9 @@ flowchart TD
         KN[agent 노드] -->|tool_calls| KNT[tool 노드]
         KNT --> KN
     end
-    subgraph W3["재진단 워커"]
-        RD[agent 노드] -->|tool_calls| RDT[tool 노드]
-        RDT --> RD
-    end
 
     DA -->|보고 완료| SUP
     KN -->|보고 완료| SUP
-    RD -->|보고 완료| SUP
 
     FIN["Finalizer<br/>최종 답변 + 출처 인용"] --> GRD["Grounding 검증<br/>(선택, LLM 1회)"]
     GRD --> END([SSE done])
@@ -99,11 +110,10 @@ build_react_worker(name, llm, tools, system_prompt) -> CompiledGraph
 WORKERS = {
     "data_analysis": WorkerSpec(server="realtime",  prompt=DA_PROMPT),
     "knowledge":     WorkerSpec(server="knowledge", prompt=KN_PROMPT),
-    "rediagnosis":   WorkerSpec(server="realtime",  prompt=RD_PROMPT),
 }
 ```
 
-워커 담당자(Data Analysis·Knowledge·재진단)는 프롬프트와 도구 서버 지정만 작성하면 되고,
+워커 담당자(Data Analysis·Knowledge)는 프롬프트와 도구 서버 지정만 작성하면 되고,
 Supervisor·루프 코드는 수정하지 않습니다. 역할 분담이 코드 구조와 일치합니다.
 
 ### 4.2 Supervisor 구조화 라우팅
@@ -112,7 +122,7 @@ Supervisor는 매 턴 Pydantic 스키마로 강제된 구조화 출력을 생성
 
 ```python
 class Route(BaseModel):
-    next: Literal["data_analysis", "knowledge", "rediagnosis", "FINISH"]
+    next: Literal["data_analysis", "knowledge", "FINISH"]
     reason: str   # 이 워커를 선택한 근거
     task: str     # 워커에게 전달할 구체 지시
 ```
@@ -182,6 +192,7 @@ modules/agent/
 │   ├── router.py       # Supervisor 노드 (구조화 라우팅 + 폴백 가드)
 │   ├── finalizer.py    # 최종 답변 + 출처 인용
 │   ├── grounding.py    # 자가 검증 노드 (NEW_TRUST02_GROUND01)
+│   ├── suggest.py      # 후속 추천 질문 보조 (BE_CHAT02_SUGGEST01)
 │   └── graph.py        # 전체 조립 build_agent_graph()
 ├── workers/
 │   ├── base.py         # build_react_worker 팩토리 (ReAct 직접 구현)
@@ -190,8 +201,13 @@ modules/agent/
 ├── llm/base.py         # 챗 모델 팩토리 (라우터/워커 이원화)
 ├── context.py          # 엔티티 추출·컨텍스트 장부 (AI_AGENT02_CHAIN01)
 ├── streaming.py        # astream_events → SSEEvent 변환기 (3단계)
-└── prompts/            # supervisor.py + 워커별 프롬프트 (각 담당 소유 파일)
+├── equipment_suggest.py  # 장비 상태 기반 추천 보조 (NEW_TWIN01_SUGGEST01)
+└── prompts/            # supervisor.py + 워커별·보조 프롬프트 (각 담당 소유 파일)
 ```
+
+챗봇 외 보조 기능은 그래프를 거치지 않고 `llm/base.py`·`mcp_client`를 재사용합니다. 장비 추천은
+telemetry 서비스가 `equipment_suggest`를 호출하고, 장애 대응 계획(NEW_INCIDENT01_PLAN01)은
+incident 서비스가 `llm/base.py`·`mcp_client`를 직접 사용합니다.
 
 추가 의존성: `langchain-openai`(ChatOpenAI), `langchain-mcp-adapters`(MCP 도구 로드)
 
@@ -226,7 +242,7 @@ LLM_FINALIZER_MODEL). 미설정 역할은 LLM_MODEL로 폴백합니다.
 | 1 | MCP 클라이언트 + State + 워커 팩토리(ReAct) + Supervisor 라우터 + 그래프 조립 | 골격 |
 | 2 | data_analysis 워커 + 컨텍스트 장부 + 폴백 3종 | Supervisor 담당분 |
 | 3 | Finalizer·Grounding·스트리밍 + 채팅 API 연결 | 시나리오 E2E |
-| 4 | knowledge / rediagnosis 워커 | 각 담당자가 레지스트리에 등록 |
+| 4 | knowledge 워커 | 담당자가 레지스트리에 등록 |
 
 ## 9. 요구사항 매핑
 
@@ -240,6 +256,9 @@ LLM_FINALIZER_MODEL). 미설정 역할은 LLM_MODEL로 폴백합니다.
 | NEW_TRUST02_GROUND01 | grounding.py |
 | NEW_TRUST03_REASON01 | Route.reason → SSE thought/action |
 | FR-09 (Thought UI) | streaming.py SSE 변환 |
+| NEW_TWIN01_SUGGEST01 | equipment_suggest.py (장비 상태 기반 추천, telemetry 호출) |
+| BE_CHAT02_SUGGEST01 | supervisor/suggest.py (후속 추천 질문) |
+| NEW_INCIDENT01_PLAN01 | incident/service.py (llm/base·knowledge MCP 재사용) |
 
 ## 관련 문서
 
