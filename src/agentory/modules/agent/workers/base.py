@@ -73,7 +73,9 @@ def build_react_worker(
         response = await llm_with_tools.ainvoke([SystemMessage(content=system), *state["messages"]])
         # 워커 식별용 이름 부여 (SSE 변환 시 agent 필드로 사용)
         response.name = name
-        return {"messages": [response], "step_count": state.get("step_count", 0) + 1}
+        # step_count는 Supervisor 위임 예산 전용이라 워커 내부 ReAct 턴에서는 올리지 않는다
+        # 워커 루프는 도구 미호출 복귀·반복 차단·recursion_limit로 별도 보호 (AI_AGENT03_FALLBACK01)
+        return {"messages": [response]}
 
     async def tool_node(state: AgentState) -> dict[str, Any]:
         # Observation 단계: 도구 실행 결과를 ToolMessage로 추가, 엔티티 추출·병합
