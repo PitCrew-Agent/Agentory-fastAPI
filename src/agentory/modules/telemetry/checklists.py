@@ -3,7 +3,7 @@
 경고·이상 설비 선택 시 노출할 점검·조치 항목을 알람 코드별로 매핑
 급성 밴드 이탈은 해당 센서 실측·계통 점검, 드리프트는 기준값 재측정·예방정비,
 복합 이상은 관련 계통 상관 점검으로 구성
-마지막 공통 항목은 재진단 루프(NEW_LOOP01_REDIAG01)로 연결
+마지막 공통 항목은 작업 로그 등록과 재발 시 재점검 안내
 원인 센서 변수는 프론트 상세 타일 강조용으로 코드별 매핑
 """
 
@@ -51,15 +51,15 @@ CHECKLIST_TEMPLATES: dict[str, dict[str, list[str]]] = {
     },
 }
 
-# 로케일별 공통 마무리 항목, 마지막 항목이 재진단 루프로 연결
+# 로케일별 공통 마무리 항목, 작업 로그 등록과 재발 시 재점검 안내
 COMMON_ITEMS: dict[str, list[str]] = {
     "ko": [
         "점검 결과를 작업 로그에 등록",
-        "동일 알림 재발 시 검증·재진단 실행",
+        "동일 알림 재발 시 재점검 실행",
     ],
     "en": [
         "Register inspection result in work log",
-        "Run verification/re-diagnosis if the same alert recurs",
+        "Re-check if the same alert recurs",
     ],
 }
 
