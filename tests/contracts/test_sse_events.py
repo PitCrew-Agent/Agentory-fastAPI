@@ -25,6 +25,14 @@ VALID_PAYLOADS = [
         "tool": "get_sensor_logs",
         "content": [{"equipment_id": "EQP-003", "temperature": 65.0}],
     },
+    {
+        "type": "action",
+        "step": 2,
+        "agent": "maintenance",
+        "tool": "get_repair_history",
+        "tool_input": {"equipment_id": "EQP-A05"},
+        "reason": "과거 동일 알람 수리 이력 확인",
+    },
     {"type": "answer", "delta": "EQP-003에서 "},
     {"type": "error", "code": "EXTERNAL_SERVICE_ERROR", "message": "LLM 호출 실패"},
     {

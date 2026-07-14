@@ -53,6 +53,12 @@ def get_sensor_logs(line_name: str) -> str:
     return "EQP-003 temperature 65.0 alarm ERR-402"
 
 
+@tool
+def get_repair_history(equipment_id: str) -> str:
+    """테스트용 수리 이력 조회 도구"""
+    return "EQP-A05 repair 2026-07-02 ERR-401 냉각수 라인 세정"
+
+
 def initial_state(step_count: int = 0) -> dict:
     return {
         "messages": [HumanMessage(content="B라인 이상 설비 확인")],
@@ -73,7 +79,11 @@ async def _build(router_script, worker_script):
         finalizer_llm=FakeFinalizerLLM(),
         # suggest 노드는 비활성이나 그래프 빌드 시 LLM이 선생성되므로 실 API 차단 위해 주입
         suggest_llm=FakeFinalizerLLM(),
-        tools_by_server={"realtime": [get_sensor_logs], "knowledge": []},
+        tools_by_server={
+            "realtime": [get_sensor_logs],
+            "knowledge": [],
+            "maintenance": [get_repair_history],
+        },
         suggestions_enabled=False,
     )
 
@@ -121,6 +131,44 @@ async def test_router_failure_falls_back_deterministically():
     result = await graph.ainvoke(initial_state())
     assert result["next"] == "FINISH"
     assert "폴백" in result["route_reason"] or "실패" in result["route_reason"]
+
+
+async def test_maintenance_worker_registered_in_graph():
+    # maintenance 워커가 레지스트리·그래프에 배선되는지 확인 (BE_MCP05_MAINT01)
+    from agentory.modules.agent.workers.registry import WORKERS
+
+    assert "maintenance" in WORKERS
+    assert WORKERS["maintenance"].server == "maintenance"
+    graph = await _build(router_script=[], worker_script=[])
+    nodes = graph.get_graph().nodes
+    assert "maintenance" in nodes
+    assert "maintenance_tools" in nodes
+
+
+async def test_router_delegates_to_maintenance_and_collects_repair_history():
+    # 라우팅→maintenance 워커→도구 호출→보고→종료 전체 경로 결정론 검증 (BE_MCP05_MAINT01)
+    router = [
+        Route(next="maintenance", reason="과거 수리 이력 필요", task="EQP-A05 수리 이력"),
+        Route(next="FINISH", reason="수집 완료"),
+    ]
+    # 워커: get_repair_history 호출 1회(Action) 후 보고(도구 호출 없음)
+    worker = [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "get_repair_history", "args": {"equipment_id": "EQP-A05"}, "id": "m1"}
+            ],
+        ),
+        AIMessage(content="EQP-A05 과거 ERR-401 냉각수 라인 세정 이력 확인"),
+    ]
+    graph = await _build(router, worker)
+    result = await graph.ainvoke(initial_state())
+
+    # Observation(ToolMessage)에 수리 이력이 담기고 종료
+    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == 1
+    assert "ERR-401" in tool_messages[0].content
+    assert result["next"] == "FINISH"
 
 
 def test_extract_and_merge_entities():

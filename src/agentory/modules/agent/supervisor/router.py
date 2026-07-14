@@ -25,7 +25,7 @@ FINISH = "FINISH"
 
 class Route(BaseModel):
     # Supervisor의 턴별 결정, reason은 근거 노출(NEW_TRUST03_REASON01)에 재사용
-    next: Literal["data_analysis", "knowledge", "FINISH"]
+    next: Literal["data_analysis", "knowledge", "maintenance", "FINISH"]
     reason: str = Field(description="이 선택을 한 근거")
     task: str = Field(default="", description="워커에게 전달할 구체 지시")
 
