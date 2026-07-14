@@ -89,4 +89,39 @@ class EquipmentTelemetry(Base):
     pressure: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # 압력
     rf_power: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # kW
     gas_flow: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # sccm
+    # 대표 알람 (활성 변수별 알람 중 최고 심각도 파생값), 하위 소비 모듈·SSE 계약 호환용
     alarm_code: Mapped[str | None] = mapped_column(String(20))
+
+
+class EquipmentAlarm(Base):
+    """설비 센서 변수별 알람 이벤트 저널 (NEW_ALARM01_HISTORY02)
+
+    - 값(equipment_telemetries)과 분리한 알람 상태전이 기록, 실무 알람 저널(ISA-18.2) 방식
+    - 변수(metric)별 독립 알람, 발생(raised_at)~해제(cleared_at) 생명주기, cleared_at NULL은 활성
+    - 도넛 센서별 집계는 metric 기준 GROUP BY로 산출
+    """
+
+    __tablename__ = "equipment_alarms"
+    __table_args__ = (
+        # 센서별 이력·집계용 (equipment_id, metric, raised_at)
+        Index("ix_equipment_alarms_equip_metric_time", "equipment_id", "metric", "raised_at"),
+        # 활성 알람 조회 부분 인덱스, 발생/해제 전이 판정에서 열린 행만 빠르게 조회
+        Index(
+            "ix_equipment_alarms_active",
+            "equipment_id",
+            "metric",
+            postgresql_where=text("cleared_at IS NULL"),
+        ),
+    )
+
+    alarm_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    equipment_id: Mapped[str] = mapped_column(
+        ForeignKey("equipment_masters.equipment_id"), nullable=False
+    )
+    metric: Mapped[str] = mapped_column(String(20), nullable=False)  # 센서 변수 키
+    alarm_code: Mapped[str] = mapped_column(String(20), nullable=False)  # 단일변수 알람 코드
+    severity: Mapped[str] = mapped_column(String(10), nullable=False)  # 주의/위험
+    raised_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # NULL이면 활성

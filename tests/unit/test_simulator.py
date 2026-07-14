@@ -1,8 +1,8 @@
 """시뮬레이터 센서 생성·판정 로직 단위 테스트 (BE_SIM01_GEN01)
 
 DB 없이 순수 생성 로직을 결정론적(seed 고정)으로 검증
-SPC 동적 밴드 모델의 정상·급성(ERR-402)·드리프트(WRN-70x)·변동성(WRN-801)·다변량(ERR-901) 판정 확인
-(참고서 §3·§5·§6·§7)
+변수별 독립 판정(급성 ERR-40x·드리프트 WRN-70x·변동성 WRN-801)과 대표값(worst-of) 확인
+한 설비가 변수마다 다른 상태를 동시에 갖는 per-variable 모델 검증 (참고서 §3·§5·§6·§7)
 """
 
 import random
@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import pytest
 
-from simulator.generator import ERR402, generate_reading
+from simulator.generator import VARS, generate_reading
 from simulator.main import _select_spec
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
@@ -22,7 +22,7 @@ def _rng() -> random.Random:
 
 
 def _run_scenario(name: str, *, seed: int = 7, start: int = 3, ticks: int = 40) -> set[str]:
-    # main과 동일하게 최근값 창(history) + 연속 2 tick 지속 게이트를 적용해 확정 알람 집합 반환
+    # main과 동일하게 최근값 창(history) + 연속 2 tick 지속 게이트를 적용해 확정 대표 알람 집합 반환
     rng = random.Random(seed)
     scenario = SCENARIOS[name]
     prev = None
@@ -48,6 +48,7 @@ def _run_scenario(name: str, *, seed: int = 7, start: int = 3, ticks: int = 40) 
 def test_normal_reading_has_no_alarm():
     reading = generate_reading("EQP-002", "Etching", scenario=NORMAL, tick=0, rng=_rng())
     assert reading.alarm_code is None
+    assert all(reading.alarm_codes[var] is None for var in VARS)
     assert reading.equipment_id == "EQP-002"
     # Etching 온도 중심값(60.0) 주변
     assert Decimal("59") < reading.temperature < Decimal("61")
@@ -74,26 +75,28 @@ def test_pressure_drift_reaches_wrn702():
         "EQP-002", "Etching", scenario=scenario, tick=25, drift_start_tick=0, rng=_rng()
     )
     assert reading.alarm_code == "WRN-702"
+    assert reading.alarm_codes["pressure"] == "WRN-702"
+    # 다른 변수는 정상 (변수별 독립)
+    assert reading.alarm_codes["temperature"] is None
 
 
-def test_err402_scenario_triggers_err402():
-    # 온도 급상승(USL 초과) + 압력 하강이 겹치면 ERR-402가 최우선으로 선정
-    scenario = SCENARIOS["err402_temp_rise"]
+def test_concurrent_per_variable_alarms():
+    # 한 설비가 온도 급성(ERR-401) + 압력 드리프트(WRN-702)를 동시에 독립적으로 가짐
+    scenario = SCENARIOS["temp_acute_pressure_drift"]
     reading = generate_reading(
-        "EQP-002", "Etching", scenario=scenario, tick=5, drift_start_tick=0, rng=_rng()
+        "EQP-002", "Etching", scenario=scenario, tick=30, drift_start_tick=0, rng=_rng()
     )
-    assert reading.alarm_code == ERR402
-    assert float(reading.temperature) >= 61.50
+    assert reading.alarm_codes["temperature"] == "ERR-401"
+    assert reading.alarm_codes["pressure"] == "WRN-702"
+    assert reading.alarm_codes["rf_power"] is None
+    assert reading.alarm_codes["gas_flow"] is None
+    # 대표값은 변수별 중 최고 심각도(worst-of) → ERR-401
+    assert reading.alarm_code == "ERR-401"
 
 
 def test_variance_increase_triggers_wrn801():
     # 변동성 증가 시나리오는 WRN-801을 확정 발생시킴 (참고서 §6)
     assert "WRN-801" in _run_scenario("variance_increase")
-
-
-def test_multivariate_anomaly_triggers_err901():
-    # rf 상승 + 온도 하강 관계 붕괴 시나리오는 ERR-901을 확정 발생시킴 (참고서 §6)
-    assert "ERR-901" in _run_scenario("multivariate_anomaly")
 
 
 def test_drift_scenarios_do_not_false_trigger_variance():
@@ -136,24 +139,15 @@ def test_gain_default_keeps_baseline_behavior():
     assert default.pressure == explicit.pressure
 
 
-def test_gain_excludes_err402_and_multivariate():
-    # err402·다변량 레이트는 gain 미적용이라 온도 변위가 gain에 불변
-    scenario = SCENARIOS["err402_temp_rise"]
-    g1 = generate_reading(
-        "EQP-002", "Etching", scenario=scenario, tick=5, drift_start_tick=0, rng=_rng()
-    )
-    g5 = generate_reading(
-        "EQP-002", "Etching", scenario=scenario, tick=5, drift_start_tick=0, gain=5.0, rng=_rng()
-    )
-    assert g1.temperature == g5.temperature
-
-
-def test_floor_demo_preset_covers_alarm_families():
-    # 데모 preset은 급성 이상(ERR-402) 1종 + 서로 다른 센서 드리프트 경고 포함
+def test_floor_demo_preset_covers_all_sensor_variables():
+    # 데모 preset은 4개 센서 변수를 급성으로 모두 노출, 복합 코드 없이 변수별 단일 이상만 배치
     assigned = [SCENARIOS[name] for name in PRESETS["floor_demo"].values()]
-    assert any(s.err402 for s in assigned)
-    drift_vars = {v for s in assigned for v in s.drift_vars}
-    assert drift_vars == {"temperature", "pressure", "gas_flow"}
+    acute = {var for s in assigned for var in s.acute_vars}
+    assert acute == set(VARS)
+    # 최소 한 설비는 급성+드리프트를 서로 다른 변수에 동시 배치 (변수별 동시 독립 상태)
+    assert any(s.acute_vars and s.drift_vars for s in assigned)
+    # 한 변수가 급성과 드리프트를 겹쳐 갖지 않음 (변수 내 상태 모호 방지)
+    assert all(not (set(s.acute_vars) & set(s.drift_vars)) for s in assigned)
 
 
 @pytest.mark.parametrize(
@@ -168,19 +162,6 @@ def test_floor_demo_preset_covers_alarm_families():
 def test_acute_scenarios_trigger_single_variable_alarm(name, expected):
     # 급성 단일변수 시나리오는 해당 변수 밴드 이탈 알람을 확정 발생시킴 (참고서 §4)
     assert expected in _run_scenario(name)
-
-
-def test_err402_values_stay_in_physical_range_over_long_run():
-    # 장시간 누적돼도 온도·압력이 하드리밋 밖 현실 범위(클램프) 안에 머물러야 함
-    # 회귀 대상: 클램프 없으면 온도 540·압력 -999 같은 물리적으로 불가능한 발산 발생
-    scenario = SCENARIOS["err402_temp_rise"]
-    reading = generate_reading(
-        "EQP-002", "Etching", scenario=scenario, tick=600, drift_start_tick=0, rng=_rng()
-    )
-    # 온도 USL 61.5 + 0.5*span(3.0)=63.0, 압력 LSL 30 - 0.5*span(25)=17.5 (밴드 잡음 여유 포함)
-    assert 61.5 <= float(reading.temperature) <= 64.0
-    assert 16.0 <= float(reading.pressure) <= 40.0
-    assert reading.alarm_code == ERR402
 
 
 def test_acute_offset_keeps_value_within_fault_clamp():
@@ -201,7 +182,7 @@ def test_acute_offset_keeps_value_within_fault_clamp():
 
 _NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 _HEAL = timedelta(minutes=60)
-_MAP = {"EQP-A05": "err402_temp_rise"}  # preset 배치상 고장 설비
+_MAP = {"EQP-A05": "temp_acute_pressure_drift"}  # preset 배치상 고장 설비
 
 
 def test_heal_window_forces_normal_within_window():
@@ -229,7 +210,7 @@ def test_heal_window_resumes_scenario_after_window():
         scenario=NORMAL,
         target_equipment_id="EQP-003",
     )
-    assert spec is SCENARIOS["err402_temp_rise"]
+    assert spec is SCENARIOS["temp_acute_pressure_drift"]
 
 
 def test_no_repair_keeps_scenario():
@@ -243,7 +224,7 @@ def test_no_repair_keeps_scenario():
         scenario=NORMAL,
         target_equipment_id="EQP-003",
     )
-    assert spec is SCENARIOS["err402_temp_rise"]
+    assert spec is SCENARIOS["temp_acute_pressure_drift"]
 
 
 def test_heal_window_target_mode_after_window():

@@ -17,15 +17,15 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
-from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
-from simulator.generator import SensorReading, generate_reading
+from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster, EquipmentTelemetry
+from simulator.generator import VARS, SensorReading, generate_reading, representative
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 log = logging.getLogger("simulator")
@@ -64,8 +64,17 @@ async def _load_equipment(
         return []
 
 
-async def _persist(session_factory: async_sessionmaker, readings: list[SensorReading]) -> int:
-    """센서값 배치 적재, 실패 시 재시도 후 스킵, 반환은 적재 건수"""
+async def _persist(
+    session_factory: async_sessionmaker,
+    readings: list[SensorReading],
+    raises: list[tuple[str, str, str, str]],
+    clears: list[tuple[str, str]],
+    now: datetime,
+) -> int:
+    """센서값 배치 적재 + 변수별 알람 발생/해제 이벤트 기록, 실패 시 재시도 후 스킵
+
+    telemetry 행과 equipment_alarms 전이를 같은 트랜잭션으로 적재, 반환은 telemetry 적재 건수
+    """
     for attempt in range(PERSIST_RETRY + 1):
         try:
             async with session_factory() as session:
@@ -80,6 +89,28 @@ async def _persist(session_factory: async_sessionmaker, readings: list[SensorRea
                     )
                     for r in readings
                 )
+                # 해제: 해당 변수의 열린 알람을 종료 처리
+                for equipment_id, metric in clears:
+                    await session.execute(
+                        update(EquipmentAlarm)
+                        .where(
+                            EquipmentAlarm.equipment_id == equipment_id,
+                            EquipmentAlarm.metric == metric,
+                            EquipmentAlarm.cleared_at.is_(None),
+                        )
+                        .values(cleared_at=now)
+                    )
+                # 발생: 새 활성 알람 행 추가
+                session.add_all(
+                    EquipmentAlarm(
+                        equipment_id=equipment_id,
+                        metric=metric,
+                        alarm_code=code,
+                        severity=severity,
+                        raised_at=now,
+                    )
+                    for equipment_id, metric, code, severity in raises
+                )
                 await session.commit()
             return len(readings)
         except SQLAlchemyError as exc:
@@ -90,15 +121,77 @@ async def _persist(session_factory: async_sessionmaker, readings: list[SensorRea
     return 0
 
 
-def _confirm_persistence(reading: SensorReading, prev_candidate: dict[str, str | None]) -> None:
-    # 연속 2 tick 지속 규칙: 직전 tick과 같은 후보만 대표 알람으로 확정, 1 tick 스파이크는 보류
-    candidate = reading.alarm_code
-    reading.alarm_code = (
-        candidate
-        if candidate is not None and candidate == prev_candidate.get(reading.equipment_id)
-        else None
-    )
-    prev_candidate[reading.equipment_id] = candidate
+def _severity(alarm_code: str) -> str:
+    # 알람 코드 접두로 심각도 판정 (StatusLevel 값과 동일 표기), ERR=위험·그 외=주의
+    return "위험" if alarm_code.startswith("ERR") else "주의"
+
+
+def _confirm_persistence(
+    reading: SensorReading, prev_candidates: dict[str, dict[str, str | None]]
+) -> None:
+    # 변수별 연속 2 tick 지속 규칙: 직전 tick과 같은 후보만 확정, 1 tick 스파이크는 보류
+    # 확정 후 reading.alarm_codes는 변수별 확정 알람, alarm_code는 확정 변수 중 최고 심각도 대표값
+    prev = prev_candidates.get(reading.equipment_id, {})
+    confirmed: dict[str, str | None] = {}
+    for var in VARS:
+        candidate = reading.alarm_codes.get(var)
+        confirmed[var] = candidate if candidate is not None and candidate == prev.get(var) else None
+    prev_candidates[reading.equipment_id] = dict(reading.alarm_codes)
+    reading.alarm_codes = confirmed
+    reading.alarm_code = representative(confirmed)
+
+
+def _alarm_transitions(
+    readings: list[SensorReading], active_alarms: dict[str, dict[str, str]]
+) -> tuple[list[tuple[str, str, str, str]], list[tuple[str, str]]]:
+    # 변수별 확정 코드와 활성 알람을 비교해 발생(raise)·해제(clear) 이벤트 산출
+    # 코드 변경은 기존 해제 + 신규 발생으로 처리, active_alarms 갱신은 커밋 성공 후 별도 반영
+    raises: list[tuple[str, str, str, str]] = []
+    clears: list[tuple[str, str]] = []
+    for reading in readings:
+        active = active_alarms.get(reading.equipment_id, {})
+        for metric in VARS:
+            code = reading.alarm_codes.get(metric)
+            current = active.get(metric)
+            if code == current:
+                continue
+            if current is not None:
+                clears.append((reading.equipment_id, metric))
+            if code is not None:
+                raises.append((reading.equipment_id, metric, code, _severity(code)))
+    return raises, clears
+
+
+def _apply_active(
+    active_alarms: dict[str, dict[str, str]],
+    raises: list[tuple[str, str, str, str]],
+    clears: list[tuple[str, str]],
+) -> None:
+    # 커밋 성공 후 인메모리 활성 알람 상태 반영, 해제 먼저 적용 후 발생 적용(코드 변경 대응)
+    for equipment_id, metric in clears:
+        active_alarms.get(equipment_id, {}).pop(metric, None)
+    for equipment_id, metric, code, _severity_unused in raises:
+        active_alarms.setdefault(equipment_id, {})[metric] = code
+
+
+async def _load_active_alarms(
+    session_factory: async_sessionmaker,
+) -> dict[str, dict[str, str]]:
+    # 시작 시 열린 알람으로 활성 상태 시드, 재시작해도 중복 발생·유령 해제 방지
+    try:
+        async with session_factory() as session:
+            rows = await session.execute(
+                select(
+                    EquipmentAlarm.equipment_id, EquipmentAlarm.metric, EquipmentAlarm.alarm_code
+                ).where(EquipmentAlarm.cleared_at.is_(None))
+            )
+            active: dict[str, dict[str, str]] = {}
+            for equipment_id, metric, code in rows:
+                active.setdefault(equipment_id, {})[metric] = code
+            return active
+    except SQLAlchemyError as exc:
+        log.warning("[simulator] 활성 알람 시드 실패: %s", exc)
+        return {}
 
 
 def _select_spec(
@@ -130,8 +223,9 @@ async def run_simulation(
     scenario_map = PRESETS[config.preset] if config.preset else None
     # 수리 힐 윈도우, 수리 후 이 기간 동안 정상 강제 후 원래 시나리오 재개 (NEW_REPAIR01_SIM01)
     heal_window = timedelta(minutes=get_settings().sim_repair_heal_minutes)
-    prev_candidate: dict[str, str | None] = {}  # 설비별 직전 tick 후보 알람
+    prev_candidates: dict[str, dict[str, str | None]] = {}  # 설비별·변수별 직전 tick 후보 알람
     history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
+    active_alarms = await _load_active_alarms(session_factory)  # 설비별·변수별 활성 알람 상태
     tick = 0
     while config.iterations is None or tick < config.iterations:
         equipment = await _load_equipment(session_factory)
@@ -166,10 +260,14 @@ async def run_simulation(
                 rng=rng,
             )
             window.append(reading)
-            _confirm_persistence(reading, prev_candidate)
+            _confirm_persistence(reading, prev_candidates)
             readings.append(reading)
 
-        inserted = await _persist(session_factory, readings)
+        # 변수별 발생/해제 전이 산출 후 telemetry와 함께 적재, 성공 시 활성 상태 반영
+        raises, clears = _alarm_transitions(readings, active_alarms)
+        inserted = await _persist(session_factory, readings, raises, clears, now)
+        if inserted:
+            _apply_active(active_alarms, raises, clears)
         mode = f"preset={config.preset}" if config.preset else f"scenario={config.name}"
         log.info("[simulator] tick %d, %d건 적재 (%s)", tick, inserted, mode)
 

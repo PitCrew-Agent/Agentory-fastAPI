@@ -124,3 +124,16 @@ class AlarmSummaryItem(BaseModel):
     last_seen: datetime = Field(
         description="최근 발생 시각", examples=["2026-07-13T02:07:15+09:00"]
     )
+
+
+class AlarmSensorSummaryItem(BaseModel):
+    # 센서 변수별 알람 발생 집계 (NEW_ALARM01_HISTORY02), 도넛 차트 센서별 세그먼트용
+    # equipment_alarms 저널을 metric 기준 집계, 발생 횟수는 전체 합이 아닌 센서 단위 값
+    metric: str = Field(description="센서 변수 키", examples=["temperature"])
+    count: int = Field(description="기간 내 해당 센서 알람 발생 횟수", examples=[12])
+    first_seen: datetime = Field(
+        description="최초 발생 시각", examples=["2026-07-09T06:40:18+09:00"]
+    )
+    last_seen: datetime = Field(
+        description="최근 발생 시각", examples=["2026-07-13T02:07:15+09:00"]
+    )
