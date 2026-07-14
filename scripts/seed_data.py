@@ -17,9 +17,20 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import delete
 
 from agentory.core.db import SessionLocal
-from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
-from simulator.generator import generate_reading
+from agentory.modules.auth import models as _auth_models  # noqa: F401  users FK 대상 등록
+from agentory.modules.telemetry.models import (
+    EquipmentAlarm,
+    EquipmentMaster,
+    EquipmentTelemetry,
+)
+from simulator.generator import VARS, generate_reading, representative
 from simulator.scenarios import SCENARIOS
+
+
+def _severity(alarm_code: str) -> str:
+    # 알람 코드 접두로 심각도 판정 (StatusLevel 값 표기), ERR=위험·그 외=주의
+    return "위험" if alarm_code.startswith("ERR") else "주의"
+
 
 # bay_zone별 3D 좌표·회전 (설비 문서 값 규칙), north는 정면·south는 180도 회전
 BAY_GEOMETRY = {
@@ -47,7 +58,7 @@ LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
         (2, -4.20, "south", "normal"),
         (3, -2.60, "south", "pressure_drift_pm"),  # 주의(WRN-702)
         (4, -1.00, "north", "normal"),
-        (5, 1.50, "north", "err402_temp_rise"),  # 위험(ERR-402)
+        (5, 1.50, "north", "temp_acute_pressure_drift"),  # 위험(ERR-401)+주의(WRN-702) 동시
         (6, 2.70, "south", "temperature_acute"),  # 위험(ERR-401)
         (7, 4.45, "north", "normal"),
     ],
@@ -65,7 +76,7 @@ LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
         (2, -3.10, "north", "gas_flow_acute"),  # 주의(WRN-501)
         (3, -1.80, "south", "temperature_drift_pm"),  # 주의(WRN-701)
         (4, -0.25, "north", "variance_increase"),  # 주의(WRN-801)
-        (5, 2.30, "south", "multivariate_anomaly"),  # 위험(ERR-901)
+        (5, 2.30, "south", "rf_acute_gas_drift"),  # 위험(ERR-201)+주의(WRN-704) 동시
         (6, 4.00, "south", "normal"),
     ],
 }
@@ -74,13 +85,13 @@ LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
 INSPECTED_AT = {"A": date(2026, 7, 2), "B": date(2026, 7, 4), "C": date(2026, 6, 30)}
 
 # 텔레메트리 시계열 파라미터, 유한 tick으로 정상·이상을 결정론적으로 주입
-# 드리프트 PM·급성 단일변수·변동성·다변량은 이르게 시작해 최신 tick까지 알람 유지
-# 온도 누적 상승형(err402)만 뒤늦게 시작해 최신값이 짧게 이탈하도록 분리 (생성기 클램프와 이중 안전)
+# 드리프트 PM·급성 단일변수·변동성은 이르게 시작해 최신 tick까지 알람 유지
+# 급성은 즉시 계단 이탈 + 생성기 클램프라 별도 지연 시작 불필요
 SERIES_TICKS = 44  # 설비당 생성 tick 수
 SERIES_INTERVAL_MIN = 5  # tick 간격 분
-DRIFT_START_TICK = 4  # 드리프트·급성·변동성·다변량 시나리오 시작 tick
-LATE_START_TICK = 36  # 누적 상승형(err402) 시작 tick (최신 구간만 이탈)
-LATE_START_SCENARIOS = {"err402_temp_rise"}  # 누적 상승형 이상 시나리오
+DRIFT_START_TICK = 4  # 드리프트·급성·변동성 시나리오 시작 tick
+LATE_START_TICK = 36  # 지연 시작 tick (필요 시 최신 구간만 이탈시킬 시나리오용)
+LATE_START_SCENARIOS: set[str] = set()  # 지연 시작 대상 시나리오, 현재 없음
 # 마지막 tick이 기준일 근처가 되도록 시작 시각 앵커
 SERIES_BASE = datetime(2026, 7, 8, 5, 0, 0, tzinfo=UTC)
 
@@ -113,17 +124,23 @@ def build_masters() -> list[EquipmentMaster]:
     return masters
 
 
-def build_telemetry(equipment_id: str, scenario_name: str) -> list[EquipmentTelemetry]:
-    # 설비 1대의 정상·이상 시계열 생성 (simulator.generate_reading 재사용)
-    # 연속 2 tick 지속 규칙으로 대표 알람 확정, 1 tick 스파이크는 보류 (시뮬레이터 §7과 동일)
+def build_telemetry(
+    equipment_id: str, scenario_name: str
+) -> tuple[list[EquipmentTelemetry], list[EquipmentAlarm]]:
+    # 설비 1대의 정상·이상 시계열 + 변수별 알람 이벤트 생성 (simulator.generate_reading 재사용)
+    # 변수별 연속 2 tick 지속 규칙으로 확정, 대표 alarm_code는 확정 변수 중 최고 심각도
+    # 확정 코드의 발생/해제 전이를 equipment_alarms 이벤트로 산출 (시뮬레이터 적재와 동일 규칙)
     scenario = SCENARIOS[scenario_name]
     drift_start = LATE_START_TICK if scenario_name in LATE_START_SCENARIOS else DRIFT_START_TICK
     # 설비별 고정 시드로 재현 가능한 잡음 생성
     rng = random.Random(hash(equipment_id) & 0xFFFFFFFF)
     window: deque = deque(maxlen=8)
-    prev_candidate: str | None = None
+    prev_candidates: dict[str, str | None] = {}
+    active: dict[str, tuple[str, datetime]] = {}  # metric -> (code, raised_at) 열린 알람
     rows: list[EquipmentTelemetry] = []
+    alarms: list[EquipmentAlarm] = []
     for tick in range(SERIES_TICKS):
+        ts = SERIES_BASE + timedelta(minutes=SERIES_INTERVAL_MIN * tick)
         reading = generate_reading(
             equipment_id,
             ETCH_PROCESS,
@@ -134,41 +151,86 @@ def build_telemetry(equipment_id: str, scenario_name: str) -> list[EquipmentTele
             rng=rng,
         )
         window.append(reading)
-        candidate = reading.alarm_code
-        confirmed = candidate if candidate is not None and candidate == prev_candidate else None
-        prev_candidate = candidate
+        # 변수별 확정 (직전 tick과 동일 후보만)
+        confirmed: dict[str, str | None] = {}
+        for var in VARS:
+            cand = reading.alarm_codes.get(var)
+            confirmed[var] = cand if cand is not None and cand == prev_candidates.get(var) else None
+        prev_candidates = dict(reading.alarm_codes)
+        # 변수별 발생/해제 전이 → equipment_alarms 이벤트
+        for metric in VARS:
+            code = confirmed[metric]
+            current = active.get(metric)
+            current_code = current[0] if current else None
+            if code == current_code:
+                continue
+            if current is not None:
+                alarms.append(
+                    EquipmentAlarm(
+                        equipment_id=equipment_id,
+                        metric=metric,
+                        alarm_code=current[0],
+                        severity=_severity(current[0]),
+                        raised_at=current[1],
+                        cleared_at=ts,
+                    )
+                )
+                active.pop(metric)
+            if code is not None:
+                active[metric] = (code, ts)
         rows.append(
             EquipmentTelemetry(
                 equipment_id=equipment_id,
-                timestamp=SERIES_BASE + timedelta(minutes=SERIES_INTERVAL_MIN * tick),
+                timestamp=ts,
                 temperature=reading.temperature,
                 pressure=reading.pressure,
                 rf_power=reading.rf_power,
                 gas_flow=reading.gas_flow,
-                alarm_code=confirmed,
+                alarm_code=representative(confirmed),
             )
         )
-    return rows
+    # 마지막까지 열려 있는 알람은 활성(cleared_at NULL)으로 남겨 현재 알람 상태 재현
+    for metric, (code, raised_at) in active.items():
+        alarms.append(
+            EquipmentAlarm(
+                equipment_id=equipment_id,
+                metric=metric,
+                alarm_code=code,
+                severity=_severity(code),
+                raised_at=raised_at,
+                cleared_at=None,
+            )
+        )
+    return rows, alarms
 
 
 async def seed() -> None:
     masters = build_masters()
 
     telemetry: list[EquipmentTelemetry] = []
+    alarms: list[EquipmentAlarm] = []
     for line_code, *_ in LINES:
         for order, _pos_x, _bay_zone, scenario_name in LAYOUT[line_code]:
             equipment_id = f"EQP-{line_code}{order:02d}"
-            telemetry.extend(build_telemetry(equipment_id, scenario_name))
+            rows, alarm_rows = build_telemetry(equipment_id, scenario_name)
+            telemetry.extend(rows)
+            alarms.extend(alarm_rows)
 
     async with SessionLocal() as session:
-        # 개발용 시드라 기존 데이터 비우고 재적재, FK 때문에 텔레메트리 먼저 삭제
+        # 개발용 시드라 기존 데이터 비우고 재적재, FK 때문에 자식 테이블 먼저 삭제
+        await session.execute(delete(EquipmentAlarm))
         await session.execute(delete(EquipmentTelemetry))
         await session.execute(delete(EquipmentMaster))
         session.add_all(masters)
+        await session.flush()  # 마스터 선적재로 자식(telemetry·alarms) FK 보장
         session.add_all(telemetry)
+        session.add_all(alarms)
         await session.commit()
 
-    print(f"[seed] 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건 적재 완료")
+    print(
+        f"[seed] 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건, "
+        f"알람 이벤트 {len(alarms)}건 적재 완료"
+    )
 
 
 if __name__ == "__main__":
