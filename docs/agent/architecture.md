@@ -13,7 +13,7 @@ Supervisor가 워커를 동적으로 라우팅하고, 각 워커가 MCP 도구�
 
 | 사용 지점 | 형태 | 호출 위치 | 기능 ID |
 | --- | --- | --- | --- |
-| 챗봇 질의 응답 | Supervisor+ReAct 멀티턴 (data_analysis·knowledge 워커) | chat 스트리밍 | AI_AGENT01_REACT01 |
+| 챗봇 질의 응답 | Supervisor+ReAct 멀티턴 (data_analysis·knowledge·maintenance 워커) | chat 스트리밍 | AI_AGENT01_REACT01 |
 | 장비 추천 | 경량 LLM 1회 구조화 출력 | telemetry 장비 상세 | NEW_TWIN01_SUGGEST01 |
 | 후속 추천 질문 | 경량 LLM 1회 구조화 출력 | chat done 직후 | BE_CHAT02_SUGGEST01 |
 | 장애 대응 계획 | LLM + knowledge MCP 도구 | incident 계획 생성 | NEW_INCIDENT01_PLAN01 |
@@ -29,6 +29,7 @@ flowchart TD
 
     SUP["Supervisor (LLM 라우터)<br/>구조화 출력: next + reason + task"] -->|data_analysis| DA
     SUP -->|knowledge| KN
+    SUP -->|maintenance| MT
     SUP -->|FINISH| FIN
 
     subgraph W1["Data Analysis 워커 (ReAct 서브그래프)"]
@@ -39,9 +40,14 @@ flowchart TD
         KN[agent 노드] -->|tool_calls| KNT[tool 노드]
         KNT --> KN
     end
+    subgraph W3["Maintenance 워커 (정비 이력)"]
+        MT[agent 노드<br/>LLM + maintenance 도구] -->|tool_calls| MTT[tool 노드]
+        MTT --> MT
+    end
 
     DA -->|보고 완료| SUP
     KN -->|보고 완료| SUP
+    MT -->|보고 완료| SUP
 
     FIN["Finalizer<br/>최종 답변 + 출처 인용"] --> GRD["Grounding 검증<br/>(선택, LLM 1회)"]
     GRD --> END([SSE done])
@@ -108,12 +114,13 @@ build_react_worker(name, llm, tools, system_prompt) -> CompiledGraph
 
 # workers/registry.py: 팀원은 스펙만 등록
 WORKERS = {
-    "data_analysis": WorkerSpec(server="realtime",  prompt=DA_PROMPT),
-    "knowledge":     WorkerSpec(server="knowledge", prompt=KN_PROMPT),
+    "data_analysis": WorkerSpec(server="realtime",    prompt=DA_PROMPT),
+    "knowledge":     WorkerSpec(server="knowledge",   prompt=KN_PROMPT),
+    "maintenance":   WorkerSpec(server="maintenance", prompt=MT_PROMPT),
 }
 ```
 
-워커 담당자(Data Analysis·Knowledge)는 프롬프트와 도구 서버 지정만 작성하면 되고,
+워커 담당자(Data Analysis·Knowledge·Maintenance)는 프롬프트와 도구 서버 지정만 작성하면 되고,
 Supervisor·루프 코드는 수정하지 않습니다. 역할 분담이 코드 구조와 일치합니다.
 
 ### 4.2 Supervisor 구조화 라우팅
@@ -122,7 +129,7 @@ Supervisor는 매 턴 Pydantic 스키마로 강제된 구조화 출력을 생성
 
 ```python
 class Route(BaseModel):
-    next: Literal["data_analysis", "knowledge", "FINISH"]
+    next: Literal["data_analysis", "knowledge", "maintenance", "FINISH"]
     reason: str   # 이 워커를 선택한 근거
     task: str     # 워커에게 전달할 구체 지시
 ```
@@ -259,6 +266,7 @@ LLM_FINALIZER_MODEL). 미설정 역할은 LLM_MODEL로 폴백합니다.
 | NEW_TWIN01_SUGGEST01 | equipment_suggest.py (장비 상태 기반 추천, telemetry 호출) |
 | BE_CHAT02_SUGGEST01 | supervisor/suggest.py (후속 추천 질문) |
 | NEW_INCIDENT01_PLAN01 | incident/service.py (llm/base·knowledge MCP 재사용) |
+| BE_MCP05_MAINT01 | mcp_maintenance 서버 + maintenance 워커 (정비 이력) |
 
 ## 관련 문서
 

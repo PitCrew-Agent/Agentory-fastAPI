@@ -18,6 +18,7 @@ class AgentName(StrEnum):
     SUPERVISOR = "supervisor"
     DATA_ANALYSIS = "data_analysis"
     KNOWLEDGE = "knowledge"
+    MAINTENANCE = "maintenance"
 
 
 class ThoughtEvent(BaseModel):

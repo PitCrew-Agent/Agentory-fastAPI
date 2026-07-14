@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from agentory.modules.agent.prompts.data_analysis import DATA_ANALYSIS_PROMPT
 from agentory.modules.agent.prompts.knowledge import KNOWLEDGE_PROMPT
+from agentory.modules.agent.prompts.maintenance import MAINTENANCE_PROMPT
 
 
 @dataclass(frozen=True)
@@ -19,4 +20,5 @@ class WorkerSpec:
 WORKERS: dict[str, WorkerSpec] = {
     "data_analysis": WorkerSpec(server="realtime", prompt=DATA_ANALYSIS_PROMPT),
     "knowledge": WorkerSpec(server="knowledge", prompt=KNOWLEDGE_PROMPT),
+    "maintenance": WorkerSpec(server="maintenance", prompt=MAINTENANCE_PROMPT),
 }

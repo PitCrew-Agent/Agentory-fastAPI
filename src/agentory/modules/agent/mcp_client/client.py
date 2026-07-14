@@ -9,7 +9,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from agentory.core.config import get_settings
 
-SERVER_NAMES = ("realtime", "knowledge")
+SERVER_NAMES = ("realtime", "knowledge", "maintenance")
 
 
 def _build_client() -> MultiServerMCPClient:
@@ -19,6 +19,7 @@ def _build_client() -> MultiServerMCPClient:
         {
             "realtime": {"url": settings.mcp_realtime_url, "transport": "streamable_http"},
             "knowledge": {"url": settings.mcp_knowledge_url, "transport": "streamable_http"},
+            "maintenance": {"url": settings.mcp_maintenance_url, "transport": "streamable_http"},
         }
     )
 

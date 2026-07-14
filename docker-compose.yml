@@ -38,6 +38,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       MCP_REALTIME_URL: http://mcp-realtime:8101/mcp
       MCP_KNOWLEDGE_URL: http://mcp-knowledge:8102/mcp
+      MCP_MAINTENANCE_URL: http://mcp-maintenance:8103/mcp
     ports:
       - "8000:8000"
     depends_on:
@@ -68,6 +69,19 @@ services:
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8102:8102"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp-maintenance:
+    build: .
+    command: ["mcp-maintenance"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8103:8103"
     depends_on:
       db:
         condition: service_healthy
