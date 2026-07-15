@@ -48,7 +48,7 @@ async def list_notifications(
 ) -> NotificationPage:
     # 첫 페이지(before 없음)에서만 sync-on-read, 이후 더보기는 조회만 해 지연 최소화
     if before is None:
-        await repository.sync_from_telemetry(session)
+        await repository.sync_from_alarms(session)
         await session.commit()
 
     cursor = _decode_cursor(before) if before else None

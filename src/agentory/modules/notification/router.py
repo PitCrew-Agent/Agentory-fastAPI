@@ -94,7 +94,7 @@ async def stream(
         while True:
             # 커넥션 루프에서 sync-on-poll, 세션은 매 반복 새로 열고 닫음
             async with SessionLocal() as session:
-                await repository.sync_from_telemetry(session)
+                await repository.sync_from_alarms(session)
                 await session.commit()
                 new = await repository.fetch_notifications(session, after_id=last_id)
             for row in new:
@@ -103,6 +103,7 @@ async def stream(
                     id=row["id"],
                     occurred_at=row["occurred_at"].isoformat(),
                     equipment_id=row["equipment_id"],
+                    metric=row["metric"],
                     alarm_code=row["alarm_code"],
                     message=row["message"],
                     is_read=row["is_read"],

@@ -39,29 +39,25 @@ async def fetch_incident_context(
         return None
 
     equipment = await session.get(EquipmentMaster, notification.equipment_id)
+    # 알림은 변수별 알람 저널(EquipmentAlarm) 기준이라 telemetry 직접 참조 없음
+    # 발생 시각 ±5분 윈도우에서 가장 근접한 telemetry 스냅샷을 사고 시점 값으로 사용
     incident_row = None
-    if notification.source_log_id is not None:
-        source_row = await session.get(EquipmentTelemetry, notification.source_log_id)
-        if source_row is not None and source_row.equipment_id == notification.equipment_id:
-            incident_row = source_row
-
-    if incident_row is None:
-        window = timedelta(minutes=5)
-        nearby_stmt = (
-            select(EquipmentTelemetry)
-            .where(
-                EquipmentTelemetry.equipment_id == notification.equipment_id,
-                EquipmentTelemetry.timestamp >= notification.occurred_at - window,
-                EquipmentTelemetry.timestamp <= notification.occurred_at + window,
-            )
-            .order_by(EquipmentTelemetry.timestamp.asc())
+    window = timedelta(minutes=5)
+    nearby_stmt = (
+        select(EquipmentTelemetry)
+        .where(
+            EquipmentTelemetry.equipment_id == notification.equipment_id,
+            EquipmentTelemetry.timestamp >= notification.occurred_at - window,
+            EquipmentTelemetry.timestamp <= notification.occurred_at + window,
         )
-        nearby_rows = list(await session.scalars(nearby_stmt))
-        if nearby_rows:
-            incident_row = min(
-                nearby_rows,
-                key=lambda row: abs((row.timestamp - notification.occurred_at).total_seconds()),
-            )
+        .order_by(EquipmentTelemetry.timestamp.asc())
+    )
+    nearby_rows = list(await session.scalars(nearby_stmt))
+    if nearby_rows:
+        incident_row = min(
+            nearby_rows,
+            key=lambda row: abs((row.timestamp - notification.occurred_at).total_seconds()),
+        )
 
     baseline_stmt = (
         select(EquipmentTelemetry)

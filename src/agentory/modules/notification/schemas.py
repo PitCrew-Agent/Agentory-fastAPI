@@ -12,6 +12,11 @@ class NotificationItem(BaseModel):
         description="알람 발생 시각 (ISO 8601)", examples=["2026-07-10T15:43:25+09:00"]
     )
     equipment_id: str = Field(description="알람이 발생한 설비 id", examples=["EQP-A01"])
+    metric: str | None = Field(
+        default=None,
+        description="알람이 발생한 센서 변수 키, 변수 특정 불가 시 null",
+        examples=["temperature"],
+    )
     alarm_code: str = Field(description="알람 코드", examples=["ERR-402"])
     message: str = Field(description="사용자 표시 알림 메시지", examples=["EQP-A01 압력 상한 초과"])
     is_read: bool = Field(description="읽음 여부", examples=[False])

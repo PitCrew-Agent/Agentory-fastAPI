@@ -104,6 +104,7 @@ class NotificationEvent(BaseModel):
     id: int
     occurred_at: str  # 발생 시각 (ISO 8601)
     equipment_id: str
+    metric: str | None  # 알람 발생 센서 변수 키, 변수 특정 불가 시 null
     alarm_code: str
     message: str
     is_read: bool
