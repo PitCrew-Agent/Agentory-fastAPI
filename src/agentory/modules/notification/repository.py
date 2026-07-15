@@ -1,19 +1,23 @@
 """알림 조회·동기화 레포지토리 (NEW_PROACT01_ALERT01)
 
-telemetry 알람을 notifications로 멱등 동기화(sync-on-read), 읽음 상태 갱신
-동일 설비+알람은 시간 버킷(정시)당 첫 알람 1건만 적재해 중복 억제 (NEW_PROACT01_ALERT03)
+변수별 알람 저널(EquipmentAlarm)을 notifications로 멱등 동기화(sync-on-read), 읽음 상태 갱신
+동일 설비+변수+알람은 30분 버킷당 첫 알람 1건만 적재해 중복 억제 (NEW_PROACT01_ALERT03)
 """
 
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select, tuple_, update
+from sqlalchemy import func, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentory.modules.notification.messages import build_notification_message
 from agentory.modules.notification.models import Notification
-from agentory.modules.telemetry.models import EquipmentTelemetry
+from agentory.modules.telemetry.models import EquipmentAlarm
+
+# 30분 버킷 경계 기준점(00분·30분 정렬용), date_bin origin으로 사용
+_BUCKET_ORIGIN = text("timestamptz '2000-01-01 00:00:00+00'")
+_BUCKET_WIDTH = text("interval '30 minutes'")
 
 
 def _to_dict(row: Notification) -> dict[str, Any]:
@@ -23,28 +27,28 @@ def _to_dict(row: Notification) -> dict[str, Any]:
         "id": row.id,
         "occurred_at": row.occurred_at,
         "equipment_id": row.equipment_id,
+        "metric": row.metric,
         "alarm_code": row.alarm_code,
         "message": build_notification_message(row.equipment_id, row.alarm_code),
         "is_read": row.is_read,
     }
 
 
-async def sync_from_telemetry(session: AsyncSession) -> int:
-    # 설비+알람+시간버킷별 첫 알람만 알림화, 버킷당 1건 유니크로 멱등, 신규 적재 건수 반환
-    bucket = func.date_trunc("hour", EquipmentTelemetry.timestamp)
-    grouped = (
-        select(
-            EquipmentTelemetry.equipment_id.label("equipment_id"),
-            EquipmentTelemetry.alarm_code.label("alarm_code"),
-            bucket.label("bucket_hour"),
-            func.min(EquipmentTelemetry.timestamp).label("occurred_at"),
-            func.min(EquipmentTelemetry.log_id).label("source_log_id"),
-        )
-        .where(
-            EquipmentTelemetry.alarm_code.is_not(None),
-            EquipmentTelemetry.alarm_code != "",
-        )
-        .group_by(EquipmentTelemetry.equipment_id, EquipmentTelemetry.alarm_code, bucket)
+async def sync_from_alarms(session: AsyncSession) -> int:
+    # 설비+변수+알람+30분버킷별 첫 알람만 알림화, 버킷당 1건 유니크로 멱등, 신규 적재 건수 반환
+    bucket = func.date_bin(_BUCKET_WIDTH, EquipmentAlarm.raised_at, _BUCKET_ORIGIN)
+    grouped = select(
+        EquipmentAlarm.equipment_id.label("equipment_id"),
+        EquipmentAlarm.metric.label("metric"),
+        EquipmentAlarm.alarm_code.label("alarm_code"),
+        bucket.label("bucket_start"),
+        func.min(EquipmentAlarm.raised_at).label("occurred_at"),
+        func.min(EquipmentAlarm.alarm_id).label("source_alarm_id"),
+    ).group_by(
+        EquipmentAlarm.equipment_id,
+        EquipmentAlarm.metric,
+        EquipmentAlarm.alarm_code,
+        bucket,
     )
     groups = (await session.execute(grouped)).all()
     if not groups:
@@ -53,10 +57,11 @@ async def sync_from_telemetry(session: AsyncSession) -> int:
         {
             "occurred_at": g.occurred_at,
             "equipment_id": g.equipment_id,
+            "metric": g.metric,
             "alarm_code": g.alarm_code,
-            "bucket_hour": g.bucket_hour,
+            "bucket_start": g.bucket_start,
             "message": build_notification_message(g.equipment_id, g.alarm_code),
-            "source_log_id": g.source_log_id,
+            "source_alarm_id": g.source_alarm_id,
         }
         for g in groups
     ]
@@ -64,7 +69,7 @@ async def sync_from_telemetry(session: AsyncSession) -> int:
     stmt = (
         pg_insert(Notification)
         .values(values)
-        .on_conflict_do_nothing(constraint="uq_notifications_equip_alarm_bucket")
+        .on_conflict_do_nothing(constraint="uq_notifications_equip_metric_alarm_bucket")
     )
     result = await session.execute(stmt)
     await session.flush()

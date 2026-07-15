@@ -29,9 +29,9 @@ WebSocket 대신 SSE를 채택했습니다. 단방향 push만 필요하고, fetc
 ### 2. 알림 동기화는 sync-on-poll 커넥션 루프
 
 별도 배치 워커 대신, 알림 스트림 커넥션 루프가 동기화 주기 잡을 겸합니다. 매 반복
-(`STREAM_POLL_SECONDS`=3초)마다 telemetry 알람을 notifications로 멱등 적재
-(`source_log_id`로 중복 제외)한 뒤 신규 알림을 push합니다. `after_id`로 마지막 수신 id 이후만
-증분 방출해 재연결에 안전합니다.
+(`STREAM_POLL_SECONDS`=3초)마다 변수별 알람 저널(EquipmentAlarm)을 notifications로 멱등 적재
+(동일 설비+변수+알람은 30분 버킷당 1건으로 중복 제외)한 뒤 신규 알림을 push합니다. `after_id`로
+마지막 수신 id 이후만 증분 방출해 재연결에 안전합니다.
 
 ### 3. 목록은 키셋(커서) 페이지네이션 (feature/76 #77)
 

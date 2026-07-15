@@ -67,8 +67,7 @@ async def test_fetch_incident_context_uses_source_and_normal_baseline(session):
         equipment_id=EQUIPMENT_ID,
         alarm_code="ERR-402",
         message="냉각 계통 이상",
-        bucket_hour=OCCURRED_AT.replace(minute=0),
-        source_log_id=incident.log_id,
+        bucket_start=OCCURRED_AT.replace(minute=0),
     )
     session.add(notification)
     await session.flush()
