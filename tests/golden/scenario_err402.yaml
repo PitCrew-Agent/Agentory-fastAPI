@@ -9,8 +9,8 @@
   expect:
     tools_called_any: [get_sensor_logs, get_alarm_history]
     answer_contains_any: ["EQP-003", "ERR-402"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-023
   title: EQP-003 최근 1시간 알람 이력 조회
@@ -44,8 +44,8 @@
   query: "EQP-003 온도가 계속 올라가면서 ERR-402가 떴어. SOP 근거로 지금 당장 뭘 해야 해?"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["중지", "냉각", "홀드"]
-    citations_include: [MAN-ETC-042]
+    answer_contains_any: ["일시정지", "냉각", "홀드"]
+    citations_include: [MAN-SOP-001]
 
 # 미존재 설비 질의, 빈 조회 결과의 정직 보고 검증
 - id: GOLDEN-027
