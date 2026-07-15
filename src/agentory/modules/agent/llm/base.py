@@ -14,7 +14,7 @@ from agentory.core.config import get_settings
 
 
 def get_chat_model(role: str = "worker") -> BaseChatModel:
-    # role: worker | router | finalizer
+    # role: worker | router | planner | finalizer
     settings = get_settings()
     by_role = {
         "router": settings.llm_router_model,
@@ -26,6 +26,7 @@ def get_chat_model(role: str = "worker") -> BaseChatModel:
     effort = {
         "router": settings.llm_router_reasoning_effort,
         "worker": settings.llm_worker_reasoning_effort,
+        "planner": settings.llm_planner_reasoning_effort,
         "finalizer": settings.llm_finalizer_reasoning_effort,
     }.get(role)
     if effort:

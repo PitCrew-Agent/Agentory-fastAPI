@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     # 역할별 reasoning 강도, 추론 토큰 지연을 줄여 응답 속도 개선 (gpt-5 계열)
     llm_router_reasoning_effort: str = "minimal"  # 짧은 구조화 판단
     llm_worker_reasoning_effort: str = "minimal"  # 도구 인자 구성, 경량 판단
+    # 오케스트레이터 Planner 자율 도구 선택, minimal은 매뉴얼 검색 누락 빈발로 low
+    llm_planner_reasoning_effort: str = "low"
     llm_finalizer_reasoning_effort: str = "low"  # 답변 합성, 품질·속도 균형
     # 최종 답변 토큰 상한(0=무제한), 장황한 답변 방지 backstop, 간결화는 프롬프트가 주도
     llm_finalizer_max_tokens: int = 0

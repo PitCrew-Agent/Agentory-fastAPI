@@ -72,7 +72,7 @@ async def build_agent_graph(
 
     # 진단 경로: 오케스트레이터(단일 ReAct + 병렬 Fetch) 또는 Supervisor+워커 (#139)
     if orchestrator_enabled:
-        planner_llm = planner_llm or get_chat_model("worker")
+        planner_llm = planner_llm or get_chat_model("planner")
         all_tools = [t for tools in tools_by_server.values() for t in tools]
         rounds_max = get_settings().agent_fetch_rounds_max
         graph.add_node(PLANNER, make_planner_node(planner_llm, all_tools, rounds_max))
