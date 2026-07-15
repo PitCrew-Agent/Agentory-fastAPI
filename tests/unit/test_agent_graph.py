@@ -98,7 +98,7 @@ async def test_react_loop_collects_observation_then_finishes():
     worker = [
         AIMessage(
             content="",
-            tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"}],
+            tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B라인"}, "id": "c1"}],
         ),
         AIMessage(content="EQP-003에서 온도 65도, ERR-402 확인"),
     ]
@@ -217,7 +217,7 @@ async def test_orchestrator_parallel_fetch_then_finish():
         AIMessage(
             content="",
             tool_calls=[
-                {"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"},
+                {"name": "get_sensor_logs", "args": {"line_name": "B라인"}, "id": "c1"},
                 {"name": "get_repair_history", "args": {"equipment_id": "EQP-A05"}, "id": "c2"},
             ],
         ),

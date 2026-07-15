@@ -45,9 +45,9 @@ ETCH_SHAPE = "etch"
 
 # 라인 메타 (id, 표시명, 책임 부서, 책임자)
 LINES = [
-    ("A", "A-Line", "Main-Tech 1", "김억산"),
-    ("B", "B-Line", "Main-Tech 2", "정하린"),
-    ("C", "C-Line", "Main-Tech 3", "이준호"),
+    ("A", "A라인", "Main-Tech 1", "김억산"),
+    ("B", "B라인", "Main-Tech 2", "정하린"),
+    ("C", "C라인", "Main-Tech 3", "이준호"),
 ]
 
 # 라인별 설비 배치, 문서 배치의 x·bay_zone·상태 등급을 유지하되 전 슬롯 식각 챔버로 치환

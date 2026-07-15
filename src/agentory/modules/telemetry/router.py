@@ -44,7 +44,7 @@ async def lines(
     summary="설비 최신 상태 목록",
 )
 async def equipment_status(
-    line: str | None = Query(default=None, description="지정 시 해당 라인만", examples=["A-Line"]),
+    line: str | None = Query(default=None, description="지정 시 해당 라인만", examples=["A라인"]),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[list[EquipmentStatusItem]]:
     """전체 설비 최신 상태 (3D 뷰 색상 매핑)"""

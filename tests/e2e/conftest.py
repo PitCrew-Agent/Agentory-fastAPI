@@ -27,9 +27,9 @@ from mcp_realtime.server import _parse_time
 
 # 시나리오 대상 설비·정상 마스터 (요구사항 §8.1)
 EQUIPMENT = [
-    ("EQP-001", "A-Line", "Deposition", "Zone-A", "Main-Tech 1"),
-    ("EQP-002", "A-Line", "Etching", "Zone-A", "Main-Tech 1"),
-    ("EQP-003", "B-Line", "Etching", "Zone-B", "Main-Tech 2"),
+    ("EQP-001", "A라인", "Deposition", "Zone-A", "Main-Tech 1"),
+    ("EQP-002", "A라인", "Etching", "Zone-A", "Main-Tech 1"),
+    ("EQP-003", "B라인", "Etching", "Zone-B", "Main-Tech 2"),
 ]
 TARGET = "EQP-003"
 # 최근 1시간 질의에 걸리도록 현재 기준 이상 추이 (온도 상승 + ERR-402)

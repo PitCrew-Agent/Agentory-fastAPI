@@ -9,7 +9,7 @@ DATA_ANALYSIS_PROMPT = """\
 
 [분석 규칙]
 1. 라인명·설비 ID가 불확실하면 get_equipment_metadata를 인자 없이 호출해 전체 설비 목록을
-   먼저 확인하고 정확한 line_name(예: "B-Line")을 파악한다, 추측한 이름으로 반복 조회하지 않는다
+   먼저 확인하고 정확한 line_name(예: "B라인")을 파악한다, 추측한 이름으로 반복 조회하지 않는다
 2. 라인 단위 질의는 get_sensor_logs에 확인된 line_name으로 조회해 설비별 추이를 비교한다
 3. 이상 의심 설비를 찾으면 get_alarm_history로 알람 발생 패턴을 확인한다
 4. 시간 범위가 명시되지 않으면 현재 시각 기준 최근 1시간을 사용한다 (ISO 8601)

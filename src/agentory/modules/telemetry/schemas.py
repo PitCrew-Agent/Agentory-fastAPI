@@ -20,7 +20,7 @@ class ChecklistItem(BaseModel):
 
 class LineItem(BaseModel):
     # 라인 목록 항목 (라인 선택 드롭다운 + 3D 뷰 전환용)
-    line_name: str = Field(description="라인명", examples=["A-Line"])
+    line_name: str = Field(description="라인명", examples=["A라인"])
     equipment_count: int = Field(description="라인 소속 설비 수", examples=[7])
 
 
@@ -34,7 +34,7 @@ class ScenePosition(BaseModel):
 class EquipmentStatusItem(BaseModel):
     # 전체 설비 상태 목록 항목 (3D 뷰 색상 매핑 + 배치 렌더용)
     equipment_id: str = Field(description="설비 id", examples=["EQP-A01"])
-    line_name: str = Field(description="소속 라인명", examples=["A-Line"])
+    line_name: str = Field(description="소속 라인명", examples=["A라인"])
     status: StatusLevel = Field(description="상태 등급 (양호·주의·위험)", examples=["양호"])
     alarm_code: str | None = Field(default=None, description="최신 알람 코드, 정상이면 null")
     # 3D 배치값 (NEW_TWIN01_SCENE01), 프론트가 위치·회전을 그대로 재현

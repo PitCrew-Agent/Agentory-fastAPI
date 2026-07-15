@@ -20,15 +20,13 @@ class LineStatus(StrEnum):
 class LineRef(BaseModel):
     # 유저 응답에 실리는 담당 라인 요약, 여러 개면 리스트
     id: int = Field(description="라인 id", examples=[3])
-    code: str = Field(description="라인 코드 (설비 line_name과 매칭)", examples=["B-Line"])
+    code: str = Field(description="라인 코드 (설비 line_name과 매칭)", examples=["B라인"])
     name: str = Field(description="라인 표시명", examples=["B 라인"])
 
 
 class LineCreate(BaseModel):
     # 라인 생성, code는 설비 line_name과 매칭되는 고유값
-    code: str = Field(
-        min_length=1, max_length=50, description="고유 라인 코드", examples=["B-Line"]
-    )
+    code: str = Field(min_length=1, max_length=50, description="고유 라인 코드", examples=["B라인"])
     name: str = Field(min_length=1, max_length=100, description="라인 표시명", examples=["B 라인"])
     description: str | None = Field(default=None, description="설명", examples=["식각 공정 B 라인"])
     display_order: int | None = Field(default=None, description="목록 정렬 순서", examples=[2])
@@ -46,7 +44,7 @@ class LineUpdate(BaseModel):
 class LineItem(BaseModel):
     # 라인 목록·상세 항목
     id: int = Field(description="라인 id", examples=[3])
-    code: str = Field(description="라인 코드", examples=["B-Line"])
+    code: str = Field(description="라인 코드", examples=["B라인"])
     name: str = Field(description="라인 표시명", examples=["B 라인"])
     description: str | None = Field(default=None, description="설명")
     display_order: int | None = Field(default=None, description="목록 정렬 순서", examples=[2])

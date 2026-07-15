@@ -32,7 +32,7 @@ TOOL_LATENCY = 0.3
 
 # 워크로드: 라우팅 경로가 다른 3종 (기존 예산 벤치와 동일 질의)
 QUERIES = [
-    ("diag_chain", "A-Line에서 최근 이상 징후가 있는 설비를 찾아 원인과 조치를 알려줘"),
+    ("diag_chain", "A라인에서 최근 이상 징후가 있는 설비를 찾아 원인과 조치를 알려줘"),
     ("knowledge", "ERR-402 알람의 원인과 조치 방법을 알려줘"),
     ("diag_one", "EQP-A05 설비에 무슨 문제가 있는지 진단하고 조치를 알려줘"),
 ]
@@ -55,7 +55,7 @@ async def get_sensor_logs(
 ) -> str:
     """라인·설비의 실시간 센서 로그 조회"""
     await _delay()
-    return "EQP-003 temperature 65.0 (평소 40) alarm ERR-402 x3 line=A-Line"
+    return "EQP-003 temperature 65.0 (평소 40) alarm ERR-402 x3 line=A라인"
 
 
 @tool
@@ -71,7 +71,7 @@ async def get_alarm_history(
 async def get_equipment_metadata(equipment_id: str = "", line_name: str = "") -> str:
     """설비 메타데이터 조회"""
     await _delay()
-    return "EQP-003 에칭 장비 line=A-Line 정상범위 온도<=60"
+    return "EQP-003 에칭 장비 line=A라인 정상범위 온도<=60"
 
 
 @tool
