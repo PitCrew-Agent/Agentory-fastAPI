@@ -195,6 +195,62 @@ async def test_fast_router_routes_diagnostic_query_to_supervisor():
     assert result["next"] == "FINISH"
 
 
+async def _build_orchestrator(planner_script):
+    # 오케스트레이터(단일 ReAct + 병렬 Fetch) 경로 그래프 빌드 헬퍼 (#139)
+    return await build_agent_graph(
+        planner_llm=FakeWorkerLLM(planner_script),
+        finalizer_llm=FakeFinalizerLLM(),
+        suggest_llm=FakeFinalizerLLM(),
+        tools_by_server={
+            "realtime": [get_sensor_logs],
+            "knowledge": [],
+            "maintenance": [get_repair_history],
+        },
+        suggestions_enabled=False,
+        orchestrator_enabled=True,
+    )
+
+
+async def test_orchestrator_parallel_fetch_then_finish():
+    # Planner가 한 라운드에 두 도구를 emit → Fetch가 병렬 실행 → 다음 라운드 종료 (#139)
+    planner = [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"},
+                {"name": "get_repair_history", "args": {"equipment_id": "EQP-A05"}, "id": "c2"},
+            ],
+        ),
+        AIMessage(content="수집 완료 보고"),
+    ]
+    graph = await _build_orchestrator(planner)
+    result = await graph.ainvoke(initial_state())
+
+    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == 2
+    # 병렬 두 도구 결과가 모두 컨텍스트 장부에 적재 (AI_AGENT02_CHAIN01)
+    assert "EQP-003" in result["entities"]["equipment_ids"]
+    assert "EQP-A05" in result["entities"]["equipment_ids"]
+    assert "ERR-402" in result["entities"]["alarm_codes"]
+
+
+async def test_orchestrator_round_budget_forces_finish():
+    # 라운드 예산(기본 3) 소진 시 Planner LLM 호출 없이 종료 강제 (AI_AGENT03_FALLBACK01, #139)
+    def emit(i: int) -> AIMessage:
+        return AIMessage(
+            content="",
+            tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": f"L{i}"}, "id": f"c{i}"}],
+        )
+
+    # 3라운드 모두 도구 emit, 4번째는 예산 소진으로 LLM 미호출(스크립트 소비 안 됨)
+    graph = await _build_orchestrator([emit(0), emit(1), emit(2)])
+    result = await graph.ainvoke(initial_state())
+
+    assert result["step_count"] >= 3
+    # 예산 소진 후에도 Finalizer가 실행되어 최종 답변 생성
+    assert any(isinstance(m, AIMessage) and m.content == "최종 답변" for m in result["messages"])
+
+
 def test_classify_intent_rules():
     # 규칙 우선 분류: 잡담은 direct, 진단 신호가 섞이면 diagnostic 유지 (#139)
     from agentory.modules.agent.supervisor.fast_router import classify_intent
