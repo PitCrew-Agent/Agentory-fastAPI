@@ -1,103 +1,105 @@
-# Etching SOP(MAN-ETC-042) 기반 매뉴얼 검색 골든 질의 셋 (AI_RAG02_EVAL01)
-# 근거 문서: data/manuals/Etching_Equipment_SOP_v1_6.pdf (EQP-ETCH-SOP-001 Rev 1.6)
+# 새 한글 매뉴얼 3종 기반 매뉴얼 검색 골든 질의 셋 (AI_RAG02_EVAL01)
+# 근거 문서: data/rags (manifest.json) 3종
+#   MAN-TM-8600  MPS8600 유지보수, 알람 정의·가능 원인·점검 방법
+#   MAN-GDL-001  상태 판단 가이드라인, 상태 분류·알람 우선순위·대응 수준
+#   MAN-SOP-001  알람 대응 SOP, 실행 절차·보고·승인·재가동
+# citations_include·rag_hit_docs는 실제 search_manuals 반환값 기준 캘리브레이션(파라프레이즈 강건성 확인)
+# 역할 겹침(정의는 TM·GDL 양쪽)으로 케이스별 실측 우세 문서 1건 지정
 # GOLDEN-002~006 난이도 쉬움(사실 확인형), GOLDEN-007~011 난이도 중간(절차 분기·연결형)
 # GOLDEN-012 무근거 정직 보고 검증(네거티브), rag_hit_docs 없어 검색 평가 대상에서 제외
 # 대표 시나리오 GOLDEN-001은 scenario_err402.yaml에 위치
 #
-# 주의: E2E(-m llm)의 tools_called_any 검증은 e2e conftest의 knowledge 도구 배선 선행 필요
-# TODO(김건) e2e knowledge in-process 도구 배선은 하네스 담당자와 공동 진행 (TEST_HARNESS)
-# TODO(김건) 적재 문서 1개 상태에서는 hit@k 변별력 낮음, 문서 추가 후 청크 단위 기준 검토 (AI_RAG02_EVAL01)
 # TODO(김건) answer_contains_any는 하나만 포함돼도 통과, 복수 요구 검증은 answer_contains_all류 추가 필요
 
 - id: GOLDEN-002
-  title: ERR-402 알람 의미와 대표 텔레메트리 패턴 (근거 p.7)
+  title: ERR-402 알람 의미와 대표 텔레메트리 패턴 (근거 MAN-SOP-001)
   query: "ERR-402 알람은 어떤 고장을 의미하고, 대표적인 텔레메트리 패턴이 뭐야?"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["냉각 시스템", "온도 상승", "압력 하강"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    answer_contains_any: ["냉각 계통", "온도 상승", "압력 하강"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-003
-  title: SOP가 다루는 텔레메트리 변수 4가지 (근거 p.1, p.2)
+  title: SOP가 다루는 텔레메트리 변수 4가지 (근거 MAN-SOP-001)
   query: "이 식각 장비 SOP가 다루는 텔레메트리 변수 4가지가 뭐야?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["gas_flow", "rf_power"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-004
-  title: 알람 우선순위 1순위와 이유 (근거 p.5)
+  title: 알람 우선순위 1순위와 이유 (근거 MAN-GDL-001)
   query: "알람 우선순위에서 1순위 알람이 뭐고 왜 1순위야?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["ERR-402"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-GDL-001]
+    rag_hit_docs: [MAN-GDL-001]
 
 - id: GOLDEN-005
-  title: WRN-501 경고 의미와 관련 변수 (근거 p.11, p.20)
+  title: WRN-501 경고 의미와 관련 변수 (근거 MAN-TM-8600)
   query: "WRN-501 알람은 무엇을 경고하는 거고 관련 변수는 뭐야?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["가스 유량", "gas_flow"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-006
-  title: ERR-201 가능 원인 2가지 이상 (근거 p.10)
+  title: ERR-201 가능 원인 2가지 이상 (근거 MAN-SOP-001)
   query: "ERR-201 RF 파워 이상 알람의 가능한 원인들을 알려줘"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["매칭 네트워크", "RF 제너레이터", "케이블"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    answer_contains_any: ["매칭 네트워크", "반사전력", "케이블"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-007
-  title: ERR-401 최우선 확인 항목과 ERR-402 분기 (근거 p.8)
+  title: ERR-401 최우선 확인 항목과 ERR-402 분기 (근거 MAN-SOP-001)
   query: "ERR-401 온도 이탈 알람이 떴을 때 가장 먼저 뭘 확인해야 하고, 결과에 따라 어떻게 대응이 달라져?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["ERR-402", "압력"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-008
-  title: RF 단발 스파이크 시 공정 중지 판단 (근거 p.10)
+  title: RF 단발 스파이크 시 공정 중지 판단 (근거 MAN-SOP-001)
   query: "RF 전력이 순간적으로 한 번 튀었는데 바로 공정을 중지해야 해? SOP 기준으로 알려줘"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["연속", "스파이크", "지속"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-009
-  title: WRN-702 방치 시 격상 알람과 예방 조치 (근거 p.13)
+  title: WRN-702 방치 시 격상 알람과 예방 조치 (근거 MAN-SOP-001)
   query: "압력 드리프트 경고를 방치하면 어떤 알람으로 악화되고, 그 전에 뭘 해야 해?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["ERR-301", "PM"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-010
-  title: 총 유량만으로 개별 가스라인 고장 판단 금지 (근거 p.5, p.11, p.15)
+  title: 총 유량만으로 개별 가스라인 고장 판단 금지 (근거 MAN-TM-8600)
   query: "총 가스 유량이 낮게 나오면 특정 가스 라인 고장이라고 바로 판단해도 돼?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["현장 점검", "MFC", "총 유량"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-011
-  title: ERR-901 다변량 이상의 차별화된 대응 절차 (근거 p.17)
+  title: ERR-901 다변량 이상의 차별화된 대응 절차 (근거 MAN-SOP-001)
   query: "ERR-901 다변량 이상 알람은 다른 ERR 알람들과 대응 방식이 어떻게 달라?"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["엔지니어링 리뷰", "백업", "단일 부품"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    answer_contains_any: ["엔지니어링 검토", "백업", "단일 부품"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 # 무근거 정직 보고 케이스: SOP에 없는 알람, 지어내지 않고 근거 부족 보고 검증 (BE_MCP04_RAG01)
 - id: GOLDEN-012
@@ -113,85 +115,85 @@
 # TODO(김건) 3계층 분리 시 rag/ 계층으로 이관, 네거티브는 no_answer 라벨로 전환 (AI_RAG02_EVAL01)
 
 - id: GOLDEN-013
-  title: ERR-401과 ERR-402 대응 차이 비교 (근거 p.7~8)
+  title: ERR-401과 ERR-402 대응 차이 비교 (근거 MAN-SOP-001)
   query: "ERR-401하고 ERR-402는 대응 방식이 어떻게 달라?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["압력", "냉각"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-014
-  title: ERR-402 가능 원인과 초기 조치 (근거 p.7)
+  title: ERR-402 가능 원인과 초기 조치 (근거 MAN-SOP-001)
   query: "ERR-402가 발생했을 때 SOP 기준 가능한 원인과 조치 방법을 알려줘"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["냉각수", "헬륨", "클램프", "칠러"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-015
-  title: ERR-301 압력 이탈 가능 원인 (근거 p.9)
+  title: ERR-301 압력 이탈 가능 원인 (근거 MAN-TM-8600)
   query: "ERR-301 압력 이탈 알람의 가능한 원인들을 알려줘"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["APC", "배기", "누설"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    answer_contains_any: ["APC", "배기", "리크"]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-016
-  title: ERR-301 최우선 확인 항목과 ERR-402 평가 분기 (근거 p.9)
+  title: ERR-301 최우선 확인 항목과 ERR-402 평가 분기 (근거 MAN-SOP-001)
   query: "ERR-301 알람이 떴을 때 제일 먼저 확인해야 하는 게 뭐야?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["온도", "ERR-402"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-017
-  title: WRN-701 온도 드리프트 시 공정 지속 여부와 PM 계획 (근거 p.12)
+  title: WRN-701 온도 드리프트 시 공정 지속 여부와 PM 계획 (근거 MAN-TM-8600)
   query: "WRN-701 온도 드리프트 경고가 떴는데 지금 공정을 중단해야 해?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["PM", "챔버 클린", "예방"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-018
-  title: WRN-703 드리프트 보정 목적 레시피 파워 임의 조정 금지 (근거 p.14)
+  title: WRN-703 드리프트 보정 목적 레시피 파워 임의 조정 금지 (근거 MAN-SOP-001)
   query: "RF 파워가 드리프트 중인데 레시피 파워 값을 조정해서 보정해도 돼?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["승인", "금지", "공정 엔지니어"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 - id: GOLDEN-019
-  title: WRN-801 평균 정상 상태의 경고 발생 이유 (근거 p.16)
+  title: WRN-801 평균 정상 상태의 경고 발생 이유 (근거 MAN-TM-8600)
   query: "WRN-801 경고는 평균값이 정상인데도 왜 발생하는 거야?"
   expect:
     tools_called_any: [search_manuals]
-    answer_contains_any: ["변동", "분산", "불안정"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    answer_contains_any: ["변동", "변동성", "불안정"]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-020
-  title: WRN-704 방치 시 격상 경고 (근거 p.15)
+  title: WRN-704 방치 시 격상 경고 (근거 MAN-TM-8600)
   query: "WRN-704 가스 유량 드리프트를 방치하면 어떤 경고로 격상될 수 있어?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["WRN-501"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
 
 - id: GOLDEN-021
-  title: 알람 조치 후 재기동 해제 체크리스트 (근거 p.18)
+  title: 알람 조치 후 재기동 해제 체크리스트 (근거 MAN-SOP-001)
   query: "알람 조치가 끝나고 설비를 다시 가동하기 전에 어떤 항목들을 확인해야 해?"
   expect:
     tools_called_any: [search_manuals]
     answer_contains_any: ["재발", "승인", "안정"]
-    citations_include: [MAN-ETC-042]
-    rag_hit_docs: [MAN-ETC-042]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
 
 # 무근거 정직 보고 케이스 2: 적재 문서 범위 밖 설비 유형, GOLDEN-012와 동일 규약 (BE_MCP04_RAG01)
 - id: GOLDEN-022
