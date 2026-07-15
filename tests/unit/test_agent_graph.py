@@ -171,6 +171,42 @@ async def test_router_delegates_to_maintenance_and_collects_repair_history():
     assert result["next"] == "FINISH"
 
 
+async def test_fast_router_direct_answer_bypasses_supervisor():
+    # 인사 질의는 Fast Router가 direct로 분류해 Supervisor·워커를 건너뛰고 Finalizer 직행 (#139)
+    # 라우터 스크립트를 비워, Supervisor가 호출되면 route_reason에 폴백 흔적이 남도록 유도
+    graph = await _build(router_script=[], worker_script=[])
+    state = initial_state()
+    state["messages"] = [HumanMessage(content="안녕하세요 반갑습니다")]
+    result = await graph.ainvoke(state)
+
+    assert result["intent"] == "direct"
+    # Supervisor 미경유: route_reason이 초기값 그대로 비어 있음
+    assert result.get("route_reason", "") == ""
+    # 도구 관찰(ToolMessage) 없이 최종 답변만 생성
+    assert not [m for m in result["messages"] if isinstance(m, ToolMessage)]
+
+
+async def test_fast_router_routes_diagnostic_query_to_supervisor():
+    # 진단 신호가 있는 질의는 diagnostic으로 분류해 기존 Supervisor 경로 유지 (#139)
+    router = [Route(next="FINISH", reason="수집 완료")]
+    graph = await _build(router, worker_script=[])
+    result = await graph.ainvoke(initial_state())
+    assert result["intent"] == "diagnostic"
+    assert result["next"] == "FINISH"
+
+
+def test_classify_intent_rules():
+    # 규칙 우선 분류: 잡담은 direct, 진단 신호가 섞이면 diagnostic 유지 (#139)
+    from agentory.modules.agent.supervisor.fast_router import classify_intent
+
+    assert classify_intent("안녕하세요") == "direct"
+    assert classify_intent("고마워요 수고하세요") == "direct"
+    # 진단 신호(설비·이상)가 있으면 인사말이 섞여도 데이터 수집 경로 유지
+    assert classify_intent("안녕 B라인 이상 설비 알려줘") == "diagnostic"
+    assert classify_intent("EQP-003 온도 상태 확인해줘") == "diagnostic"
+    assert classify_intent("") == "diagnostic"
+
+
 def test_extract_and_merge_entities():
     # 도구 결과 텍스트에서 설비·알람 추출 및 장부 병합 (ERR·WRN 알람 모두 인식)
     found = extract_entities("EQP-003 ERR-402 WRN-702 EQP-001")

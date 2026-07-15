@@ -35,6 +35,7 @@ def initial_state(query: str, history: list, equipment_id: str | None = None) ->
         "entities": entities,
         "step_count": 0,
         "tool_history": [],
+        "intent": "",
         "next": "",
         "task": "",
         "route_reason": "",

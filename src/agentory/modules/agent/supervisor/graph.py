@@ -12,6 +12,11 @@ from langgraph.graph import END, StateGraph
 from agentory.core.config import get_settings
 from agentory.modules.agent.llm.base import get_chat_model
 from agentory.modules.agent.mcp_client.client import load_tools_by_server
+from agentory.modules.agent.supervisor.fast_router import (
+    DIAGNOSTIC,
+    DIRECT,
+    make_fast_router_node,
+)
 from agentory.modules.agent.supervisor.finalizer import (
     make_finalizer_node,
     make_grounding_node,
@@ -22,6 +27,7 @@ from agentory.modules.agent.supervisor.suggest import make_suggest_node
 from agentory.modules.agent.workers.base import build_react_worker
 from agentory.modules.agent.workers.registry import WORKERS
 
+FAST_ROUTER = "fast_router"
 FINALIZER = "finalizer"
 GROUNDING = "grounding"
 SUGGEST = "suggest"
@@ -35,6 +41,7 @@ async def build_agent_graph(
     tools_by_server: dict[str, list[BaseTool]] | None = None,
     grounding_enabled: bool | None = None,
     suggestions_enabled: bool | None = None,
+    fast_router_enabled: bool | None = None,
 ):
     # 인자 주입은 테스트용, 미지정 시 설정 기반 LLM과 MCP 도구 사용
     router_llm = router_llm or get_chat_model("router")
@@ -48,6 +55,8 @@ async def build_agent_graph(
         grounding_enabled = get_settings().agent_grounding_enabled
     if suggestions_enabled is None:
         suggestions_enabled = get_settings().agent_suggestions_enabled
+    if fast_router_enabled is None:
+        fast_router_enabled = get_settings().agent_fast_router_enabled
 
     graph = StateGraph(AgentState)
     graph.add_node("supervisor", make_supervisor_node(router_llm))
@@ -85,5 +94,15 @@ async def build_agent_graph(
         last = SUGGEST
     graph.add_edge(last, END)
 
-    graph.set_entry_point("supervisor")
+    # Fast Router: 규칙 우선 분류로 잡담·범위 밖은 Finalizer 직행, 진단은 Supervisor 위임 (#139)
+    if fast_router_enabled:
+        graph.add_node(FAST_ROUTER, make_fast_router_node())
+        graph.add_conditional_edges(
+            FAST_ROUTER,
+            lambda state: state.get("intent", DIAGNOSTIC),
+            {DIRECT: FINALIZER, DIAGNOSTIC: "supervisor"},
+        )
+        graph.set_entry_point(FAST_ROUTER)
+    else:
+        graph.set_entry_point("supervisor")
     return graph.compile()
