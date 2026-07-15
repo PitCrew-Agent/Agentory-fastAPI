@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from agentory.core.config import get_settings
-from agentory.modules.agent.llm.base import get_chat_model
 from agentory.modules.agent.runner import RECURSION_LIMIT, initial_state
 from agentory.modules.agent.supervisor.graph import build_agent_graph
 from agentory.modules.rag.embedding.openai import get_embedder
@@ -146,8 +145,10 @@ async def _cleanup(maker: async_sessionmaker, log_ids: list[int]) -> None:
         await s.commit()
 
 
-@pytest.fixture
-async def e2e_runner():
+@pytest.fixture(params=[False, True], ids=["legacy", "orchestrator"])
+async def e2e_runner(request):
+    # 두 진단 경로(레거시 Supervisor / 하이브리드 오케스트레이터)를 같은 골든 케이스로 검증 (#139)
+    orchestrator_enabled = request.param
     settings = get_settings()
     if not settings.openai_api_key:
         pytest.skip("OPENAI_API_KEY 없음, E2E 스킵")
@@ -164,21 +165,26 @@ async def e2e_runner():
     log_ids = await _seed_scenario(maker)
     knowledge_tools = _knowledge_tools(maker) if await _knowledge_ready(maker) else []
     tools = {"realtime": _realtime_tools(maker), "knowledge": knowledge_tools}
+    # LLM은 build_agent_graph가 경로별로 지연 생성, 여기선 도구·플래그만 지정
     graph = await build_agent_graph(
-        router_llm=get_chat_model("router"),
-        worker_llm=get_chat_model("worker"),
-        finalizer_llm=get_chat_model("finalizer"),
         tools_by_server=tools,
         grounding_enabled=False,
         suggestions_enabled=False,
+        orchestrator_enabled=orchestrator_enabled,
     )
 
     async def run(query: str) -> dict:
         state = initial_state(query, [])
         return await graph.ainvoke(state, config={"recursion_limit": RECURSION_LIMIT})
 
-    # knowledge 도구 부재 여부를 전달해 지식 의존 검증을 조건부 처리
-    yield run, {"knowledge_available": bool(tools["knowledge"])}
+    # knowledge 도구 부재 여부·활성 경로를 전달해 조건부 검증에 사용
+    yield (
+        run,
+        {
+            "knowledge_available": bool(tools["knowledge"]),
+            "orchestrator": orchestrator_enabled,
+        },
+    )
 
     await _cleanup(maker, log_ids)
     await engine.dispose()
