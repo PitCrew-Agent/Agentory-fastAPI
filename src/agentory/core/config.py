@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     # 전역 반복 예산 (AI_AGENT03_FALLBACK01), 워커 3종 경로가 안 잘릴 최소치
     # 지연은 Supervisor 조기 종료 규율(프롬프트)로 억제
     agent_max_steps: int = 6
+    # Fast Router on/off (#139), 인사·잡담 등 데이터 수집 불필요 질의를 규칙으로 즉시
+    # Finalizer 직행시켜 Supervisor 라우팅 LLM 호출·지연 제거, off면 항상 Supervisor 경유
+    agent_fast_router_enabled: bool = True
+    # 하이브리드 오케스트레이터 on/off (#139), on이면 Supervisor+워커 대신 단일 ReAct
+    # 에이전트(Planner)+병렬 Fetch 경로 사용, 기본 off로 기존 경로 유지하며 점진 전환·벤치 비교
+    agent_orchestrator_enabled: bool = False
+    # Planner 재판단(ReAct) 라운드 예산 (#139), Thought→Action→Observation 반복 상한
+    # 시나리오 3.2는 2라운드(realtime→관찰→knowledge)면 충분, 여유로 3 기본
+    agent_fetch_rounds_max: int = 3
     # Grounding 자가 검증 on/off (NEW_TRUST02), off면 답변당 LLM 1회 절감
     agent_grounding_enabled: bool = False
     agent_suggestions_enabled: bool = True  # 후속 추천 질문 생성 on/off (BE_CHAT02_SUGGEST01)

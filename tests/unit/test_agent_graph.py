@@ -171,6 +171,98 @@ async def test_router_delegates_to_maintenance_and_collects_repair_history():
     assert result["next"] == "FINISH"
 
 
+async def test_fast_router_direct_answer_bypasses_supervisor():
+    # 인사 질의는 Fast Router가 direct로 분류해 Supervisor·워커를 건너뛰고 Finalizer 직행 (#139)
+    # 라우터 스크립트를 비워, Supervisor가 호출되면 route_reason에 폴백 흔적이 남도록 유도
+    graph = await _build(router_script=[], worker_script=[])
+    state = initial_state()
+    state["messages"] = [HumanMessage(content="안녕하세요 반갑습니다")]
+    result = await graph.ainvoke(state)
+
+    assert result["intent"] == "direct"
+    # Supervisor 미경유: route_reason이 초기값 그대로 비어 있음
+    assert result.get("route_reason", "") == ""
+    # 도구 관찰(ToolMessage) 없이 최종 답변만 생성
+    assert not [m for m in result["messages"] if isinstance(m, ToolMessage)]
+
+
+async def test_fast_router_routes_diagnostic_query_to_supervisor():
+    # 진단 신호가 있는 질의는 diagnostic으로 분류해 기존 Supervisor 경로 유지 (#139)
+    router = [Route(next="FINISH", reason="수집 완료")]
+    graph = await _build(router, worker_script=[])
+    result = await graph.ainvoke(initial_state())
+    assert result["intent"] == "diagnostic"
+    assert result["next"] == "FINISH"
+
+
+async def _build_orchestrator(planner_script):
+    # 오케스트레이터(단일 ReAct + 병렬 Fetch) 경로 그래프 빌드 헬퍼 (#139)
+    return await build_agent_graph(
+        planner_llm=FakeWorkerLLM(planner_script),
+        finalizer_llm=FakeFinalizerLLM(),
+        suggest_llm=FakeFinalizerLLM(),
+        tools_by_server={
+            "realtime": [get_sensor_logs],
+            "knowledge": [],
+            "maintenance": [get_repair_history],
+        },
+        suggestions_enabled=False,
+        orchestrator_enabled=True,
+    )
+
+
+async def test_orchestrator_parallel_fetch_then_finish():
+    # Planner가 한 라운드에 두 도구를 emit → Fetch가 병렬 실행 → 다음 라운드 종료 (#139)
+    planner = [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"},
+                {"name": "get_repair_history", "args": {"equipment_id": "EQP-A05"}, "id": "c2"},
+            ],
+        ),
+        AIMessage(content="수집 완료 보고"),
+    ]
+    graph = await _build_orchestrator(planner)
+    result = await graph.ainvoke(initial_state())
+
+    tool_messages = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == 2
+    # 병렬 두 도구 결과가 모두 컨텍스트 장부에 적재 (AI_AGENT02_CHAIN01)
+    assert "EQP-003" in result["entities"]["equipment_ids"]
+    assert "EQP-A05" in result["entities"]["equipment_ids"]
+    assert "ERR-402" in result["entities"]["alarm_codes"]
+
+
+async def test_orchestrator_round_budget_forces_finish():
+    # 라운드 예산(기본 3) 소진 시 Planner LLM 호출 없이 종료 강제 (AI_AGENT03_FALLBACK01, #139)
+    def emit(i: int) -> AIMessage:
+        return AIMessage(
+            content="",
+            tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": f"L{i}"}, "id": f"c{i}"}],
+        )
+
+    # 3라운드 모두 도구 emit, 4번째는 예산 소진으로 LLM 미호출(스크립트 소비 안 됨)
+    graph = await _build_orchestrator([emit(0), emit(1), emit(2)])
+    result = await graph.ainvoke(initial_state())
+
+    assert result["step_count"] >= 3
+    # 예산 소진 후에도 Finalizer가 실행되어 최종 답변 생성
+    assert any(isinstance(m, AIMessage) and m.content == "최종 답변" for m in result["messages"])
+
+
+def test_classify_intent_rules():
+    # 규칙 우선 분류: 잡담은 direct, 진단 신호가 섞이면 diagnostic 유지 (#139)
+    from agentory.modules.agent.supervisor.fast_router import classify_intent
+
+    assert classify_intent("안녕하세요") == "direct"
+    assert classify_intent("고마워요 수고하세요") == "direct"
+    # 진단 신호(설비·이상)가 있으면 인사말이 섞여도 데이터 수집 경로 유지
+    assert classify_intent("안녕 B라인 이상 설비 알려줘") == "diagnostic"
+    assert classify_intent("EQP-003 온도 상태 확인해줘") == "diagnostic"
+    assert classify_intent("") == "diagnostic"
+
+
 def test_extract_and_merge_entities():
     # 도구 결과 텍스트에서 설비·알람 추출 및 장부 병합 (ERR·WRN 알람 모두 인식)
     found = extract_entities("EQP-003 ERR-402 WRN-702 EQP-001")

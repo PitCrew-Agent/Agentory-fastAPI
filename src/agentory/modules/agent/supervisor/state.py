@@ -19,6 +19,8 @@ class AgentState(TypedDict):
     step_count: int
     # 실행된 도구 호출 시그니처 누적, 동일 호출 반복 차단용 (AI_AGENT03_FALLBACK01)
     tool_history: Annotated[list[str], operator.add]
+    # Fast Router 분류 결과: direct(즉시 답변) 또는 diagnostic(Supervisor 경유) (#139)
+    intent: str
     # Supervisor 라우팅 결과: 워커명 또는 FINISH
     next: str
     # Supervisor가 워커에 전달하는 구체 지시

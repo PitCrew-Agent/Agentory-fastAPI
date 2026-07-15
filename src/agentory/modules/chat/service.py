@@ -15,7 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from agentory.common.events import SSEEvent
 from agentory.common.exceptions import ExternalServiceError
 from agentory.core.config import get_settings
-from agentory.modules.agent.runner import RECURSION_LIMIT, get_graph, initial_state
+from agentory.modules.agent.runner import (
+    RECURSION_LIMIT,
+    get_graph,
+    get_tool_agent_map,
+    initial_state,
+)
 from agentory.modules.agent.streaming import stream_agent_events
 from agentory.modules.chat.models import ChatMessage, ChatSession
 from agentory.modules.chat.schemas import (
@@ -88,7 +93,10 @@ async def stream_chat(
     errored = False
 
     async for event in stream_agent_events(
-        graph, state, config={"recursion_limit": RECURSION_LIMIT}
+        graph,
+        state,
+        config={"recursion_limit": RECURSION_LIMIT},
+        tool_agent_map=get_tool_agent_map(),
     ):
         if event.type == "answer":
             answer_parts.append(event.delta)
