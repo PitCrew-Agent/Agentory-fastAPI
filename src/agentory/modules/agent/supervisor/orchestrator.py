@@ -18,6 +18,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
+from agentory.common.events import AgentName
 from agentory.core.config import get_settings
 from agentory.modules.agent.context import extract_entities, format_entities, merge_entities
 from agentory.modules.agent.prompts.orchestrator import PLANNER_SYSTEM_PROMPT
@@ -30,6 +31,23 @@ FETCH = "fetch"
 FINISH = "finish"
 
 NodeFn = Callable[[AgentState], Awaitable[dict[str, Any]]]
+
+# 도구가 속한 MCP 서버 → SSE AgentName, 단일 노드 통합에도 도메인 라벨 유지 (#139)
+_AGENT_BY_SERVER = {
+    "realtime": AgentName.DATA_ANALYSIS,
+    "maintenance": AgentName.MAINTENANCE,
+    "knowledge": AgentName.KNOWLEDGE,
+}
+
+
+def build_tool_agent_map(tools_by_server: dict[str, list[BaseTool]]) -> dict[str, AgentName]:
+    # 도구명 → AgentName 매핑 구성, streaming이 action·observation의 agent 라벨을 채우는 데 사용
+    return {
+        tool.name: _AGENT_BY_SERVER[server]
+        for server, tools in tools_by_server.items()
+        for tool in tools
+        if server in _AGENT_BY_SERVER
+    }
 
 
 def _truncate_observation(content: str) -> str:

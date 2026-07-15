@@ -44,6 +44,42 @@ def test_tool_node_maps_to_observation():
     assert events[0].tool == "get_sensor_logs"
 
 
+def test_planner_maps_to_thought_and_action():
+    # 오케스트레이터 Planner: 판단 문장은 thought, 도구 호출은 도구별 agent action (#139)
+    from agentory.common.events import AgentName
+
+    msg = AIMessage(
+        content="B라인 센서부터 확인",
+        tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"}],
+    )
+    tmap = {"get_sensor_logs": AgentName.DATA_ANALYSIS}
+    events = map_updates_chunk({"planner": {"messages": [msg]}}, step=1, tool_agent_map=tmap)
+    assert [e.type for e in events] == ["thought", "action"]
+    assert events[0].content == "B라인 센서부터 확인"
+    assert events[1].agent == "data_analysis"
+    assert events[1].tool == "get_sensor_logs"
+
+
+def test_fetch_maps_to_observation_with_agent():
+    # 병렬 Fetch 결과가 도구별 agent로 observation 변환 (#139)
+    from agentory.common.events import AgentName
+
+    obs = ToolMessage(content="EQP-003 65도", tool_call_id="c1", name="search_manuals")
+    tmap = {"search_manuals": AgentName.KNOWLEDGE}
+    events = map_updates_chunk({"fetch": {"messages": [obs]}}, step=2, tool_agent_map=tmap)
+    assert len(events) == 1
+    assert events[0].type == "observation"
+    assert events[0].agent == "knowledge"
+    assert events[0].tool == "search_manuals"
+
+
+def test_unmapped_tool_falls_back_to_supervisor_agent():
+    # 매핑에 없는 도구는 supervisor agent로 폴백해 이벤트 유실 방지 (#139)
+    obs = ToolMessage(content="결과", tool_call_id="c1", name="unknown_tool")
+    events = map_updates_chunk({"fetch": {"messages": [obs]}}, step=1)
+    assert events[0].agent == "supervisor"
+
+
 def test_finalizer_tokens_map_to_answer():
     chunk = (AIMessage(content="EQP-003에서 "), {"langgraph_node": "finalizer"})
     events = map_messages_chunk(chunk)
