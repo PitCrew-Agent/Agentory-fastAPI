@@ -1,0 +1,215 @@
+{
+  "tool_latency": 0.3,
+  "reps": 3,
+  "rows": [
+    {
+      "latency": 57.09077733405866,
+      "calls": 11,
+      "in_tok": 20667,
+      "out_tok": 4098,
+      "steps": 3,
+      "config": "supervisor_before",
+      "query": "diag_chain",
+      "rep": 0
+    },
+    {
+      "latency": 70.35274983290583,
+      "calls": 11,
+      "in_tok": 31849,
+      "out_tok": 6587,
+      "steps": 3,
+      "config": "supervisor_before",
+      "query": "diag_chain",
+      "rep": 1
+    },
+    {
+      "latency": 36.40754962502979,
+      "calls": 7,
+      "in_tok": 10411,
+      "out_tok": 3076,
+      "steps": 2,
+      "config": "supervisor_before",
+      "query": "diag_chain",
+      "rep": 2
+    },
+    {
+      "latency": 23.06462304107845,
+      "calls": 5,
+      "in_tok": 5573,
+      "out_tok": 1941,
+      "steps": 2,
+      "config": "supervisor_before",
+      "query": "knowledge",
+      "rep": 0
+    },
+    {
+      "latency": 62.39911554194987,
+      "calls": 11,
+      "in_tok": 21880,
+      "out_tok": 4799,
+      "steps": 3,
+      "config": "supervisor_before",
+      "query": "knowledge",
+      "rep": 1
+    },
+    {
+      "latency": 22.084078999934718,
+      "calls": 5,
+      "in_tok": 6037,
+      "out_tok": 1996,
+      "steps": 2,
+      "config": "supervisor_before",
+      "query": "knowledge",
+      "rep": 2
+    },
+    {
+      "latency": 70.54000758402981,
+      "calls": 13,
+      "in_tok": 31008,
+      "out_tok": 6255,
+      "steps": 4,
+      "config": "supervisor_before",
+      "query": "diag_one",
+      "rep": 0
+    },
+    {
+      "latency": 67.89102700003423,
+      "calls": 10,
+      "in_tok": 23067,
+      "out_tok": 5409,
+      "steps": 3,
+      "config": "supervisor_before",
+      "query": "diag_one",
+      "rep": 1
+    },
+    {
+      "latency": 97.40531083312817,
+      "calls": 11,
+      "in_tok": 26016,
+      "out_tok": 4836,
+      "steps": 3,
+      "config": "supervisor_before",
+      "query": "diag_one",
+      "rep": 2
+    },
+    {
+      "latency": 13.882254750002176,
+      "calls": 3,
+      "in_tok": 3097,
+      "out_tok": 1135,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "diag_chain",
+      "rep": 0
+    },
+    {
+      "latency": 12.856889334041625,
+      "calls": 3,
+      "in_tok": 3016,
+      "out_tok": 1085,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "diag_chain",
+      "rep": 1
+    },
+    {
+      "latency": 15.849666750058532,
+      "calls": 3,
+      "in_tok": 3435,
+      "out_tok": 1541,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "diag_chain",
+      "rep": 2
+    },
+    {
+      "latency": 12.469524834072217,
+      "calls": 3,
+      "in_tok": 2566,
+      "out_tok": 996,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "knowledge",
+      "rep": 0
+    },
+    {
+      "latency": 13.229234332917258,
+      "calls": 3,
+      "in_tok": 2540,
+      "out_tok": 742,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "knowledge",
+      "rep": 1
+    },
+    {
+      "latency": 11.93463420891203,
+      "calls": 3,
+      "in_tok": 2645,
+      "out_tok": 931,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "knowledge",
+      "rep": 2
+    },
+    {
+      "latency": 19.393732083961368,
+      "calls": 3,
+      "in_tok": 3299,
+      "out_tok": 1738,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "diag_one",
+      "rep": 0
+    },
+    {
+      "latency": 21.421593291917816,
+      "calls": 4,
+      "in_tok": 5422,
+      "out_tok": 1895,
+      "steps": 3,
+      "config": "orchestrator_after",
+      "query": "diag_one",
+      "rep": 1
+    },
+    {
+      "latency": 17.657179542118683,
+      "calls": 3,
+      "in_tok": 3723,
+      "out_tok": 1755,
+      "steps": 2,
+      "config": "orchestrator_after",
+      "query": "diag_one",
+      "rep": 2
+    }
+  ],
+  "summary": [
+    {
+      "config": "supervisor_before",
+      "n": 9,
+      "mean_s": 56.36,
+      "p50_s": 62.4,
+      "mean_calls": 9.3,
+      "mean_in_tok": 19612,
+      "mean_out_tok": 4333,
+      "mean_cost_usd": 0.01357
+    },
+    {
+      "config": "orchestrator_after",
+      "n": 9,
+      "mean_s": 15.41,
+      "p50_s": 13.88,
+      "mean_calls": 3.1,
+      "mean_in_tok": 3305,
+      "mean_out_tok": 1313,
+      "mean_cost_usd": 0.00345
+    },
+    {
+      "config": "_delta",
+      "latency_reduction_pct": 72.7,
+      "calls_reduction_pct": 66.7,
+      "in_tok_reduction_pct": 83.1,
+      "cost_reduction_pct": 74.6
+    }
+  ]
+}
