@@ -53,14 +53,9 @@ async def build_agent_graph(
     fast_router_enabled: bool | None = None,
     orchestrator_enabled: bool | None = None,
 ):
-    # 인자 주입은 테스트용, 미지정 시 설정 기반 LLM과 MCP 도구 사용
-    router_llm = router_llm or get_chat_model("router")
-    worker_llm = worker_llm or get_chat_model("worker")
+    # 인자 주입은 테스트용, 미지정 시 설정 기반 LLM 사용
+    # LLM은 실제 쓰는 경로에서만 지연 생성, 미사용 역할의 불필요한 클라이언트 생성·키 요구 방지
     finalizer_llm = finalizer_llm or get_chat_model("finalizer")
-    # Planner는 도구 인자 구성 품질이 필요해 worker 모델 재사용
-    planner_llm = planner_llm or get_chat_model("worker")
-    # 후속 추천은 경량 판단이라 router 모델 재사용
-    suggest_llm = suggest_llm or get_chat_model("router")
     if tools_by_server is None:
         tools_by_server = await load_tools_by_server()
     if grounding_enabled is None:
@@ -77,6 +72,7 @@ async def build_agent_graph(
 
     # 진단 경로: 오케스트레이터(단일 ReAct + 병렬 Fetch) 또는 Supervisor+워커 (#139)
     if orchestrator_enabled:
+        planner_llm = planner_llm or get_chat_model("worker")
         all_tools = [t for tools in tools_by_server.values() for t in tools]
         rounds_max = get_settings().agent_fetch_rounds_max
         graph.add_node(PLANNER, make_planner_node(planner_llm, all_tools, rounds_max))
@@ -88,6 +84,8 @@ async def build_agent_graph(
         graph.add_edge(FETCH, PLANNER)
         diagnostic_entry = PLANNER
     else:
+        router_llm = router_llm or get_chat_model("router")
+        worker_llm = worker_llm or get_chat_model("worker")
         graph.add_node("supervisor", make_supervisor_node(router_llm))
         # 레지스트리의 워커마다 ReAct 노드쌍(agent·tool) 생성·배선
         for name, spec in WORKERS.items():
@@ -116,6 +114,8 @@ async def build_agent_graph(
         graph.add_edge(last, GROUNDING)
         last = GROUNDING
     if suggestions_enabled:
+        # 후속 추천은 경량 판단이라 router 모델 재사용
+        suggest_llm = suggest_llm or get_chat_model("router")
         graph.add_node(SUGGEST, make_suggest_node(suggest_llm))
         graph.add_edge(last, SUGGEST)
         last = SUGGEST
