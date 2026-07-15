@@ -45,7 +45,7 @@ async def _seed3(session):
             equipment_id=EQP,
             alarm_code="ERR-000",
             message="테스트 알림",
-            bucket_hour=Y2000.replace(hour=hour),
+            bucket_start=Y2000.replace(hour=hour),
         )
         session.add(n)
         rows.append(n)

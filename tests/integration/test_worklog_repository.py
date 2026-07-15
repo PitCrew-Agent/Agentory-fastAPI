@@ -102,7 +102,7 @@ async def test_notification_link_allows_multiple_active_logs(session):
         equipment_id=equipment_id,
         alarm_code="ERR-402",
         message="냉각 계통 이상",
-        bucket_hour=S.replace(minute=0),
+        bucket_start=S.replace(minute=0),
     )
     session.add(notification)
     await session.flush()
