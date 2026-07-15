@@ -39,7 +39,7 @@ thought → action → observation → (반복) → answer(delta 스트림) → 
 
 ```
 event: action
-data: {"type":"action","step":1,"agent":"data_analysis","tool":"get_sensor_logs","tool_input":{"line_name":"B-Line"},"reason":"이상 설비 특정을 위해 최근 센서 로그 필요"}
+data: {"type":"action","step":1,"agent":"data_analysis","tool":"get_sensor_logs","tool_input":{"line_name":"B라인"},"reason":"이상 설비 특정을 위해 최근 센서 로그 필요"}
 
 event: done
 data: {"type":"done","citations":[{"doc_id":"MAN-ETC-042","data_as_of":"2026-07-02T10:00:00+09:00"}],"grounded":true,"suggested_questions":["ERR-402 원인이 뭐야?","EQP-002 조치 방법 알려줘","유사 사례가 있었어?"]}

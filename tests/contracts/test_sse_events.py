@@ -15,7 +15,7 @@ VALID_PAYLOADS = [
         "step": 1,
         "agent": "data_analysis",
         "tool": "get_sensor_logs",
-        "tool_input": {"line_name": "B-Line"},
+        "tool_input": {"line_name": "B라인"},
         "reason": "이상 설비 특정을 위해 최근 센서 로그 필요",
     },
     {

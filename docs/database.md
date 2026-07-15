@@ -85,7 +85,7 @@ erDiagram
 | 컬럼 | 타입 | 제약 | 설명 |
 | --- | --- | --- | --- |
 | equipment_id | varchar(50) | PK | 설비 고유 ID (예: EQP-003) |
-| line_name | varchar(50) | NN | 라인명 (예: B-Line) |
+| line_name | varchar(50) | NN | 라인명 (예: B라인) |
 | process_type | varchar(50) | NN | 공정 단계 (예: Etching) |
 | location | varchar(50) |  | 설치 위치 |
 | manager_dept | varchar(50) |  | 담당 부서 |

@@ -27,13 +27,13 @@ def test_supervisor_update_maps_to_thought():
 def test_worker_tool_calls_map_to_action():
     msg = AIMessage(
         content="",
-        tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"}],
+        tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B라인"}, "id": "c1"}],
     )
     events = map_updates_chunk({"data_analysis": {"messages": [msg]}}, step=2)
     assert len(events) == 1
     assert events[0].type == "action"
     assert events[0].tool == "get_sensor_logs"
-    assert events[0].tool_input == {"line_name": "B-Line"}
+    assert events[0].tool_input == {"line_name": "B라인"}
 
 
 def test_tool_node_maps_to_observation():
@@ -50,7 +50,7 @@ def test_planner_maps_to_thought_and_action():
 
     msg = AIMessage(
         content="B라인 센서부터 확인",
-        tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B-Line"}, "id": "c1"}],
+        tool_calls=[{"name": "get_sensor_logs", "args": {"line_name": "B라인"}, "id": "c1"}],
     )
     tmap = {"get_sensor_logs": AgentName.DATA_ANALYSIS}
     events = map_updates_chunk({"planner": {"messages": [msg]}}, step=1, tool_agent_map=tmap)
