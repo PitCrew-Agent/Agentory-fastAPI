@@ -31,8 +31,3 @@ htmlcov/
 
 # 로그
 *.log
-
-# 매뉴얼 원본·실 매니페스트 (커밋 금지, 설명·예시만 유지)
-data/manuals/*
-!data/manuals/README.md
-!data/manuals/manifest.example.json

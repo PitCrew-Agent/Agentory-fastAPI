@@ -1,0 +1,20 @@
+[
+  {
+    "file": "MPS8600_Maintenance_Manual_Rev2_1_KO.pdf",
+    "doc_id": "MAN-TM-8600",
+    "equipment_type": "Etching",
+    "alarm_code": null
+  },
+  {
+    "file": "Equipment_Condition_Guideline_v1_0_KO.pdf",
+    "doc_id": "MAN-GDL-001",
+    "equipment_type": "Etching",
+    "alarm_code": null
+  },
+  {
+    "file": "Etching_Equipment_SOP_v2_0_KO.pdf",
+    "doc_id": "MAN-SOP-001",
+    "equipment_type": "Etching",
+    "alarm_code": null
+  }
+]
