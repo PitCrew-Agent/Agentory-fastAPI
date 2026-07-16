@@ -1,0 +1,11 @@
+# EXP-002 PCA MSPC (T²+SPE) 기본 설정
+# window 60 tick = 5분, stride 12 tick = 1분 (오버랩드 윈도우)
+# n_components는 유지 분산 비율, threshold_quantile은 학습 점수 기반 한계 분위수
+# 윈도우·피처·분위수 ablation은 EXP-003에서 수행
+name: EXP-002
+method: pca_mspc
+eval_set: data/eval/v1
+window: 60
+stride: 12
+n_components: 0.9
+threshold_quantile: 0.997

@@ -14,11 +14,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import mlflow
+import numpy as np
 import yaml
 
-from anomaly.eval_set import load_eval_frame, load_events, load_manifest
-from anomaly.evaluation import auc_pr, summarize
+from anomaly.eval_set import load_eval_frame, load_events, load_manifest, load_train_frame
+from anomaly.evaluation import auc_pr, point_labels, summarize
+from anomaly.models.pca_mspc import PcaMspc
 from anomaly.rule_baseline import equipment_n_ticks, rule_detections, rule_point_scores
+from anomaly.windowing import sliding_windows, window_starts
+from simulator.generator import VARS
 
 MLFLOW_EXPERIMENT = "anomaly-detection"
 RESULTS_DIR = Path("experiments/results")
@@ -47,9 +51,65 @@ def run_rule_baseline(config: dict) -> dict[str, float]:
     return metrics
 
 
+def run_pca_mspc(config: dict) -> dict[str, float]:
+    """EXP-002 PCA MSPC (T²+SPE) 채점
+
+    공정 유형별 모델 적합 (설비별 캘리브레이션은 EXP-003 이후), 판정 tick은 윈도우 끝
+    포인트 점수는 각 tick 시점까지 완료된 최신 윈도우 점수를 할당 (첫 윈도우 이전은 첫 점수)
+    """
+    root = Path(config["eval_set"])
+    train = load_train_frame(root)
+    frame = load_eval_frame(root)
+    events = load_events(root)
+    manifest_cfg = load_manifest(root)["config"]
+    tick_seconds = manifest_cfg["tick_seconds"]
+    window, stride = config["window"], config["stride"]
+
+    # 설비 → 공정 유형 매핑은 manifest의 config 스냅샷에서 복원 (평가 세트 재생성 불필요)
+    eval_types = {s["equipment_id"]: s["process_type"] for s in manifest_cfg["eval"]["segments"]}
+    train_types = {
+        e["equipment_id"]: e["process_type"] for e in manifest_cfg["train"]["equipments"]
+    }
+
+    models: dict[str, PcaMspc] = {}
+    for ptype in sorted(set(train_types.values())):
+        parts = [
+            sliding_windows(
+                train[train["equipment_id"] == eq].sort_values("tick")[list(VARS)].to_numpy(),
+                window,
+                stride,
+            )
+            for eq, t in train_types.items()
+            if t == ptype
+        ]
+        model = PcaMspc(config["n_components"], config["threshold_quantile"])
+        models[ptype] = model.fit(np.concatenate(parts))
+
+    detections: dict[str, np.ndarray] = {}
+    n_ticks: dict[str, int] = {}
+    scores_all: list[np.ndarray] = []
+    labels_all: list[np.ndarray] = []
+    for equipment_id, group in frame.groupby("equipment_id"):
+        ordered = group.sort_values("tick")
+        n = len(ordered)
+        n_ticks[str(equipment_id)] = n
+        windows = sliding_windows(ordered[list(VARS)].to_numpy(), window, stride)
+        ends = window_starts(n, window, stride) + window - 1
+        scores = models[eval_types[str(equipment_id)]].score(windows)
+        detections[str(equipment_id)] = ends[scores > 1.0]
+        latest = np.clip(np.searchsorted(ends, np.arange(n), side="right") - 1, 0, None)
+        scores_all.append(scores[latest])
+        labels_all.append(point_labels(str(equipment_id), n, events))
+
+    metrics = summarize(events, detections, n_ticks, tick_seconds)
+    metrics["auc_pr"] = auc_pr(np.concatenate(scores_all), np.concatenate(labels_all))
+    return metrics
+
+
 # method 키 → 채점 함수, 실험 추가 시 여기 등록
 METHODS = {
     "rule_baseline": run_rule_baseline,
+    "pca_mspc": run_pca_mspc,
 }
 
 
