@@ -12,11 +12,11 @@ LangGraph로 직접 구성합니다.
 
 | 경로 | 구조 | 플래그 |
 | --- | --- | --- |
-| 하이브리드 오케스트레이터 (신규) | 단일 ReAct 에이전트(Planner) + 병렬 Fetch | `agent_orchestrator_enabled=true` |
-| 레거시 동적 라우팅 | Supervisor + 워커별 ReAct 서브그래프 | `agent_orchestrator_enabled=false` (현재 기본값) |
+| 하이브리드 오케스트레이터 (신규) | 단일 ReAct 에이전트(Planner) + 병렬 Fetch | `agent_orchestrator_enabled=true` (현재 기본값) |
+| 레거시 동적 라우팅 | Supervisor + 워커별 ReAct 서브그래프 | `agent_orchestrator_enabled=false` |
 
-플래그 기본값이 `false`라 운영 기본 경로는 아직 레거시이며, 시나리오 3.2 골든 검증과 RAG
-정상화 확인 후 기본값을 전환할 예정입니다. Fast Router와 Finalizer 계열 종료 노드는 두 경로가
+플래그 기본값이 `true`라 운영 기본 경로는 하이브리드 오케스트레이터이며, 레거시 경로는 되돌림
+지점과 A/B 비교를 위해 남겨 둡니다. Fast Router와 Finalizer 계열 종료 노드는 두 경로가
 공유합니다.
 
 ## 에이전트 사용 지점
@@ -203,7 +203,7 @@ knowledge·maintenance)을 유지하므로, 프론트가 보는 계약은 레거
 | 키 | 기본값 | 용도 |
 | --- | --- | --- |
 | `agent_fast_router_enabled` | true | 잡담·범위 밖 질의 Direct Answer 바이패스 |
-| `agent_orchestrator_enabled` | false | 진단 경로를 오케스트레이터로 전환 |
+| `agent_orchestrator_enabled` | true | 진단 경로를 오케스트레이터로 전환 |
 | `agent_fetch_rounds_max` | 3 | Planner 재판단(ReAct) 라운드 예산 |
 | `agent_max_steps` | 6 | 레거시 Supervisor 위임 예산 |
 | `agent_grounding_enabled` | false | Grounding 자가 검증 on/off |
