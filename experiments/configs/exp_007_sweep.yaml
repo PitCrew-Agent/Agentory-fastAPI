@@ -1,0 +1,13 @@
+# EXP-007 윈도우 x stride 스윕 (raw PCAX 경로, v2)
+# 실시간성 지배 축 규명: 윈도우(30~240초)와 stride(5~60초)를 독립 스윕
+# raw 경로라 corr_break·inband은 미감지 (EWMA 경로는 exp_007_realtime에서 별도)
+# tick 5초 기준, window/stride는 tick 수 (6=30초, 48=240초)
+name: EXP-007-SWEEP
+method: window_stride_sweep
+eval_set: data/eval/v2
+windows: [6, 12, 24, 48]
+strides: [1, 3, 6, 12]
+n_components: 0.9
+threshold_quantile: 0.999
+cross_correlation: true
+max_delay_ticks: 60
