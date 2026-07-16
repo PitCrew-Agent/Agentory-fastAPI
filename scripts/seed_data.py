@@ -45,8 +45,8 @@ ETCH_SHAPE = "etch"
 
 # 라인 메타 (id, 표시명, 책임 부서, 책임자)
 LINES = [
-    ("A", "A라인", "Main-Tech 1", "김억산"),
-    ("B", "B라인", "Main-Tech 2", "정하린"),
+    ("A", "A라인", "Main-Tech 1", "최진욱"),
+    ("B", "B라인", "Main-Tech 2", "정유민"),
     ("C", "C라인", "Main-Tech 3", "이준호"),
 ]
 
