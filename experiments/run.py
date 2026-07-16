@@ -57,11 +57,12 @@ def run_rule_baseline(config: dict) -> dict[str, float]:
     return metrics
 
 
-def run_pca_mspc(config: dict) -> dict[str, float]:
-    """EXP-002 PCA MSPC (T²+SPE) 채점
+def _run_windowed(config: dict, make_model) -> dict[str, float]:
+    """윈도우 기반 detector 공용 채점 루프
 
-    공정 유형별 모델 적합 (설비별 캘리브레이션은 EXP-003 이후), 판정 tick은 윈도우 끝
-    포인트 점수는 각 tick 시점까지 완료된 최신 윈도우 점수를 할당 (첫 윈도우 이전은 첫 점수)
+    make_model()이 AnomalyDetector를 반환, 공정 유형별로 정상 학습 세트에 적합
+    판정 tick은 윈도우 끝, 포인트 점수는 각 tick까지 완료된 최신 윈도우 점수 할당
+    (첫 윈도우 이전 구간은 첫 점수)
     """
     root = Path(config["eval_set"])
     train = load_train_frame(root)
@@ -77,7 +78,7 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
         e["equipment_id"]: e["process_type"] for e in manifest_cfg["train"]["equipments"]
     }
 
-    models: dict[str, PcaMspc] = {}
+    models: dict[str, object] = {}
     for ptype in sorted(set(train_types.values())):
         parts = [
             sliding_windows(
@@ -88,12 +89,7 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
             for eq, t in train_types.items()
             if t == ptype
         ]
-        model = PcaMspc(
-            config["n_components"],
-            config["threshold_quantile"],
-            config.get("cross_correlation", False),
-        )
-        models[ptype] = model.fit(np.concatenate(parts))
+        models[ptype] = make_model().fit(np.concatenate(parts))
 
     detections: dict[str, np.ndarray] = {}
     n_ticks: dict[str, int] = {}
@@ -114,6 +110,38 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
     metrics = summarize(events, detections, n_ticks, tick_seconds, config.get("max_delay_ticks"))
     metrics["auc_pr"] = auc_pr(np.concatenate(scores_all), np.concatenate(labels_all))
     return metrics
+
+
+def run_pca_mspc(config: dict) -> dict[str, float]:
+    """EXP-002~004 PCA MSPC (T²+SPE) 채점"""
+    return _run_windowed(
+        config,
+        lambda: PcaMspc(
+            config["n_components"],
+            config["threshold_quantile"],
+            config.get("cross_correlation", False),
+        ),
+    )
+
+
+def run_ts2vec_knn(config: dict) -> dict[str, float]:
+    """EXP-005 TS2Vec encoder + 거리 판정 채점 (baseline: knn | cosine)"""
+    from anomaly.models.ts2vec import Ts2VecKnn  # torch 의존, 사용 시점 지연 import
+
+    return _run_windowed(
+        config,
+        lambda: Ts2VecKnn(
+            repr_dims=config["repr_dims"],
+            depth=config["depth"],
+            iters=config["iters"],
+            batch_size=config["batch_size"],
+            lr=config["lr"],
+            k_neighbors=config["k_neighbors"],
+            quantile=config["threshold_quantile"],
+            baseline=config.get("baseline", "knn"),
+            seed=config["seed"],
+        ),
+    )
 
 
 def run_pca_mspc_ablation(config: dict) -> dict:
@@ -160,6 +188,7 @@ METHODS = {
     "rule_baseline": run_rule_baseline,
     "pca_mspc": run_pca_mspc,
     "pca_mspc_ablation": run_pca_mspc_ablation,
+    "ts2vec_knn": run_ts2vec_knn,
 }
 
 

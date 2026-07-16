@@ -1,0 +1,18 @@
+# EXP-005 TS2Vec + kNN 거리 (v1 후보)
+# windowing은 EXP-003 확정값 공유 (w24 s12), encoder·거리만 교체 (D8 seam 검증)
+# 판정 기준: corr_break를 유예 60 tick 안에 감지하는지 (EXP-004 결론)
+name: EXP-005
+method: ts2vec_knn
+eval_set: data/eval/v2
+window: 24
+stride: 12
+repr_dims: 64
+depth: 6
+iters: 600
+batch_size: 32
+lr: 0.001
+k_neighbors: 5
+threshold_quantile: 0.999
+baseline: knn
+seed: 20260716
+max_delay_ticks: 60
