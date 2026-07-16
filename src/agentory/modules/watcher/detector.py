@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from anomaly.models.pca_mspc import PcaMspc
-from anomaly.scoring import ewma, sustained
+from anomaly.scoring import ewma_masked, sustained, transition_mask
 from anomaly.windowing import sliding_windows
 
 # 센서 채널 순서, telemetry 모델 컬럼·학습 피처 순서와 일치 유지
@@ -32,6 +32,8 @@ class LoadedModel:
     ewma_alpha: float
     ewma_clip: float
     ewma_limit: float  # EWMA 재캘리브레이션 한계 (fit 시 산출)
+    transition_threshold: float  # 전이 억제 raw 임계 (EXP-008), 0이면 억제 없음
+    transition_settle: int  # 전이 후 정착 억제 윈도우 수
 
 
 @dataclass(frozen=True)
@@ -69,9 +71,11 @@ class AnomalyScorer:
             return None
 
         raw = loaded.model.score(windows)
-        accumulated = ewma(np.minimum(raw, loaded.ewma_clip), loaded.ewma_alpha)
+        # 급격한 레짐 변화(모드 전이) 구간을 EWMA·발령에서 제외 (EXP-008)
+        mask = transition_mask(raw, loaded.transition_threshold, loaded.transition_settle)
+        accumulated = ewma_masked(np.minimum(raw, loaded.ewma_clip), loaded.ewma_alpha, mask)
         normalized = accumulated / loaded.ewma_limit
-        fired_series = sustained(normalized > 1.0, loaded.confirm_k)
+        fired_series = sustained(normalized > 1.0, loaded.confirm_k) & ~mask
 
         latest_fired = bool(fired_series[-1])
         channel: str | None = None

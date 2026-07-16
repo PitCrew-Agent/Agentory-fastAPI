@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     anomaly_ewma_alpha: float = 0.1  # EWMA 누적 계수 (상관 붕괴 감지)
     anomaly_ewma_clip: float = 3.0  # EWMA 전 원점수 상한 (모드 전이 꼬리 억제)
     anomaly_lookback_rows: int = 300  # 설비별 조회 행수, EWMA 웜업 포함
+    # 전이/정착 억제 (EXP-008), 점화·램프업 모드 전이 오탐 제거
+    anomaly_transition_threshold: float = 1000.0  # raw 급등 억제 임계, 0이면 억제 없음
+    anomaly_transition_settle: int = 10  # 전이 후 정착 억제 윈도우 수
 
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"
