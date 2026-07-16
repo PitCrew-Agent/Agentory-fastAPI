@@ -120,9 +120,14 @@ def summarize(
         "detection_delay_mean_ticks": float(np.mean(delays)) if delays else float("nan"),
         "detection_delay_p90_ticks": float(np.percentile(delays, 90)) if delays else float("nan"),
     }
-    # 유형별 recall 분해, 집계 recall이 이상 유형 구성에 가려지는 것 방지 (EXP-004 교훈)
+    # 유형별 recall·지연 분해, 집계값이 이상 유형 구성에 가려지는 것 방지 (EXP-004·007 교훈)
     for kind in sorted({e.kind for e in events}):
         subset = [e for e in events if e.kind == kind]
-        kind_recall, _delays, _missed = event_recall_and_delays(subset, detections, max_delay_ticks)
+        kind_recall, kind_delays, _missed = event_recall_and_delays(
+            subset, detections, max_delay_ticks
+        )
         metrics[f"recall_{kind}"] = kind_recall
+        metrics[f"delay_mean_{kind}_ticks"] = (
+            float(np.mean(kind_delays)) if kind_delays else float("nan")
+        )
     return metrics

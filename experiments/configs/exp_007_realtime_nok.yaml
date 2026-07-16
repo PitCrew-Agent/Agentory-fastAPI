@@ -1,0 +1,16 @@
+# EXP-007 실시간 지향 config: 윈도우 60초 / stride 30초 + 지속 K=2 확인
+# 스윕 결론(반응은 stride가 지배) 반영해 stride를 60초→30초로 단축
+# EWMA 경로 유지(corr_break), confirm_k로 stride 단축에 따른 오탐 증가 억제
+# 유예 180: corr_break류 완만 이상 포함 (급성 비교는 유예와 무관하게 지연 지표로 확인)
+name: EXP-007-RT-NOK
+method: pca_mspc
+eval_set: data/eval/v2
+window: 12
+stride: 6
+n_components: 0.9
+threshold_quantile: 0.999
+cross_correlation: true
+ewma_alpha: 0.1
+ewma_clip: 3.0
+confirm_k: 1
+max_delay_ticks: 180

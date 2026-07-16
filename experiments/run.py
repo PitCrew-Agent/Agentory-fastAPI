@@ -21,7 +21,7 @@ from anomaly.eval_set import load_eval_frame, load_events, load_manifest, load_t
 from anomaly.evaluation import auc_pr, point_labels, summarize
 from anomaly.models.pca_mspc import PcaMspc
 from anomaly.rule_baseline import equipment_n_ticks, rule_detections, rule_point_scores
-from anomaly.scoring import ewma
+from anomaly.scoring import ewma, sustained
 from anomaly.windowing import sliding_windows, window_starts
 from simulator.generator import VARS
 
@@ -83,6 +83,7 @@ def _run_windowed(config: dict, make_model) -> dict[str, float]:
     # EWMA 전 원 점수 상한 (winsorize), 급성·모드 전이의 거대 점수가 느린 감쇠로
     # 수백 tick 오탐 꼬리를 만드는 것을 차단 (지속 저강도 신호 누적에는 영향 없음)
     ewma_clip = config.get("ewma_clip")
+    confirm_k = config.get("confirm_k", 1)  # 연속 K윈도우 초과 확인 규칙 (EXP-007)
 
     # 설비 → 공정 유형 매핑은 manifest의 config 스냅샷에서 복원 (평가 세트 재생성 불필요)
     eval_types = {s["equipment_id"]: s["process_type"] for s in manifest_cfg["eval"]["segments"]}
@@ -124,7 +125,8 @@ def _run_windowed(config: dict, make_model) -> dict[str, float]:
         scores = models[ptype].score(windows)
         if ewma_alpha:
             scores = ewma(_clip(scores, ewma_clip), ewma_alpha) / ewma_limits[ptype]
-        detections[str(equipment_id)] = ends[scores > 1.0]
+        fired = sustained(scores > 1.0, confirm_k)
+        detections[str(equipment_id)] = ends[fired]
         latest = np.clip(np.searchsorted(ends, np.arange(n), side="right") - 1, 0, None)
         scores_all.append(scores[latest])
         labels_all.append(point_labels(str(equipment_id), n, events))
@@ -205,11 +207,43 @@ def run_pca_mspc_ablation(config: dict) -> dict:
     return {"grid": grid, "best": best["params"], "best_metrics": best["metrics"]}
 
 
+def run_window_stride_sweep(config: dict) -> dict:
+    """EXP-007 윈도우 x stride 스윕 (raw PCAX), 실시간성 지배 축 규명
+
+    stride > window(데이터 skip) 조합은 제외, 유형별 지연 포함 전 조합 채점
+    선정 기준: 급성 지연 최소 → 오탐 최소 (실시간 목표), ablation의 오탐 우선과 대비
+    """
+    grid: list[dict] = []
+    for window in config["windows"]:
+        for stride in config["strides"]:
+            if stride > window:
+                continue
+            params = {"window": window, "stride": stride}
+            metrics = run_pca_mspc({**config, **params})
+            grid.append({"params": params, "metrics": metrics})
+            print(
+                f"  w={window * 5:3d}s s={stride * 5:3d}s → "
+                f"급성 {metrics['delay_mean_acute_ticks'] * 5:5.0f}s "
+                f"진동 {metrics.get('delay_mean_oscillation_ticks', float('nan')) * 5:6.0f}s "
+                f"FA/일 {metrics['false_alarms_per_equipment_day']:6.1f}"
+            )
+
+    best = min(
+        grid,
+        key=lambda g: (
+            g["metrics"]["delay_mean_acute_ticks"],
+            g["metrics"]["false_alarms_per_equipment_day"],
+        ),
+    )
+    return {"grid": grid, "best": best["params"], "best_metrics": best["metrics"]}
+
+
 # method 키 → 채점 함수, 실험 추가 시 여기 등록
 METHODS = {
     "rule_baseline": run_rule_baseline,
     "pca_mspc": run_pca_mspc,
     "pca_mspc_ablation": run_pca_mspc_ablation,
+    "window_stride_sweep": run_window_stride_sweep,
     "ts2vec_knn": run_ts2vec_knn,
 }
 

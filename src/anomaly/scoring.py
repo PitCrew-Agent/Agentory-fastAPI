@@ -11,6 +11,28 @@
 import numpy as np
 
 
+def sustained(over_threshold: np.ndarray, k: int) -> np.ndarray:
+    """연속 K윈도우 초과 확인 규칙
+
+    over_threshold는 윈도우별 임계 초과 여부(bool), k는 발령에 필요한 연속 초과 수
+    반환: 각 윈도우에서 직전 k개(자신 포함)가 모두 초과면 True (발령 인정)
+    고립된 단발 이탈을 억제, 지연은 (k-1) 스트라이드만큼 증가
+    k <= 1이면 원본 그대로 반환
+    """
+    if k <= 1:
+        return over_threshold.astype(bool)
+    if over_threshold.size == 0:
+        return over_threshold.astype(bool)
+    # 연속 True 런 길이 누적, False에서 0으로 리셋
+    flags = over_threshold.astype(bool)
+    run = np.zeros(flags.shape, dtype=int)
+    count = 0
+    for i, flag in enumerate(flags):
+        count = count + 1 if flag else 0
+        run[i] = count
+    return run >= k
+
+
 def ewma(scores: np.ndarray, alpha: float) -> np.ndarray:
     """지수 가중 이동 평균, 첫 값으로 초기화
 
