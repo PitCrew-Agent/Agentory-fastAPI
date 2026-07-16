@@ -1,6 +1,6 @@
 """알림 조회·동기화 레포지토리 (NEW_PROACT01_ALERT01)
 
-변수별 알람 저널(EquipmentAlarm)을 notifications로 멱등 동기화(sync-on-read), 읽음 상태 갱신
+변수별 알람 저널(EquipmentAlarm)을 notifications로 멱등 동기화(백그라운드 워처 호출), 읽음 상태 갱신
 동일 설비+변수+알람은 30분 버킷당 첫 알람 1건만 적재해 중복 억제 (NEW_PROACT01_ALERT03)
 """
 
@@ -42,8 +42,9 @@ def _to_dict(row: Notification) -> dict[str, Any]:
     }
 
 
-async def sync_from_alarms(session: AsyncSession) -> int:
+async def sync_from_alarms(session: AsyncSession, since: datetime | None = None) -> int:
     # 설비+변수+알람+30분버킷별 첫 알람만 알림화, 버킷당 1건 유니크로 멱등, 신규 적재 건수 반환
+    # since 지정 시 최근 창만 집계해 풀스캔 방지, 과거 버킷은 멱등 적재됨 (NEW_PROACT01_DETECT01)
     bucket = func.date_bin(_BUCKET_WIDTH, EquipmentAlarm.raised_at, _BUCKET_ORIGIN)
     grouped = select(
         EquipmentAlarm.equipment_id.label("equipment_id"),
@@ -52,7 +53,10 @@ async def sync_from_alarms(session: AsyncSession) -> int:
         bucket.label("bucket_start"),
         func.min(EquipmentAlarm.raised_at).label("occurred_at"),
         func.min(EquipmentAlarm.alarm_id).label("source_alarm_id"),
-    ).group_by(
+    )
+    if since is not None:
+        grouped = grouped.where(EquipmentAlarm.raised_at >= since)
+    grouped = grouped.group_by(
         EquipmentAlarm.equipment_id,
         EquipmentAlarm.metric,
         EquipmentAlarm.alarm_code,
