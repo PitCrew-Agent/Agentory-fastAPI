@@ -32,5 +32,6 @@ htmlcov/
 # 로그
 *.log
 
-# 실험 기록 (MLflow 로컬 스토어)
+# 실험 기록 (MLflow 로컬 스토어, 확정 지표는 experiments/results/*.json으로 커밋)
 mlruns/
+mlflow.db
