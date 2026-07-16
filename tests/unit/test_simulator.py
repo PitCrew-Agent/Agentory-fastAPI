@@ -22,10 +22,9 @@ def _rng() -> random.Random:
 
 
 def _run_scenario(name: str, *, seed: int = 7, start: int = 3, ticks: int = 40) -> set[str]:
-    # main과 동일하게 최근값 창(history) + 연속 2 tick 지속 게이트를 적용해 확정 대표 알람 집합 반환
+    # main과 동일하게 최근값 창(history) 유지, 첫 tick 밴드 이탈을 즉시 발령해 대표 알람 수집
     rng = random.Random(seed)
     scenario = SCENARIOS[name]
-    prev = None
     window: deque = deque(maxlen=8)
     confirmed: set[str] = set()
     for tick in range(ticks):
@@ -39,9 +38,8 @@ def _run_scenario(name: str, *, seed: int = 7, start: int = 3, ticks: int = 40) 
             rng=rng,
         )
         window.append(reading)
-        if reading.alarm_code and reading.alarm_code == prev:
+        if reading.alarm_code:
             confirmed.add(reading.alarm_code)
-        prev = reading.alarm_code
     return confirmed
 
 
