@@ -57,13 +57,14 @@ GET /api/v1/notifications/stream?after_id=<마지막으로 받은 알림 id>    
 
 | type | 페이로드 | 용도 |
 | --- | --- | --- |
-| `notification` | `{id, occurred_at, equipment_id, metric, alarm_code, message, is_read}` | 신규 알림 1건 (NEW_PROACT01_ALERT01) |
+| `notification` | `{id, occurred_at, equipment_id, metric, alarm_code, severity, message, is_read}` | 신규 알림 1건 (NEW_PROACT01_ALERT01) |
 
 - `occurred_at`: 알림 발생 시각 (ISO 8601)
 - `id`: 알림 식별자, 다음 재연결 시 `after_id`로 사용
 - `metric`: 알람이 발생한 센서 변수 키(예: `temperature`), 변수 특정 불가 시 `null`
+- `severity`: 알람 심각도 `주의`·`위험`, `alarm_code` 접두(`ERR`=위험·그 외=주의) 기준 서버 판정값입니다. 프론트는 코드로 재추론하지 말고 이 값을 그대로 사용합니다
 
 ```
 event: notification
-data: {"type":"notification","id":42,"occurred_at":"2026-07-06T10:02:00+09:00","equipment_id":"EQP-003","metric":"temperature","alarm_code":"ERR-402","message":"EQP-003 냉각 이상 (온도 상승·압력 하강)","is_read":false}
+data: {"type":"notification","id":42,"occurred_at":"2026-07-06T10:02:00+09:00","equipment_id":"EQP-003","metric":"temperature","alarm_code":"ERR-402","severity":"위험","message":"EQP-003 냉각 이상 (온도 상승·압력 하강)","is_read":false}
 ```

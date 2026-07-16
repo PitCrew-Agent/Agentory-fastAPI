@@ -14,10 +14,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentory.modules.notification.messages import build_notification_message
 from agentory.modules.notification.models import Notification
 from agentory.modules.telemetry.models import EquipmentAlarm
+from agentory.modules.telemetry.schemas import StatusLevel
 
 # 30분 버킷 경계 기준점(00분·30분 정렬용), date_bin origin으로 사용
 _BUCKET_ORIGIN = text("timestamptz '2000-01-01 00:00:00+00'")
 _BUCKET_WIDTH = text("interval '30 minutes'")
+
+
+def _severity(alarm_code: str) -> StatusLevel:
+    # 알람 코드 접두로 심각도 판정 (telemetry.assess_status와 동일 규칙), ERR=위험·그 외=주의
+    # 프론트가 코드로 재추론하지 않도록 서버가 명시적으로 딱지 부여
+    return StatusLevel.CRITICAL if alarm_code.startswith("ERR") else StatusLevel.WARNING
 
 
 def _to_dict(row: Notification) -> dict[str, Any]:
@@ -29,6 +36,7 @@ def _to_dict(row: Notification) -> dict[str, Any]:
         "equipment_id": row.equipment_id,
         "metric": row.metric,
         "alarm_code": row.alarm_code,
+        "severity": _severity(row.alarm_code),
         "message": build_notification_message(row.equipment_id, row.alarm_code),
         "is_read": row.is_read,
     }

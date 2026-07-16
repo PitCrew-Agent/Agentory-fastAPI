@@ -105,6 +105,7 @@ async def stream(
                     equipment_id=row["equipment_id"],
                     metric=row["metric"],
                     alarm_code=row["alarm_code"],
+                    severity=row["severity"],
                     message=row["message"],
                     is_read=row["is_read"],
                 )

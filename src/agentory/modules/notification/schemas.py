@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from agentory.modules.telemetry.schemas import StatusLevel
+
 
 class NotificationItem(BaseModel):
     # 알림 목록 항목 (알림 이력 페이지·상단 벨)
@@ -18,6 +20,9 @@ class NotificationItem(BaseModel):
         examples=["temperature"],
     )
     alarm_code: str = Field(description="알람 코드", examples=["ERR-402"])
+    severity: StatusLevel = Field(
+        description="알람 심각도 (주의·위험), alarm_code 접두 기준 판정", examples=["위험"]
+    )
     message: str = Field(description="사용자 표시 알림 메시지", examples=["EQP-A01 압력 상한 초과"])
     is_read: bool = Field(description="읽음 여부", examples=[False])
 
