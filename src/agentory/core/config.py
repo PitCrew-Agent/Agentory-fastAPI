@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     # Finalizer 직행시켜 Supervisor 라우팅 LLM 호출·지연 제거, off면 항상 Supervisor 경유
     agent_fast_router_enabled: bool = True
     # 하이브리드 오케스트레이터 on/off (#139), on이면 Supervisor+워커 대신 단일 ReAct
-    # 에이전트(Planner)+병렬 Fetch 경로 사용, 기본 off로 기존 경로 유지하며 점진 전환·벤치 비교
-    agent_orchestrator_enabled: bool = False
+    # 에이전트(Planner)+병렬 Fetch 경로 사용, 골든 검증 완료로 기본 on 전환, 되돌림 시 off
+    agent_orchestrator_enabled: bool = True
     # Planner 재판단(ReAct) 라운드 예산 (#139), Thought→Action→Observation 반복 상한
     # 시나리오 3.2는 2라운드(realtime→관찰→knowledge)면 충분, 여유로 3 기본
     agent_fetch_rounds_max: int = 3

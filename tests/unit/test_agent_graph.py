@@ -85,6 +85,8 @@ async def _build(router_script, worker_script):
             "maintenance": [get_repair_history],
         },
         suggestions_enabled=False,
+        # 레거시 Supervisor 경로 검증용이므로 기본값 전환(#139)과 무관하게 명시적 off 고정
+        orchestrator_enabled=False,
     )
 
 
