@@ -13,7 +13,7 @@ from docx import Document
 from agentory.modules.rag.ingest import (
     SUPPORTED_SUFFIXES,
     build_chunks,
-    chunk_text,
+    chunk_document,
     normalize,
     parse,
     parse_and_normalize,
@@ -128,42 +128,53 @@ def test_supported_suffixes_are_expected_formats():
 # --- 청킹 (AI_RAG01_CHUNK01) ---
 
 
-def test_chunk_text_shorter_than_size_returns_single_chunk():
-    assert chunk_text("abc", chunk_size=10, overlap=2) == ["abc"]
+def test_chunk_document_md_via_docling_returns_nonempty_chunks(tmp_path):
+    # md는 Docling 변환 후 HybridChunker로 헤딩·표 구조 인식 분할
+    path = tmp_path / "manual.md"
+    md = (
+        "# 에칭 설비"
+        + NL * 2
+        + "## ERR-402 냉각 이상"
+        + NL * 2
+        + "냉각수 유량 점검 후 밸브 교체"
+        + NL
+    )
+    path.write_text(md, encoding="utf-8")
+    chunks = chunk_document(path)
+    assert chunks
+    assert all(isinstance(piece, str) and piece for piece in chunks)
+    assert "냉각수 유량 점검 후 밸브 교체" in " ".join(chunks)
 
 
-def test_chunk_text_empty_returns_empty_list():
-    assert chunk_text("", chunk_size=10, overlap=2) == []
+def test_chunk_document_txt_token_splits(tmp_path):
+    # txt는 Docling 미지원이라 토큰 창 분할, 작은 max_tokens로 다중 청크 확인
+    path = tmp_path / "manual.txt"
+    path.write_text("가나다 " * 200, encoding="utf-8")
+    chunks = chunk_document(path, max_tokens=16)
+    assert len(chunks) > 1
+    assert all(piece for piece in chunks)
 
 
-def test_chunk_text_splits_with_expected_windows():
-    assert chunk_text("abcdefghij", chunk_size=4, overlap=1) == ["abcd", "defg", "ghij"]
-
-
-def test_chunk_text_consecutive_chunks_share_overlap():
-    chunks = chunk_text("abcdefghij", chunk_size=4, overlap=1)
-    for earlier, later in zip(chunks, chunks[1:], strict=False):
-        assert earlier[-1:] == later[:1]
-
-
-def test_chunk_text_rejects_overlap_ge_size():
+def test_chunk_document_rejects_unsupported_suffix(tmp_path):
+    path = tmp_path / "manual.doc"
+    path.write_text("x", encoding="utf-8")
     with pytest.raises(ValueError):
-        chunk_text("abc", chunk_size=4, overlap=4)
+        chunk_document(path)
 
 
-def test_chunk_text_rejects_nonpositive_size():
+def test_chunk_document_rejects_nonpositive_max_tokens(tmp_path):
+    path = tmp_path / "manual.txt"
+    path.write_text("본문", encoding="utf-8")
     with pytest.raises(ValueError):
-        chunk_text("abc", chunk_size=0, overlap=0)
+        chunk_document(path, max_tokens=0)
 
 
 def test_build_chunks_assigns_sequential_index_and_metadata():
     chunks = build_chunks(
-        "abcdefghij",
+        ["첫 청크", "둘째 청크", "셋째 청크"],
         doc_id="MAN-TST-001",
         equipment_type="Etching",
         alarm_code="ERR-402",
-        chunk_size=4,
-        overlap=1,
     )
     assert [c["chunk_index"] for c in chunks] == [0, 1, 2]
     assert all(c["doc_id"] == "MAN-TST-001" for c in chunks)
@@ -174,10 +185,10 @@ def test_build_chunks_assigns_sequential_index_and_metadata():
 
 
 def test_build_chunks_defaults_metadata_to_none():
-    chunks = build_chunks("abc", doc_id="MAN-TST-002")
+    chunks = build_chunks(["abc"], doc_id="MAN-TST-002")
     assert chunks[0]["equipment_type"] is None
     assert chunks[0]["alarm_code"] is None
 
 
-def test_build_chunks_empty_text_returns_empty_list():
-    assert build_chunks("", doc_id="MAN-TST-003") == []
+def test_build_chunks_empty_list_returns_empty_list():
+    assert build_chunks([], doc_id="MAN-TST-003") == []

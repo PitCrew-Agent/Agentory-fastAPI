@@ -2,8 +2,9 @@
 
 파싱 → 정규화 → 청킹 → 임베딩 → 적재
 실행은 scripts/ingest_manuals.py에서 이 파이프라인 호출
-PDF·DOCX는 Docling 변환으로 마크다운 추출, txt·md는 평문 디코드
-Docling 선정 근거: 표 구조 보존·러닝 헤더/푸터 자동 제외·알람코드 무손실 (P1/P2 비교 실측)
+PDF·DOCX·MD는 Docling 변환 후 구조 인식 HybridChunker로 분할, txt는 토큰 분할 폴백
+Docling 선정 근거: 표 구조 보존·러닝 헤더/푸터 자동 제외·알람코드 무손실 (2단계 평가 실측)
+청커 선정 근거: HybridChunker max_tokens=512, 2단계 검색 평가에서 ndcg@3·mrr 우위
 """
 
 import re
@@ -14,15 +15,17 @@ from typing import Any
 from agentory.modules.rag.embedding.base import Embedder
 from agentory.modules.rag.store.base import VectorStore
 
-# 문자 기반 청킹 기본값, 임베딩 토큰 한계 여유
-DEFAULT_CHUNK_SIZE = 800
-DEFAULT_CHUNK_OVERLAP = 100
+# Docling HybridChunker 토큰 상한, 2단계 검색 평가 선정값
+DEFAULT_MAX_TOKENS = 512
 
 # 지원 입력 형식, 그 외 확장자는 파라미터 오류
 SUPPORTED_SUFFIXES = frozenset({".pdf", ".docx", ".txt", ".md"})
 
-# Docling 변환 대상 형식 (레이아웃·표 인식 필요)
+# 파서(parse) 단계 Docling 대상, txt·md는 평문 디코드
 _DOCLING_SUFFIXES = frozenset({".pdf", ".docx"})
+
+# 청킹 단계 Docling 대상, md도 헤딩·표 구조 인식 위해 Docling 경유 (2단계 검증 레시피)
+_CHUNK_DOCLING_SUFFIXES = frozenset({".pdf", ".docx", ".md"})
 
 # 제로폭 문자·소프트하이픈 삭제 매핑 (soft hyphen, ZWSP, ZWNJ, ZWJ, BOM)
 _ZERO_WIDTH_DELETION = dict.fromkeys((0x00AD, 0x200B, 0x200C, 0x200D, 0xFEFF), None)
@@ -31,8 +34,10 @@ _CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 # 줄바꿈으로 끊긴 라틴 단어, 양쪽이 라틴 글자일 때만 연결
 _DEHYPHEN_RE = re.compile(r"([A-Za-z])-\n([A-Za-z])")
 
-# Docling 변환기 모듈 캐시, 임포트·모델 로드가 무거워 최초 사용 시 1회 생성
+# Docling 변환기·청커·tiktoken 인코딩 캐시, 임포트·모델 로드가 무거워 최초 사용 시 1회 생성
 _converter = None
+_encoding = None
+_chunkers: dict[int, Any] = {}
 
 
 def parse(path: Path) -> str:
@@ -70,10 +75,14 @@ def _get_converter():
     return _converter
 
 
+def _convert(path: Path):
+    """Docling 변환 후 DoclingDocument 반환, 표·헤딩 구조 보존"""
+    return _get_converter().convert(str(path)).document
+
+
 def _parse_docling(path: Path) -> str:
     """Docling 변환 후 마크다운 추출, 표 구조 보존·러닝 헤더/푸터 자동 제외"""
-    result = _get_converter().convert(str(path))
-    return result.document.export_to_markdown()
+    return _convert(path).export_to_markdown()
 
 
 def _parse_text(path: Path) -> str:
@@ -113,39 +122,65 @@ def _collapse_whitespace(text: str) -> str:
     return collapsed.strip()
 
 
-def chunk_text(
-    text: str,
-    *,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-    overlap: int = DEFAULT_CHUNK_OVERLAP,
-) -> list[str]:
-    """정규화 텍스트를 고정 문자 크기+overlap 청크로 분할, 순수 함수 (AI_RAG01_CHUNK01)"""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size는 양수여야 함")
-    if not 0 <= overlap < chunk_size:
-        raise ValueError("overlap은 0 이상 chunk_size 미만이어야 함")
-    chunks: list[str] = []
-    step = chunk_size - overlap
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        if end >= len(text):
-            break
-        start += step
-    return chunks
+def _get_encoding():
+    """tiktoken cl100k 인코딩 지연 생성 후 재사용, HybridChunker 토큰 사이징 기준"""
+    global _encoding
+    if _encoding is None:
+        import tiktoken
+
+        _encoding = tiktoken.get_encoding("cl100k_base")
+    return _encoding
+
+
+def _get_chunker(max_tokens: int):
+    """HybridChunker(cl100k, max_tokens) 지연 생성 후 max_tokens별 재사용"""
+    chunker = _chunkers.get(max_tokens)
+    if chunker is None:
+        from docling.chunking import HybridChunker
+        from docling_core.transforms.chunker.tokenizer.openai import OpenAITokenizer
+
+        tokenizer = OpenAITokenizer(tokenizer=_get_encoding(), max_tokens=max_tokens)
+        chunker = HybridChunker(tokenizer=tokenizer)
+        _chunkers[max_tokens] = chunker
+    return chunker
+
+
+def _token_split(text: str, max_tokens: int) -> list[str]:
+    """평문을 max_tokens 토큰 창으로 분할, Docling 미지원 txt 폴백"""
+    encoding = _get_encoding()
+    tokens = encoding.encode(text)
+    return [encoding.decode(tokens[i : i + max_tokens]) for i in range(0, len(tokens), max_tokens)]
+
+
+def chunk_document(path: Path, *, max_tokens: int = DEFAULT_MAX_TOKENS) -> list[str]:
+    """파일 → 청크 텍스트 목록, 확장자 디스패치 (AI_RAG01_CHUNK01)
+
+    PDF·DOCX·MD: Docling 변환 후 HybridChunker(max_tokens) 구조 인식 분할
+    txt: Docling 미지원이라 평문 토큰 분할 폴백
+    각 청크에 정규화 적용, 빈 청크 제외
+    """
+    if max_tokens <= 0:
+        raise ValueError("max_tokens는 양수여야 함")
+    suffix = path.suffix.lower()
+    if suffix not in SUPPORTED_SUFFIXES:
+        raise ValueError(f"지원하지 않는 확장자: {path.suffix}")
+    if suffix in _CHUNK_DOCLING_SUFFIXES:
+        chunker = _get_chunker(max_tokens)
+        pieces = [chunk.text for chunk in chunker.chunk(_convert(path))]
+    else:  # .txt
+        pieces = _token_split(_parse_text(path), max_tokens)
+    normalized = [normalize(piece) for piece in pieces]
+    return [piece for piece in normalized if piece]
 
 
 def build_chunks(
-    text: str,
+    chunk_texts: list[str],
     *,
     doc_id: str,
     equipment_type: str | None = None,
     alarm_code: str | None = None,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-    overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> list[dict[str, Any]]:
-    """청크 목록 → KnowledgeChunk 적재용 dict 목록, embedding 키는 임베딩 단계에서 부착"""
+    """청크 텍스트 목록 → KnowledgeChunk 적재용 dict 목록, embedding 키는 임베딩 단계에서 부착"""
     return [
         {
             "doc_id": doc_id,
@@ -154,7 +189,7 @@ def build_chunks(
             "alarm_code": alarm_code,
             "content": piece,
         }
-        for index, piece in enumerate(chunk_text(text, chunk_size=chunk_size, overlap=overlap))
+        for index, piece in enumerate(chunk_texts)
     ]
 
 
@@ -166,18 +201,15 @@ async def ingest_document(
     alarm_code: str | None = None,
     embedder: Embedder,
     store: VectorStore,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-    overlap: int = DEFAULT_CHUNK_OVERLAP,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> int:
-    """파싱→정규화→청킹→임베딩→적재, 반환: 적재 청크 수"""
-    text = parse_and_normalize(path)
+    """파싱→청킹→임베딩→적재, 반환: 적재 청크 수"""
+    chunk_texts = chunk_document(path, max_tokens=max_tokens)
     chunks = build_chunks(
-        text,
+        chunk_texts,
         doc_id=doc_id,
         equipment_type=equipment_type,
         alarm_code=alarm_code,
-        chunk_size=chunk_size,
-        overlap=overlap,
     )
     if not chunks:
         return 0
