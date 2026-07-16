@@ -17,13 +17,14 @@ log = logging.getLogger("anomaly-worker")
 
 
 async def score_once(settings: Settings) -> int:
-    """한 주기 스코어링, 신규 WRN-901 발생 건수 반환"""
+    """한 주기 스코어링, 신규 발령 건수 반환 (섀도우 시 관찰 저널 기록)"""
+    sink = repo.resolve_sink(settings.anomaly_shadow_mode)
     async with SessionLocal() as session:
         scorer = await repo.load_scorer(session, settings)
         if not scorer.process_types:
             return 0  # 적합 모델 없음 (anomaly-fit 미실행)
         equipment = await repo.list_equipment(session)
-        active = await repo.active_anomaly_equipment(session)
+        active = await sink.active(session)
         now = datetime.now(UTC)
         raised = 0
         for equipment_id, process_type in equipment:
@@ -37,10 +38,10 @@ async def score_once(settings: Settings) -> int:
                 continue
             is_active = equipment_id in active
             if result.fired and not is_active:
-                await repo.raise_anomaly(session, equipment_id, result.channel, now)
+                await sink.raise_event(session, equipment_id, result.channel, result.score, now)
                 raised += 1
             elif not result.fired and is_active:
-                await repo.clear_anomaly(session, equipment_id, now)
+                await sink.clear(session, equipment_id, now)
         await session.commit()
         return raised
 

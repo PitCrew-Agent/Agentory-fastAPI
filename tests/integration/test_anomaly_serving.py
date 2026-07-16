@@ -19,6 +19,7 @@ from agentory.modules.notification.models import Notification
 from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster, EquipmentTelemetry
 from agentory.modules.watcher import anomaly_repository as repo
 from agentory.modules.watcher.detector import ANOMALY_ALARM_CODE, VARS
+from agentory.modules.watcher.models import EquipmentAnomalyShadowEvent
 from anomaly.models.pca_mspc import PcaMspc
 from anomaly.scoring import ewma
 from anomaly.windowing import sliding_windows
@@ -101,7 +102,9 @@ async def test_scorer_fires_on_anomalous_tail_and_flows_to_notification(session)
     assert result.channel == VARS[0]
 
     # 발령 → EquipmentAlarm 기록 → sync_from_alarms → notification 생성
-    await repo.raise_anomaly(session, EQP, result.channel, Y2000 + timedelta(seconds=2000))
+    await repo.raise_anomaly(
+        session, EQP, result.channel, result.score, Y2000 + timedelta(seconds=2000)
+    )
     await session.flush()
     active = await repo.active_anomaly_equipment(session)
     assert EQP in active
@@ -114,6 +117,36 @@ async def test_scorer_fires_on_anomalous_tail_and_flows_to_notification(session)
     )
     assert notif is not None
     assert notif.metric == VARS[0]
+
+
+async def test_shadow_sink_records_journal_without_alarm(session):
+    await _seed_model_and_master(session)
+    rng = np.random.default_rng(7)
+    series = _coupled(rng, 300)
+    series[150:, 0] += 6.0
+    await _insert_series(session, series)
+
+    scorer = await repo.load_scorer(session, get_settings())
+    result = scorer.score_latest(PTYPE, await repo.fetch_recent_series(session, EQP, 300))
+    assert result is not None and result.fired is True
+
+    # 섀도우 싱크: 관찰 저널에 기록, EquipmentAlarm 미기록
+    sink = repo.resolve_sink(shadow=True)
+    await sink.raise_event(session, EQP, result.channel, result.score, Y2000)
+    await session.flush()
+
+    assert EQP in await sink.active(session)
+    # 실알람은 발령되지 않음 (알림 파이프라인 미연결)
+    alarm = await session.scalar(
+        select(EquipmentAlarm).where(
+            EquipmentAlarm.equipment_id == EQP, EquipmentAlarm.alarm_code == ANOMALY_ALARM_CODE
+        )
+    )
+    assert alarm is None
+    shadow_row = await session.scalar(
+        select(EquipmentAnomalyShadowEvent).where(EquipmentAnomalyShadowEvent.equipment_id == EQP)
+    )
+    assert shadow_row is not None and shadow_row.metric == VARS[0]
 
 
 async def test_normal_series_does_not_fire(session):

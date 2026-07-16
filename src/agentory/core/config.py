@@ -76,6 +76,8 @@ class Settings(BaseSettings):
 
     # 이상 감지 스코어러 (BE_ANOM01_SERVE01), 서빙 파라미터는 EXP-006·007 확정값
     anomaly_detection_enabled: bool = False  # 스코어러 루프 활성 (모델 적재 후 켬)
+    # 섀도우 모드, 실알람 미발령·관찰 저널만 기록 (BE_ANOM01_SHADOW01), 검증 후 false로 실발령
+    anomaly_shadow_mode: bool = True
     anomaly_score_interval_seconds: float = 30.0  # 스코어링 주기 = stride (EXP-007)
     anomaly_window_ticks: int = 12  # 윈도우 길이 60초 (tick 5초 기준)
     anomaly_stride_ticks: int = 6  # 슬라이드 30초
