@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     # 전이/정착 억제 (EXP-008), 점화·램프업 모드 전이 오탐 제거
     anomaly_transition_threshold: float = 1000.0  # raw 급등 억제 임계, 0이면 억제 없음
     anomaly_transition_settle: int = 10  # 전이 후 정착 억제 윈도우 수
+    # baseline drift 자동 갱신 (BE_ANOM01_DRIFT01), 완만한 정상 이동 추종
+    anomaly_refit_enabled: bool = False  # 주기 재적합 루프 활성
+    anomaly_refit_interval_hours: float = 168.0  # 재적합 점검 주기(시), 기본 주 1회
+    anomaly_refit_recency_days: int = 14  # 재적합 정상 데이터 최근성 경계(일)
+    anomaly_refit_stale_hours: float = 168.0  # 이 시간 초과 모델만 재적합
 
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"

@@ -66,10 +66,28 @@ uv run anomaly-fit                   # 공정 유형별 모델 적합·저장 (�
 모델 미적재 상태에서는 워처가 즉시 반환하므로 활성화해도 무해합니다. 서빙 파라미터는
 `core/config.py`의 `anomaly_*` 필드로 조정하며 기본값은 EXP-006·007 확정값입니다.
 
+## baseline drift 자동 갱신 (BE_ANOM01_DRIFT01)
+
+설비 마모로 정상이 서서히 이동하고 정비 후 리셋되므로, 고정 모델은 시간이 지나며 오탐이
+늘어납니다. `ANOMALY_REFIT_ENABLED=true`면 재적합 워처가 `ANOMALY_REFIT_INTERVAL_HOURS`
+마다 staleness(`ANOMALY_REFIT_STALE_HOURS`) 초과 모델을 최근 정상 데이터로 재적합해
+baseline이 현재 정상을 추종합니다.
+
+boiling-frog(서서히 진행되는 고장을 정상으로 학습) 방지 장치는 세 가지입니다.
+
+| 장치 | 효과 |
+| --- | --- |
+| 정상 한정 (alarm_code IS NULL) | 알람 구간 제외 |
+| 최근성 경계 (recency_days) | 오래된 정상 age-out |
+| 정비 인지 (repaired_at 이전 제외) | 정비 전 열화 정상으로 정비 후 모델 오염 방지 |
+| 표본 가드 (MIN_TRAIN_WINDOWS) | 데이터 부족 시 기존 모델 유지 |
+
+`anomaly-fit` 수동 재실행으로도 즉시 갱신할 수 있습니다.
+
 ## 아키텍처 정합
 
 - 모델 파라미터는 RDS에 저장(확정 아키텍처), pickle 대신 JSON 배열 직렬화로 버전 견고
-- baseline·임계가 RDS에 있어 재적합(`anomaly-fit` 재실행)만으로 drift 갱신 가능
+- baseline·임계가 RDS에 있어 재적합만으로 drift 갱신 가능 (워처 자동 또는 CLI 수동)
 - 규칙 레이어는 유지되며 본 스코어러는 보완 레이어 (급성은 규칙이 즉시 담당)
 
 ## 남은 과제 (후속)
