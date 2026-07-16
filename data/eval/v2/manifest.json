@@ -1,0 +1,207 @@
+{
+  "version": "v2",
+  "git_commit": "8729453a24a1bdb27a2bf467ac2091f0d951cdeb",
+  "config": {
+    "version": "v2",
+    "seed": 20260716,
+    "tick_seconds": 5.0,
+    "train": {
+      "seed": 20260701,
+      "n_ticks": 17280,
+      "equipments": [
+        {
+          "equipment_id": "TRN-E01",
+          "process_type": "Etching"
+        },
+        {
+          "equipment_id": "TRN-E02",
+          "process_type": "Etching"
+        },
+        {
+          "equipment_id": "TRN-D01",
+          "process_type": "Deposition"
+        },
+        {
+          "equipment_id": "TRN-D02",
+          "process_type": "Deposition"
+        },
+        {
+          "equipment_id": "TRN-C01",
+          "process_type": "EtchingCoupled",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "TRN-C02",
+          "process_type": "EtchingCoupled",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "TRN-C03",
+          "process_type": "EtchingCoupled",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "TRN-C04",
+          "process_type": "EtchingCoupled",
+          "generator": "synthetic"
+        }
+      ]
+    },
+    "eval": {
+      "n_ticks": 4320,
+      "drift_start_tick": 720,
+      "segments": [
+        {
+          "equipment_id": "EVL-N01",
+          "process_type": "Etching",
+          "scenario": "normal"
+        },
+        {
+          "equipment_id": "EVL-N02",
+          "process_type": "Deposition",
+          "scenario": "normal"
+        },
+        {
+          "equipment_id": "EVL-A01",
+          "process_type": "Etching",
+          "scenario": "temperature_acute"
+        },
+        {
+          "equipment_id": "EVL-A02",
+          "process_type": "Etching",
+          "scenario": "pressure_acute"
+        },
+        {
+          "equipment_id": "EVL-A03",
+          "process_type": "Deposition",
+          "scenario": "rf_power_acute"
+        },
+        {
+          "equipment_id": "EVL-A04",
+          "process_type": "Deposition",
+          "scenario": "gas_flow_acute"
+        },
+        {
+          "equipment_id": "EVL-D01",
+          "process_type": "Etching",
+          "scenario": "temperature_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D02",
+          "process_type": "Etching",
+          "scenario": "pressure_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D03",
+          "process_type": "Deposition",
+          "scenario": "rf_power_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D04",
+          "process_type": "Deposition",
+          "scenario": "gas_flow_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-V01",
+          "process_type": "Etching",
+          "scenario": "variance_increase"
+        },
+        {
+          "equipment_id": "EVL-C01",
+          "process_type": "Etching",
+          "scenario": "mixed_pm_demo"
+        },
+        {
+          "equipment_id": "EVL-C02",
+          "process_type": "Etching",
+          "scenario": "temp_acute_pressure_drift"
+        },
+        {
+          "equipment_id": "EVL-C03",
+          "process_type": "Deposition",
+          "scenario": "rf_acute_gas_drift"
+        },
+        {
+          "equipment_id": "EVL-C04",
+          "process_type": "Deposition",
+          "scenario": "gas_acute_temp_drift"
+        },
+        {
+          "equipment_id": "SYN-N01",
+          "process_type": "EtchingCoupled",
+          "scenario": "normal",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-N02",
+          "process_type": "EtchingCoupled",
+          "scenario": "normal",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-N03",
+          "process_type": "EtchingCoupled",
+          "scenario": "normal",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-N04",
+          "process_type": "EtchingCoupled",
+          "scenario": "normal",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-B01",
+          "process_type": "EtchingCoupled",
+          "scenario": "corr_break",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-B02",
+          "process_type": "EtchingCoupled",
+          "scenario": "corr_break",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-O01",
+          "process_type": "EtchingCoupled",
+          "scenario": "osc_propagation",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-O02",
+          "process_type": "EtchingCoupled",
+          "scenario": "osc_propagation",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-L01",
+          "process_type": "EtchingCoupled",
+          "scenario": "inband_drift",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-L02",
+          "process_type": "EtchingCoupled",
+          "scenario": "inband_drift",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-I01",
+          "process_type": "EtchingCoupled",
+          "scenario": "ignition",
+          "generator": "synthetic"
+        },
+        {
+          "equipment_id": "SYN-I02",
+          "process_type": "EtchingCoupled",
+          "scenario": "ignition",
+          "generator": "synthetic"
+        }
+      ]
+    }
+  },
+  "eval_rows": 116640,
+  "train_rows": 138240,
+  "events": 22
+}
