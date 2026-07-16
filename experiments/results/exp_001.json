@@ -1,0 +1,21 @@
+{
+  "experiment": "EXP-001",
+  "run_at": "2026-07-16T02:57:57+00:00",
+  "git_commit": "97f2b6f70fcfbc3fd6abc0c18fa7445c4c3f73bf",
+  "eval_set_version": "v1",
+  "config": {
+    "name": "EXP-001",
+    "method": "rule_baseline",
+    "eval_set": "data/eval/v1"
+  },
+  "metrics": {
+    "events_total": 16.0,
+    "events_detected": 16.0,
+    "event_recall": 1.0,
+    "false_alarms_total": 273.0,
+    "false_alarms_per_equipment_day": 72.8,
+    "detection_delay_mean_ticks": 6.125,
+    "detection_delay_p90_ticks": 22.0,
+    "auc_pr": 0.9914349284212002
+  }
+}

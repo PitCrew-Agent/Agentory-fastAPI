@@ -68,9 +68,10 @@
 ## 명령어
 
 ```bash
-uv sync --group experiment                          # 실험 의존성 설치 (MLflow 포함)
-uv run python experiments/build_eval_set.py         # EXP-000 평가 세트 생성
-uv run mlflow ui --backend-store-uri mlruns         # 실험 기록 UI (localhost:5000)
+uv sync --group experiment                              # 실험 의존성 설치 (MLflow 포함)
+uv run python experiments/build_eval_set.py             # EXP-000 평가 세트 생성
+uv run python experiments/run.py --config experiments/configs/exp_001_rule_baseline.yaml
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db  # 실험 기록 UI (localhost:5000)
 ```
 
 ## 디렉토리
@@ -78,7 +79,8 @@ uv run mlflow ui --backend-store-uri mlruns         # 실험 기록 UI (localhos
 ```
 src/anomaly/            파이프라인 라이브러리 (windowing·평가기·모델, 서빙과 공용)
 experiments/            실험 실행 스크립트·config (배포 대상 아님)
-docs/experiments/       실험 문서 (본 규약 + EXP-NNN 문서)
+experiments/results/    실험별 확정 지표 JSON (git 커밋, 문서 비교표의 단일 소스)
+docs/experiments/       실험 문서 (본 규약 + decisions.md + EXP-NNN 문서)
 data/eval/<version>/    얼린 평가 세트 (manifest.json으로 재현 조건 추적)
-mlruns/                 MLflow 로컬 스토어 (git 추적 제외)
+mlflow.db, mlruns/      MLflow 로컬 스토어 (전체 원본, git 추적 제외)
 ```
