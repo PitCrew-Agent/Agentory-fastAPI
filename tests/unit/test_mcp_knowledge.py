@@ -33,13 +33,27 @@ class _FakeStore:
         return self._results
 
 
-def _patch_pipeline(monkeypatch, store: _FakeStore, settings: Settings) -> None:
+class _FakeReranker:
+    # rerank 호출 인자 기록 + 역순 반환으로 재정렬 증명
+    def __init__(self):
+        self.called_with: dict | None = None
+
+    async def rerank(self, query, documents, top_k):
+        self.called_with = {"query": query, "n_docs": len(documents), "top_k": top_k}
+        return list(reversed(documents))[:top_k]
+
+
+def _patch_pipeline(monkeypatch, store: _FakeStore, settings: Settings, reranker=None) -> None:
     monkeypatch.setattr(server, "get_embedder", lambda: _FakeEmbedder())
     monkeypatch.setattr(server, "PgVectorStore", lambda: store)
     monkeypatch.setattr(server, "get_settings", lambda: settings)
-    # 프로세스 싱글턴 초기화, 패치된 임베더·스토어가 검색마다 반영되도록
+    # 기본 None으로 실모델 로드 차단, 리랭커 경로 검증 시에만 fake 주입
+    monkeypatch.setattr(server, "get_reranker", lambda: reranker)
+    # 프로세스 싱글턴 초기화, 패치된 의존성이 검색마다 반영되도록
     monkeypatch.setattr(server, "_embedder", None)
     monkeypatch.setattr(server, "_store", None)
+    monkeypatch.setattr(server, "_reranker", None)
+    monkeypatch.setattr(server, "_reranker_ready", False)
 
 
 def test_above_threshold_keeps_scores_at_or_above():
@@ -116,6 +130,21 @@ async def test_search_manuals_explicit_top_k_overrides_settings(monkeypatch):
     results = await search_manuals(query="WRN-501 가스 유량", top_k=7)
     assert store.called_with == {"top_k": 7, "equipment_type": None}
     assert results == []
+
+
+async def test_search_manuals_reranker_expands_pool_and_reorders(monkeypatch):
+    # 리랭커 on이면 top_n 풀로 검색 후 top_k로 재정렬 (AI_RAG02_RERANK01)
+    docs = [_result(f"MAN-{i:03d}", 0.9) for i in range(10)]
+    store = _FakeStore(docs)
+    settings = Settings(
+        _env_file=None, rag_search_top_k=3, reranker_top_n=10, rag_search_min_score=0.0
+    )
+    reranker = _FakeReranker()
+    _patch_pipeline(monkeypatch, store, settings, reranker=reranker)
+    results = await search_manuals(query="ERR-402 조치", top_k=3)
+    assert store.called_with["top_k"] == 10  # 풀 = max(3, 10)
+    assert reranker.called_with == {"query": "ERR-402 조치", "n_docs": 10, "top_k": 3}
+    assert [item["doc_id"] for item in results] == ["MAN-009", "MAN-008", "MAN-007"]
 
 
 async def test_search_manuals_all_below_threshold_returns_empty(monkeypatch):
