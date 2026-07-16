@@ -10,7 +10,7 @@
 uv run python scripts/ingest_manuals.py
 ```
 
-기본 경로는 실행 위치와 무관하게 저장소의 `data/documents`를 가리킵니다. 다른 위치의 원본을 적재하려면 옵션으로 지정합니다.
+기본 경로는 실행 위치와 무관하게 저장소의 `data/rags`를 가리킵니다. 다른 위치의 원본을 적재하려면 옵션으로 지정합니다.
 
 ```bash
 uv run python scripts/ingest_manuals.py --documents-dir <원본 디렉터리> [--manifest <매니페스트 경로>]
@@ -18,7 +18,7 @@ uv run python scripts/ingest_manuals.py --documents-dir <원본 디렉터리> [-
 
 `--manifest`를 생략하면 `<documents-dir>/manifest.json`을 사용하며, 매니페스트의 `file`은 항상 `--documents-dir` 기준 상대 경로로 해석합니다.
 
-적재는 `doc_id` 단위로 기존 청크를 지우고 다시 넣으므로 여러 번 실행해도 안전합니다. 실행에는 `OPENAI_API_KEY`와 기동 중인 PostgreSQL(pgvector)이 필요합니다.
+적재는 `doc_id` 단위로 기존 청크를 지우고 다시 넣으므로 여러 번 실행해도 안전하며, 매니페스트에서 빠진 구 문서(교체 전 doc_id 등)의 잔존 청크도 함께 정리합니다. 실행에는 `OPENAI_API_KEY`와 기동 중인 PostgreSQL(pgvector)이 필요합니다.
 
 ## manifest.json 형식
 
@@ -26,8 +26,8 @@ uv run python scripts/ingest_manuals.py --documents-dir <원본 디렉터리> [-
 
 | 필드 | 필수 | 설명 |
 | --- | --- | --- |
-| `file` | 예 | data/documents 기준 상대 파일명 |
-| `doc_id` | 예 | 문서 고유 ID, `MAN-영문-숫자` 형식(예: MAN-ETC-042) |
+| `file` | 예 | documents-dir(기본 data/rags) 기준 상대 파일명 |
+| `doc_id` | 예 | 문서 고유 ID, `MAN-영문-숫자` 형식(예: MAN-SOP-001) |
 | `equipment_type` | 아니오 | 메타 필터용 공정 유형(예: Etching) |
 | `alarm_code` | 아니오 | 메타 필터용 알람 코드(예: ERR-402) |
 

@@ -15,7 +15,7 @@ from agentory.modules.rag.ingest import ingest_document
 from agentory.modules.rag.store.pgvector import PgVectorStore
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DOCUMENTS_DIR = ROOT / "data" / "documents"
+DEFAULT_DOCUMENTS_DIR = ROOT / "data" / "rags"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -24,7 +24,7 @@ def _parse_args() -> argparse.Namespace:
         "--documents-dir",
         type=Path,
         default=DEFAULT_DOCUMENTS_DIR,
-        help="문서 원본 디렉터리 (기본: 저장소의 data/documents)",
+        help="문서 원본 디렉터리 (기본: 저장소의 data/rags)",
     )
     parser.add_argument(
         "--manifest",
@@ -57,6 +57,10 @@ async def main() -> None:
         )
         total += count
         print(f"{entry['doc_id']}: {count} chunks")
+    # 매니페스트에서 빠진 구 문서(교체 전 doc_id 등) 잔존 청크 정리
+    removed = await store.purge_except({entry["doc_id"] for entry in entries})
+    if removed:
+        print(f"매니페스트 밖 구 문서 {removed} chunks 제거")
     print(f"총 {total} chunks 적재")
 
 
