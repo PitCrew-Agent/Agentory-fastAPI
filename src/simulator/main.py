@@ -5,7 +5,7 @@
 equipment_masters의 설비 목록을 대상으로 주기적으로 센서값을 생성해 equipment_telemetries에 적재
 시나리오는 대상 설비에만 적용, 나머지 설비는 normal로 생성
 preset 지정 시 설비별로 서로 다른 시나리오 배치, gain은 데모용 드리프트 증폭 배수
-1 tick 스파이크는 대표 알람 보류, 연속 2 tick 이상 지속한 후보만 알람으로 저장 (참고서 §7)
+밴드 이탈은 첫 tick 즉시 알람으로 저장, 지연 없이 최초 이상 접촉을 발령 (참고서 §7)
 골든 E2E 테스트는 --iterations 유한 모드로 시나리오를 결정론적으로 주입
 """
 
@@ -25,7 +25,7 @@ from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
 from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster, EquipmentTelemetry
-from simulator.generator import VARS, SensorReading, generate_reading, representative
+from simulator.generator import VARS, SensorReading, generate_reading
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 log = logging.getLogger("simulator")
@@ -126,21 +126,6 @@ def _severity(alarm_code: str) -> str:
     return "위험" if alarm_code.startswith("ERR") else "주의"
 
 
-def _confirm_persistence(
-    reading: SensorReading, prev_candidates: dict[str, dict[str, str | None]]
-) -> None:
-    # 변수별 연속 2 tick 지속 규칙: 직전 tick과 같은 후보만 확정, 1 tick 스파이크는 보류
-    # 확정 후 reading.alarm_codes는 변수별 확정 알람, alarm_code는 확정 변수 중 최고 심각도 대표값
-    prev = prev_candidates.get(reading.equipment_id, {})
-    confirmed: dict[str, str | None] = {}
-    for var in VARS:
-        candidate = reading.alarm_codes.get(var)
-        confirmed[var] = candidate if candidate is not None and candidate == prev.get(var) else None
-    prev_candidates[reading.equipment_id] = dict(reading.alarm_codes)
-    reading.alarm_codes = confirmed
-    reading.alarm_code = representative(confirmed)
-
-
 def _alarm_transitions(
     readings: list[SensorReading], active_alarms: dict[str, dict[str, str]]
 ) -> tuple[list[tuple[str, str, str, str]], list[tuple[str, str]]]:
@@ -223,7 +208,6 @@ async def run_simulation(
     scenario_map = PRESETS[config.preset] if config.preset else None
     # 수리 힐 윈도우, 수리 후 이 기간 동안 정상 강제 후 원래 시나리오 재개 (NEW_REPAIR01_SIM01)
     heal_window = timedelta(minutes=get_settings().sim_repair_heal_minutes)
-    prev_candidates: dict[str, dict[str, str | None]] = {}  # 설비별·변수별 직전 tick 후보 알람
     history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
     active_alarms = await _load_active_alarms(session_factory)  # 설비별·변수별 활성 알람 상태
     tick = 0
@@ -260,7 +244,6 @@ async def run_simulation(
                 rng=rng,
             )
             window.append(reading)
-            _confirm_persistence(reading, prev_candidates)
             readings.append(reading)
 
         # 변수별 발생/해제 전이 산출 후 telemetry와 함께 적재, 성공 시 활성 상태 반영
