@@ -22,8 +22,8 @@ ALARM_MESSAGES: dict[str, dict[str, str]] = {
         "WRN-704": "가스 유량 드리프트 감지",
         # 냉각 급성 (온도 상승 + 압력 하강)
         "ERR-402": "냉각 이상 (온도 상승·압력 하강)",
-        # 변동성 증가
-        "WRN-801": "센서 변동성 증가",
+        # 변동성 증가 (값은 정상 밴드 내, 신호 흔들림만 급증이라 밴드 이탈로 오인 방지)
+        "WRN-801": "센서 변동성 증가 (값은 정상 범위, 신호 흔들림 급증)",
         # 다변량 관계 붕괴
         "ERR-901": "다변량 이상 (센서 상관 붕괴)",
     },
@@ -37,7 +37,7 @@ ALARM_MESSAGES: dict[str, dict[str, str]] = {
         "WRN-703": "RF power drift detected",
         "WRN-704": "Gas flow drift detected",
         "ERR-402": "Cooling anomaly (temperature rise, pressure drop)",
-        "WRN-801": "Sensor variability increase",
+        "WRN-801": "Sensor variability increase (values in range, fluctuation spike)",
         "ERR-901": "Multivariate anomaly (sensor correlation breakdown)",
     },
 }
