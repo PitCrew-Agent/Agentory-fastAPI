@@ -1,9 +1,8 @@
 """벡터 컬렉션 모델 (DEV_VECTORDB), 요구사항 정의서 §8.3 스키마 기준
 
 pgvector 확장 필요 (docker-compose의 pgvector 이미지 사용)
-embedding 차원은 settings.embedding_dim과 일치 필수
-EMBEDDING_DIM은 text-embedding-3-small 기준 1536으로 확정
-임베딩 모델 변경 시 컬럼 차원 마이그레이션과 전체 재적재 필요
+컬럼 차원 단일 소스 = settings.embedding_dim (기본 768, multilingual-e5-base 기준)
+provider·모델·차원 변경 시 settings.embedding_dim 갱신 + 컬럼 마이그레이션 + 재적재 필요
 """
 
 from datetime import datetime
@@ -12,9 +11,11 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import BigInteger, DateTime, Identity, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from agentory.core.config import get_settings
 from agentory.core.db import Base
 
-EMBEDDING_DIM = 1536
+# 컬럼 차원 단일 소스, 죽은 설정 방지 위해 settings에서 직접 읽음 (e5 기본 768)
+EMBEDDING_DIM = get_settings().embedding_dim
 
 
 class KnowledgeChunk(Base):
