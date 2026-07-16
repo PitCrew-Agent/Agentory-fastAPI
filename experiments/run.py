@@ -21,7 +21,7 @@ from anomaly.eval_set import load_eval_frame, load_events, load_manifest, load_t
 from anomaly.evaluation import auc_pr, point_labels, summarize
 from anomaly.models.pca_mspc import PcaMspc
 from anomaly.rule_baseline import equipment_n_ticks, rule_detections, rule_point_scores
-from anomaly.scoring import ewma, sustained
+from anomaly.scoring import ewma, ewma_masked, sustained, transition_mask
 from anomaly.windowing import sliding_windows, window_starts
 from simulator.generator import VARS
 
@@ -84,6 +84,9 @@ def _run_windowed(config: dict, make_model) -> dict[str, float]:
     # 수백 tick 오탐 꼬리를 만드는 것을 차단 (지속 저강도 신호 누적에는 영향 없음)
     ewma_clip = config.get("ewma_clip")
     confirm_k = config.get("confirm_k", 1)  # 연속 K윈도우 초과 확인 규칙 (EXP-007)
+    # 전이/정착 억제 (EXP-008), raw 점수 급등 구간을 EWMA·발령에서 제외 (모드 전이 오탐)
+    transition_threshold = config.get("transition_threshold", 0.0)
+    transition_settle = config.get("transition_settle", 0)
 
     # 설비 → 공정 유형 매핑은 manifest의 config 스냅샷에서 복원 (평가 세트 재생성 불필요)
     eval_types = {s["equipment_id"]: s["process_type"] for s in manifest_cfg["eval"]["segments"]}
@@ -122,10 +125,14 @@ def _run_windowed(config: dict, make_model) -> dict[str, float]:
         windows = sliding_windows(ordered[list(VARS)].to_numpy(), window, stride)
         ends = window_starts(n, window, stride) + window - 1
         ptype = eval_types[str(equipment_id)]
-        scores = models[ptype].score(windows)
+        raw = models[ptype].score(windows)
+        mask = transition_mask(raw, transition_threshold, transition_settle)
         if ewma_alpha:
-            scores = ewma(_clip(scores, ewma_clip), ewma_alpha) / ewma_limits[ptype]
-        fired = sustained(scores > 1.0, confirm_k)
+            accumulated = ewma_masked(_clip(raw, ewma_clip), ewma_alpha, mask)
+            scores = accumulated / ewma_limits[ptype]
+        else:
+            scores = raw
+        fired = sustained(scores > 1.0, confirm_k) & ~mask  # 전이 구간 발령 제외
         detections[str(equipment_id)] = ends[fired]
         latest = np.clip(np.searchsorted(ends, np.arange(n), side="right") - 1, 0, None)
         scores_all.append(scores[latest])

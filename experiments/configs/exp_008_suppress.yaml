@@ -1,0 +1,17 @@
+# EXP-008 전이/정착 억제 적용
+# transition_threshold 1000: ignition raw 5000+ 와 v1 이상 max 169 사이 안전 분리 (실측)
+# transition_settle 10: 램프 후반(raw 1000 미만) 정착 구간까지 덮음, EWMA는 억제 구간 미누적
+name: EXP-008-SUPPRESS
+method: pca_mspc
+eval_set: data/eval/v2
+window: 12
+stride: 6
+n_components: 0.9
+threshold_quantile: 0.999
+cross_correlation: true
+ewma_alpha: 0.1
+ewma_clip: 3.0
+confirm_k: 2
+max_delay_ticks: 180
+transition_threshold: 1000.0
+transition_settle: 10
