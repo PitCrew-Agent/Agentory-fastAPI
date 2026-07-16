@@ -33,6 +33,21 @@ class PgVectorStore:
             await session.commit()
         return len(chunks)
 
+    async def purge_except(self, keep_doc_ids: set[str]) -> int:
+        """매니페스트에 없는 doc_id 청크 제거, 반환: 삭제 건수
+
+        코퍼스에서 빠진 구 문서(교체 전 doc_id 등)의 잔존 청크 정리
+        keep_doc_ids가 비면 전체 삭제 위험이 있어 아무것도 지우지 않음
+        """
+        if not keep_doc_ids:
+            return 0
+        async with self._session_factory() as session:
+            result = await session.execute(
+                delete(KnowledgeChunk).where(KnowledgeChunk.doc_id.notin_(keep_doc_ids))
+            )
+            await session.commit()
+        return result.rowcount or 0
+
     async def search(
         self,
         query_embedding: list[float],
