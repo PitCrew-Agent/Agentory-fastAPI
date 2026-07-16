@@ -58,6 +58,7 @@ mcp-knowledge = "mcp_knowledge.server:run"
 mcp-maintenance = "mcp_maintenance.server:run"
 simulator = "simulator.main:run"
 anomaly-fit = "agentory.modules.watcher.fit:run"
+anomaly-shadow-report = "agentory.modules.watcher.shadow_report:run"
 
 [build-system]
 requires = ["hatchling"]
