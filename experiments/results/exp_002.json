@@ -1,0 +1,25 @@
+{
+  "experiment": "EXP-002",
+  "run_at": "2026-07-16T03:04:23+00:00",
+  "git_commit": "340ae69e6ccae5d9d74857bb46babf3d405ab0de",
+  "eval_set_version": "v1",
+  "config": {
+    "name": "EXP-002",
+    "method": "pca_mspc",
+    "eval_set": "data/eval/v1",
+    "window": 60,
+    "stride": 12,
+    "n_components": 0.9,
+    "threshold_quantile": 0.997
+  },
+  "metrics": {
+    "events_total": 16.0,
+    "events_detected": 16.0,
+    "event_recall": 1.0,
+    "false_alarms_total": 22.0,
+    "false_alarms_per_equipment_day": 5.866666666666666,
+    "detection_delay_mean_ticks": 11.75,
+    "detection_delay_p90_ticks": 11.0,
+    "auc_pr": 0.9995312831204813
+  }
+}

@@ -1,0 +1,11 @@
+# EXP-003 PCA MSPC ablation 그리드
+# 축 4개: 윈도우 길이(tick)·stride(tick)·한계 분위수·유지 분산, 총 36 조합
+# 선정 기준: recall 1.0 조합 중 오탐/설비·일 최소, 동률 시 지연 p90 → mean
+# 피처 셋 ablation은 범위 밖 (6종 고정), 필요 시 후속 실험으로 분리
+name: EXP-003
+method: pca_mspc_ablation
+eval_set: data/eval/v1
+windows: [24, 60, 120]
+strides: [6, 12]
+quantiles: [0.99, 0.997, 0.999]
+n_components_list: [0.9, 0.95]

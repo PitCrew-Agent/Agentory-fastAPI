@@ -1,0 +1,115 @@
+{
+  "version": "v1",
+  "git_commit": "83c5f07eae5cbe99c4f3b2088de3d97e9bf9930d",
+  "config": {
+    "version": "v1",
+    "seed": 20260716,
+    "tick_seconds": 5.0,
+    "train": {
+      "seed": 20260701,
+      "n_ticks": 17280,
+      "equipments": [
+        {
+          "equipment_id": "TRN-E01",
+          "process_type": "Etching"
+        },
+        {
+          "equipment_id": "TRN-E02",
+          "process_type": "Etching"
+        },
+        {
+          "equipment_id": "TRN-D01",
+          "process_type": "Deposition"
+        },
+        {
+          "equipment_id": "TRN-D02",
+          "process_type": "Deposition"
+        }
+      ]
+    },
+    "eval": {
+      "n_ticks": 4320,
+      "drift_start_tick": 720,
+      "segments": [
+        {
+          "equipment_id": "EVL-N01",
+          "process_type": "Etching",
+          "scenario": "normal"
+        },
+        {
+          "equipment_id": "EVL-N02",
+          "process_type": "Deposition",
+          "scenario": "normal"
+        },
+        {
+          "equipment_id": "EVL-A01",
+          "process_type": "Etching",
+          "scenario": "temperature_acute"
+        },
+        {
+          "equipment_id": "EVL-A02",
+          "process_type": "Etching",
+          "scenario": "pressure_acute"
+        },
+        {
+          "equipment_id": "EVL-A03",
+          "process_type": "Deposition",
+          "scenario": "rf_power_acute"
+        },
+        {
+          "equipment_id": "EVL-A04",
+          "process_type": "Deposition",
+          "scenario": "gas_flow_acute"
+        },
+        {
+          "equipment_id": "EVL-D01",
+          "process_type": "Etching",
+          "scenario": "temperature_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D02",
+          "process_type": "Etching",
+          "scenario": "pressure_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D03",
+          "process_type": "Deposition",
+          "scenario": "rf_power_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-D04",
+          "process_type": "Deposition",
+          "scenario": "gas_flow_drift_pm"
+        },
+        {
+          "equipment_id": "EVL-V01",
+          "process_type": "Etching",
+          "scenario": "variance_increase"
+        },
+        {
+          "equipment_id": "EVL-C01",
+          "process_type": "Etching",
+          "scenario": "mixed_pm_demo"
+        },
+        {
+          "equipment_id": "EVL-C02",
+          "process_type": "Etching",
+          "scenario": "temp_acute_pressure_drift"
+        },
+        {
+          "equipment_id": "EVL-C03",
+          "process_type": "Deposition",
+          "scenario": "rf_acute_gas_drift"
+        },
+        {
+          "equipment_id": "EVL-C04",
+          "process_type": "Deposition",
+          "scenario": "gas_acute_temp_drift"
+        }
+      ]
+    }
+  },
+  "eval_rows": 64800,
+  "train_rows": 69120,
+  "events": 16
+}

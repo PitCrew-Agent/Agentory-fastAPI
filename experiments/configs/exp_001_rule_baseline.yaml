@@ -1,0 +1,5 @@
+# EXP-001 현행 규칙 레이어 단독 채점 (베이스라인)
+# 평가 세트에 저장된 alarm_code 컬럼을 판정으로 간주, 시뮬레이터 재실행 없음
+name: EXP-001
+method: rule_baseline
+eval_set: data/eval/v1
