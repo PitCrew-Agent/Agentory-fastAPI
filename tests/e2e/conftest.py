@@ -21,7 +21,11 @@ from agentory.modules.rag.embedding.openai import get_embedder
 from agentory.modules.rag.store.models import KnowledgeChunk
 from agentory.modules.rag.store.pgvector import PgVectorStore
 from agentory.modules.telemetry import repository
-from agentory.modules.telemetry.models import EquipmentMaster, EquipmentTelemetry
+from agentory.modules.telemetry.models import (
+    EquipmentAlarm,
+    EquipmentMaster,
+    EquipmentTelemetry,
+)
 from mcp_knowledge.server import _above_threshold
 from mcp_realtime.server import _parse_time
 
@@ -34,6 +38,10 @@ EQUIPMENT = [
 TARGET = "EQP-003"
 # 최근 1시간 질의에 걸리도록 현재 기준 이상 추이 (온도 상승 + ERR-402)
 ANOMALY = [("42.0", None), ("53.0", "ERR-402"), ("61.0", "ERR-402"), ("65.0", "ERR-402")]
+
+# 라이브 텔레메트리 라이터(연속 시뮬레이터) 감지 여유 (TEST_HARNESS)
+# 시뮬레이터 기본 주기(5s)보다 넉넉히 커서 tick 사이에 프로브가 걸려도 오탐 없이 활성 라이터 판정
+LIVE_WRITER_WINDOW = timedelta(seconds=30)
 
 
 def _realtime_tools(maker: async_sessionmaker) -> list:
@@ -107,10 +115,21 @@ async def _knowledge_ready(maker: async_sessionmaker) -> bool:
     return bool(count)
 
 
-async def _seed_scenario(maker: async_sessionmaker) -> list[int]:
-    # 설비 마스터 보강 + 대상 설비 최근 이상 텔레메트리 주입, 삽입 log_id 반환(정리용)
+async def _live_writer_detected(maker: async_sessionmaker) -> bool:
+    # 시드 직전 외부 라이터(연속 시뮬레이터) 활성 여부 프로브 (TEST_HARNESS)
+    # 시뮬레이터는 timestamp를 now()로 적재하므로 최신 tick이 현재 시각에 붙어 있으면 활성으로 판단
+    # 활성 상태면 시드 대상에도 정상값이 계속 쌓여 최근 창 라인 질의의 격리가 깨지므로 하네스가 차단
+    async with maker() as s:
+        newest = await s.scalar(select(func.max(EquipmentTelemetry.timestamp)))
+    return newest is not None and datetime.now(UTC) - newest < LIVE_WRITER_WINDOW
+
+
+async def _seed_scenario(maker: async_sessionmaker) -> tuple[list[int], list[str]]:
+    # 설비 마스터 보강 + 대상 설비 최근 이상 텔레메트리 주입
+    # 삽입 log_id와 이번에 새로 심은 설비 id 반환(정리용), 신규 설비는 teardown에서 제거
     async with maker() as s:
         existing = set(await s.scalars(select(EquipmentMaster.equipment_id)))
+        created = [eid for eid, *_ in EQUIPMENT if eid not in existing]
         for eid, line, proc, loc, dept in EQUIPMENT:
             if eid not in existing:
                 s.add(
@@ -135,13 +154,28 @@ async def _seed_scenario(maker: async_sessionmaker) -> list[int]:
         ]
         s.add_all(rows)
         await s.commit()
-        return [r.log_id for r in rows]
+        return [r.log_id for r in rows], created
 
 
-async def _cleanup(maker: async_sessionmaker, log_ids: list[int]) -> None:
-    # 주입한 텔레메트리만 제거해 DB 오염 방지
+async def _cleanup(
+    maker: async_sessionmaker, log_ids: list[int], created_equipment: list[str]
+) -> None:
+    # 주입한 텔레메트리 + 이번에 새로 심은 설비 마스터 제거해 DB 오염 방지
+    # 신규 설비의 잔여 자식(알람·텔레메트리) 먼저 정리 후 마스터 삭제로 FK 보호
     async with maker() as s:
         await s.execute(delete(EquipmentTelemetry).where(EquipmentTelemetry.log_id.in_(log_ids)))
+        if created_equipment:
+            await s.execute(
+                delete(EquipmentAlarm).where(EquipmentAlarm.equipment_id.in_(created_equipment))
+            )
+            await s.execute(
+                delete(EquipmentTelemetry).where(
+                    EquipmentTelemetry.equipment_id.in_(created_equipment)
+                )
+            )
+            await s.execute(
+                delete(EquipmentMaster).where(EquipmentMaster.equipment_id.in_(created_equipment))
+            )
         await s.commit()
 
 
@@ -162,7 +196,16 @@ async def e2e_runner(request):
         await engine.dispose()
         pytest.skip("DB 연결 불가, E2E 스킵")
 
-    log_ids = await _seed_scenario(maker)
+    # 연속 시뮬레이터가 돌면 시드 대상·경쟁 설비에 텔레메트리가 쌓여 격리가 깨지므로 fail-fast skip
+    # E2E는 유한 모드 결정론 주입 전제, 실행 전 simulator 프로세스 정지 필요
+    if await _live_writer_detected(maker):
+        await engine.dispose()
+        pytest.skip(
+            "연속 시뮬레이터(라이브 텔레메트리 라이터) 감지, 시드 격리 불가 "
+            "(E2E 실행 전 simulator 프로세스 정지 필요)"
+        )
+
+    log_ids, created_equipment = await _seed_scenario(maker)
     knowledge_tools = _knowledge_tools(maker) if await _knowledge_ready(maker) else []
     tools = {"realtime": _realtime_tools(maker), "knowledge": knowledge_tools}
     # LLM은 build_agent_graph가 경로별로 지연 생성, 여기선 도구·플래그만 지정
@@ -186,5 +229,5 @@ async def e2e_runner(request):
         },
     )
 
-    await _cleanup(maker, log_ids)
+    await _cleanup(maker, log_ids, created_equipment)
     await engine.dispose()
