@@ -20,6 +20,7 @@ from agentory.modules.chat import models as chat_models  # noqa: F401
 from agentory.modules.notification import models as notification_models  # noqa: F401
 from agentory.modules.rag.store import models as rag_models  # noqa: F401
 from agentory.modules.telemetry import models as telemetry_models  # noqa: F401
+from agentory.modules.watcher import models as watcher_models  # noqa: F401
 from agentory.modules.worklog import models as worklog_models  # noqa: F401
 
 config = context.config
