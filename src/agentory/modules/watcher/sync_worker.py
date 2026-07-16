@@ -7,17 +7,23 @@
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 
 from agentory.core.db import SessionLocal
 from agentory.modules.notification import repository
 
 log = logging.getLogger("watcher")
 
+# 동기화 조회 시간창, 최근 범위만 집계해 풀스캔 방지 (NEW_PROACT01_DETECT01)
+# 주기 대비 충분히 커 워처 일시 중단에도 누락 없음, 신규 알람은 현재 버킷 유입이라 멱등성 유지
+_SYNC_LOOKBACK = timedelta(hours=2)
+
 
 async def _sync_once() -> int:
     # 한 주기 동기화, 신규 적재 건수 반환 (get_session은 자동 커밋 안 함이라 명시 commit)
+    since = datetime.now(UTC) - _SYNC_LOOKBACK
     async with SessionLocal() as session:
-        inserted = await repository.sync_from_alarms(session)
+        inserted = await repository.sync_from_alarms(session, since=since)
         await session.commit()
     return inserted
 

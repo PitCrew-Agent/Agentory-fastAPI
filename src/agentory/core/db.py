@@ -16,7 +16,16 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(get_settings().database_url, echo=False)
+# 커넥션 풀 튜닝, 고갈 시 빠른 실패·유휴 커넥션 사전 검증 (NEW_PROACT01_DETECT01)
+engine = create_async_engine(
+    get_settings().database_url,
+    echo=False,
+    pool_size=10,
+    max_overflow=10,
+    pool_timeout=10,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 

@@ -1,6 +1,6 @@
 """알림 서비스 (NEW_PROACT01_ALERT01)
 
-조회·SSE 시 telemetry 알람을 동기화(sync-on-read)한 뒤 최신 알림 반환
+알람→알림 동기화는 백그라운드 워처가 전담, 조회 경로는 읽기만 수행 (NEW_PROACT01_DETECT01)
 목록은 발생 역순 키셋 커서 페이지네이션(NEW_PROACT01_ALERT02), 페이지당 기본 10개
 쓰기 경로는 명시적 commit (get_session은 자동 커밋 안 함)
 """
@@ -46,11 +46,7 @@ async def list_notifications(
     before: str | None = None,
     limit: int = DEFAULT_PAGE_SIZE,
 ) -> NotificationPage:
-    # 첫 페이지(before 없음)에서만 sync-on-read, 이후 더보기는 조회만 해 지연 최소화
-    if before is None:
-        await repository.sync_from_alarms(session)
-        await session.commit()
-
+    # 알람→알림 동기화는 백그라운드 워처 전담, 조회는 읽기만 수행 (NEW_PROACT01_DETECT01)
     cursor = _decode_cursor(before) if before else None
     page_size = max(1, min(limit, MAX_PAGE_SIZE))
     # 다음 페이지 존재 여부 판단 위해 한 개 더 조회

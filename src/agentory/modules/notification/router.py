@@ -92,10 +92,8 @@ async def stream(
     async def event_generator():
         last_id = after_id
         while True:
-            # 커넥션 루프에서 sync-on-poll, 세션은 매 반복 새로 열고 닫음
+            # 알람 동기화는 백그라운드 워처 전담, 스트림은 신규 알림 조회만 (NEW_PROACT01_DETECT01)
             async with SessionLocal() as session:
-                await repository.sync_from_alarms(session)
-                await session.commit()
                 new = await repository.fetch_notifications(session, after_id=last_id)
             for row in new:
                 last_id = row["id"]
