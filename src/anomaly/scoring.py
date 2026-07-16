@@ -48,3 +48,47 @@ def ewma(scores: np.ndarray, alpha: float) -> np.ndarray:
         acc = alpha * float(value) + (1.0 - alpha) * acc
         out[i] = acc
     return out
+
+
+def transition_mask(raw_scores: np.ndarray, threshold: float, settle: int) -> np.ndarray:
+    """급격한 레짐 변화(전이) 구간 억제 마스크 (EXP-008)
+
+    raw 점수가 threshold 이상인 윈도우와 이후 settle개를 억제 대상으로 표시
+    점화·램프업 등 모드 전이는 raw 점수가 수천대로 급등해 진짜 이상(수 이하)과 완전 분리됨
+    반환: 억제 여부 bool 배열, threshold<=0이면 억제 없음
+    """
+    if threshold <= 0 or raw_scores.size == 0:
+        return np.zeros(raw_scores.shape, dtype=bool)
+    over = raw_scores >= threshold
+    mask = over.copy()
+    remaining = 0
+    for i in range(over.size):
+        if over[i]:
+            remaining = settle
+        elif remaining > 0:
+            mask[i] = True
+            remaining -= 1
+    return mask
+
+
+def ewma_masked(scores: np.ndarray, alpha: float, mask: np.ndarray) -> np.ndarray:
+    """마스크 구간 누적을 건너뛰는 EWMA (전이 오염 차단, EXP-008)
+
+    억제 구간은 직전 누적값을 유지해 전이 급등이 EWMA에 흘러들지 않게 함
+    마스크 해제 후 유지된 저값에서 재개하므로 전이 후 꼬리 발령 없음
+    """
+    if not 0.0 < alpha <= 1.0:
+        raise ValueError("alpha는 (0, 1] 범위만 허용")
+    if scores.size == 0:
+        return scores.copy()
+    # 첫 비억제 위치에서 초기화, 전이로 시작하는 세그먼트의 초기 오염(램프 첫 값) 방지
+    unmasked = np.flatnonzero(~np.asarray(mask, dtype=bool))
+    if unmasked.size == 0:
+        return np.zeros_like(scores, dtype=float)
+    out = np.empty_like(scores, dtype=float)
+    acc = float(scores[unmasked[0]])
+    for i, (value, suppressed) in enumerate(zip(scores, mask, strict=True)):
+        if not suppressed:
+            acc = alpha * float(value) + (1.0 - alpha) * acc
+        out[i] = acc
+    return out
