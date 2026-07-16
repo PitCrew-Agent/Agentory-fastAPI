@@ -10,7 +10,6 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from agentory.core.config import get_settings
-from agentory.modules.rag.embedding.base import Embedder
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
@@ -59,8 +58,3 @@ class E5Embedder:
         """질의 임베딩, query 프리픽스 부착"""
         [vector] = await asyncio.to_thread(self._encode, [_QUERY_PREFIX + text])
         return vector
-
-
-def get_embedder() -> Embedder:
-    """E5 임베더 반환, 팩토리 미경유 직접 사용 대비 헬퍼"""
-    return E5Embedder()

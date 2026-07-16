@@ -10,7 +10,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.ingest import ingest_document
 from agentory.modules.rag.store.pgvector import PgVectorStore
 

@@ -18,6 +18,9 @@ class _FakeEmbedder:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 4 for _ in texts]
 
+    async def embed_query(self, text: str) -> list[float]:
+        return [0.0] * 4
+
 
 class _FakeStore:
     # search 호출 인자 기록 + 고정 결과 반환 (설정 반영 검증용)

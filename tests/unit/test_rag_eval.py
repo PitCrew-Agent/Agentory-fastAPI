@@ -14,10 +14,15 @@ from agentory.modules.rag.eval import (
 class FakeEmbedder:
     def __init__(self) -> None:
         self.inputs: list[list[str]] = []
+        self.query_inputs: list[str] = []
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         self.inputs.append(texts)
         return [[float(len(text))] for text in texts]
+
+    async def embed_query(self, text: str) -> list[float]:
+        self.query_inputs.append(text)
+        return [float(len(text))]
 
 
 class FakeStore:
@@ -127,7 +132,7 @@ async def test_evaluate_retrieval_scores_only_cases_with_rag_hit_docs():
 
     report = await evaluate_retrieval(cases, embedder=embedder, store=store, k=2)
 
-    assert embedder.inputs == [["평가 질의"]]
+    assert embedder.query_inputs == ["평가 질의"]
     assert store.calls == [{"query_embedding": [5.0], "top_k": 2, "equipment_type": None}]
     assert report["n"] == 1
     assert report["hit@k"] == 1.0

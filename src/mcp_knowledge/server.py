@@ -9,7 +9,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from agentory.core.config import get_settings
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.store.pgvector import PgVectorStore
 
 mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
@@ -56,7 +56,7 @@ async def search_manuals(
     if not 1 <= resolved_top_k <= MAX_TOP_K:
         raise ValueError(f"top_k는 1 이상 {MAX_TOP_K} 이하여야 함")
     embedder, store = _get_search_deps()
-    [embedding] = await embedder.embed([query])
+    embedding = await embedder.embed_query(query)
     results = await store.search(embedding, top_k=resolved_top_k, equipment_type=equipment_type)
     return _above_threshold(results, threshold=settings.rag_search_min_score)
 

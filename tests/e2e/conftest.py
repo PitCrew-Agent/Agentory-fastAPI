@@ -17,7 +17,7 @@ from sqlalchemy.pool import NullPool
 from agentory.core.config import get_settings
 from agentory.modules.agent.runner import RECURSION_LIMIT, initial_state
 from agentory.modules.agent.supervisor.graph import build_agent_graph
-from agentory.modules.rag.embedding.openai import get_embedder
+from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.store.models import KnowledgeChunk
 from agentory.modules.rag.store.pgvector import PgVectorStore
 from agentory.modules.telemetry import repository
@@ -99,7 +99,7 @@ def _knowledge_tools(maker: async_sessionmaker) -> list:
         """자연어 질문으로 매뉴얼 벡터 컬렉션 유사도 Top-K 검색, [{doc_id, content, score}] 반환"""
         settings = get_settings()
         resolved_top_k = settings.rag_search_top_k if top_k is None else top_k
-        [embedding] = await get_embedder().embed([query])
+        embedding = await get_embedder().embed_query(query)
         results = await PgVectorStore(maker).search(
             embedding, top_k=resolved_top_k, equipment_type=equipment_type
         )
