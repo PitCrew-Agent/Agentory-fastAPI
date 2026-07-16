@@ -26,6 +26,7 @@ from agentory.modules.incident.router import router as incident_router
 from agentory.modules.notification.router import router as notification_router
 from agentory.modules.telemetry.router import router as telemetry_router
 from agentory.modules.watcher.anomaly_worker import run_anomaly_loop
+from agentory.modules.watcher.refit_worker import run_refit_loop
 from agentory.modules.watcher.sync_worker import run_sync_loop
 from agentory.modules.worklog.router import router as worklog_router
 
@@ -39,6 +40,9 @@ async def lifespan(app: FastAPI):
     # 이상 감지 스코어러 워처, 모델 적재 후 활성 (BE_ANOM01_SERVE01)
     if settings.anomaly_detection_enabled:
         tasks.append(asyncio.create_task(run_anomaly_loop(settings)))
+    # baseline drift 재적합 워처, 완만한 정상 이동 추종 (BE_ANOM01_DRIFT01)
+    if settings.anomaly_refit_enabled:
+        tasks.append(asyncio.create_task(run_refit_loop(settings)))
     yield
     # 앱 종료 시 전 워처 취소 후 정리 완료까지 대기
     for task in tasks:
