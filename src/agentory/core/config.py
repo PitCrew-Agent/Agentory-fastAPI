@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     sensor_log_max_rows: int = 500
     # 수리 후 시뮬레이터가 정상 강제하는 힐 윈도우(분), 경과 후 원래 시나리오 재개 (NEW_REPAIR01)
     sim_repair_heal_minutes: int = 60
+    # 알림 동기화 워처 주기(초), 클라이언트 접속과 무관하게 알람→알림 동기화 (NEW_PROACT01_DETECT01)
+    notification_sync_interval_seconds: float = 5.0
 
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"

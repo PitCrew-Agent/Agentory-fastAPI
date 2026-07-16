@@ -1,6 +1,7 @@
 """Agentory FastAPI 앱 엔트리포인트 (DEV_SERVER)"""
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -24,15 +25,21 @@ from agentory.modules.chat.router import router as chat_router
 from agentory.modules.incident.router import router as incident_router
 from agentory.modules.notification.router import router as notification_router
 from agentory.modules.telemetry.router import router as telemetry_router
+from agentory.modules.watcher.sync_worker import run_sync_loop
 from agentory.modules.worklog.router import router as worklog_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
-    # TODO(주희정): watcher 백그라운드 잡 시작 (NEW_PROACT01_DETECT01)
+    # 알림 동기화 워처 시작, 클라이언트 접속과 무관하게 알람을 알림화 (NEW_PROACT01_DETECT01)
+    interval = get_settings().notification_sync_interval_seconds
+    watcher_task = asyncio.create_task(run_sync_loop(interval))
     yield
-    # TODO(주희정): watcher 종료 처리
+    # 앱 종료 시 워처 취소 후 정리 완료까지 대기
+    watcher_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await watcher_task
 
 
 # 태그별 그룹 라벨, Swagger 엔드포인트 그룹 헤더에 표시
