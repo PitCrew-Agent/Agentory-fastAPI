@@ -68,6 +68,8 @@ async def load_scorer(session: AsyncSession, settings: Settings) -> AnomalyScore
             ewma_alpha=settings.anomaly_ewma_alpha,
             ewma_clip=settings.anomaly_ewma_clip,
             ewma_limit=row.ewma_limit if row.ewma_limit is not None else 1.0,
+            transition_threshold=settings.anomaly_transition_threshold,
+            transition_settle=settings.anomaly_transition_settle,
         )
     return AnomalyScorer(models)
 

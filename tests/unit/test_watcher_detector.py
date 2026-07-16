@@ -20,7 +20,17 @@ def _loaded_model(rng: np.random.Generator, window=12, stride=6, k=2) -> LoadedM
     train = sliding_windows(_coupled_normal(rng, 4000), window, stride)
     model = PcaMspc(0.9, 0.999, cross_correlation=True).fit(train)
     limit = float(np.quantile(ewma(np.minimum(model.score(train), 3.0), 0.1), 0.999))
-    return LoadedModel(model, window, stride, k, 0.1, 3.0, max(limit, 1e-12))
+    return LoadedModel(
+        model,
+        window,
+        stride,
+        k,
+        0.1,
+        3.0,
+        max(limit, 1e-12),
+        transition_threshold=1000.0,
+        transition_settle=10,
+    )
 
 
 def test_normal_series_does_not_fire():
@@ -40,6 +50,17 @@ def test_channel_deviation_fires_with_attribution():
     assert result is not None
     assert result.fired is True
     assert result.channel == VARS[0]
+
+
+def test_ignition_ramp_is_suppressed():
+    # 전이(모드 램프)로 시작하는 시계열은 억제되어 미발령 (EXP-008)
+    rng = np.random.default_rng(1)
+    scorer = AnomalyScorer({"Etching": _loaded_model(rng)})
+    series = _coupled_normal(rng, 300)
+    series[:120] *= 0.2  # 초반 램프업 모사, 전 채널 저값 (raw 급등)
+    result = scorer.score_latest("Etching", series)
+    assert result is not None
+    assert result.fired is False
 
 
 def test_unknown_process_type_returns_none():
