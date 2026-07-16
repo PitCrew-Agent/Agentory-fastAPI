@@ -24,8 +24,12 @@ class OpenAIEmbedder:
         )
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """텍스트 목록을 임베딩 벡터 목록으로 변환 (차원: settings.embedding_dim)"""
+        """문서 목록을 임베딩 벡터 목록으로 변환 (차원: settings.embedding_dim)"""
         return await self._client.aembed_documents(texts)
+
+    async def embed_query(self, text: str) -> list[float]:
+        """질의 임베딩, OpenAI는 대칭 모델이라 문서와 동일 인코딩"""
+        return await self._client.aembed_query(text)
 
 
 def get_embedder() -> Embedder:
