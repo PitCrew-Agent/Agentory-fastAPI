@@ -20,9 +20,15 @@ class PcaMspc:
     n_components는 유지할 분산 비율(0~1), quantile은 학습 점수 기반 한계 분위수
     """
 
-    def __init__(self, n_components: float = 0.9, quantile: float = 0.997) -> None:
+    def __init__(
+        self,
+        n_components: float = 0.9,
+        quantile: float = 0.997,
+        cross_correlation: bool = False,
+    ) -> None:
         self.n_components = n_components
         self.quantile = quantile
+        self.cross_correlation = cross_correlation  # 채널 쌍 상관 피처 (상관 붕괴 감지 보완)
         self._scaler = StandardScaler()
         self._pca = PCA(n_components=n_components, svd_solver="full")
         self._t2_limit: float | None = None
@@ -30,7 +36,7 @@ class PcaMspc:
 
     def fit(self, windows: np.ndarray) -> "PcaMspc":
         """정상 운전 윈도우 (N, W, C)로 부분공간·한계 적합"""
-        features = self._scaler.fit_transform(window_features(windows))
+        features = self._scaler.fit_transform(window_features(windows, self.cross_correlation))
         self._pca.fit(features)
         t2, spe = self._statistics(features)
         # 0 한계 방지, 학습 분산이 극단적으로 작아도 나눗셈 안정 유지
@@ -42,7 +48,7 @@ class PcaMspc:
         """윈도우별 이상도 점수 (N,), 1.0 초과 = 정상 한계 밖"""
         if self._t2_limit is None or self._spe_limit is None:
             raise RuntimeError("fit 이전 score 호출 불가")
-        features = self._scaler.transform(window_features(windows))
+        features = self._scaler.transform(window_features(windows, self.cross_correlation))
         t2, spe = self._statistics(features)
         return np.maximum(t2 / self._t2_limit, spe / self._spe_limit)
 
