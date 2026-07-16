@@ -1,0 +1,42 @@
+{
+  "experiment": "EXP-007-RT",
+  "run_at": "2026-07-16T05:40:13+00:00",
+  "git_commit": "7f4496fda7d5900cb892d51240989416f3b5f677",
+  "eval_set_version": "v2",
+  "config": {
+    "name": "EXP-007-RT",
+    "method": "pca_mspc",
+    "eval_set": "data/eval/v2",
+    "window": 12,
+    "stride": 6,
+    "n_components": 0.9,
+    "threshold_quantile": 0.999,
+    "cross_correlation": true,
+    "ewma_alpha": 0.1,
+    "ewma_clip": 3.0,
+    "confirm_k": 2,
+    "max_delay_ticks": 180
+  },
+  "metrics": {
+    "events_total": 22.0,
+    "events_detected": 20.0,
+    "event_recall": 0.9090909090909091,
+    "false_alarms_total": 118.0,
+    "false_alarms_per_equipment_day": 17.48148148148148,
+    "detection_delay_mean_ticks": 24.2,
+    "detection_delay_p90_ticks": 35.600000000000094,
+    "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 11.0,
+    "recall_corr_break": 1.0,
+    "delay_mean_corr_break_ticks": 104.0,
+    "recall_drift": 1.0,
+    "delay_mean_drift_ticks": 16.25,
+    "recall_drift_inband": 0.0,
+    "delay_mean_drift_inband_ticks": NaN,
+    "recall_oscillation": 1.0,
+    "delay_mean_oscillation_ticks": 26.0,
+    "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 17.0,
+    "auc_pr": 0.9830634149817103
+  }
+}
