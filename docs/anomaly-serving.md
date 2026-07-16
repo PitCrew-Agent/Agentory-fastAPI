@@ -26,12 +26,35 @@
 발령 코드는 `WRN-901`(통계 이상, 심각도 주의)이며 규칙 코드(ERR/WRN-50x~80x)와 구분됩니다.
 `metric`에는 T²/SPE 최대 기여 센서가 기록되어 알림·대응 계획의 설명 근거가 됩니다.
 
+## 섀도우 모드 (BE_ANOM01_SHADOW01)
+
+실발령 전 검증 단계입니다. `ANOMALY_SHADOW_MODE=true`(기본)면 스코어러가 실데이터에
+동작하되 WRN-901을 알림 파이프라인에 쏘지 않고 `equipment_anomaly_shadow_events`
+관찰 저널에만 기록합니다. 운영자 노출 없이 규칙 레이어와 비교 관찰할 수 있습니다.
+
+```bash
+uv run anomaly-shadow-report --days 7   # 섀도우 vs 규칙 비교
+```
+
+리포트는 감지를 세 가지로 분류합니다.
+
+| 분류 | 의미 |
+| --- | --- |
+| detector-only | 섀도우만 발생, 규칙이 놓친 임계 안쪽 이상 후보 |
+| overlapping | 섀도우·규칙 시간 겹침, 동일 이상 양쪽 감지 |
+| rule-only | 규칙만 발생, 섀도우 미감지 (급성 등, 규칙 레이어 담당) |
+
+detector-only가 실제 이상인지 오탐인지 운영자가 리뷰해 실발령 전환·파라미터 조정을
+결정합니다. 이 라벨이 이후 레시피 마스킹·설비별 캘리브레이션·반지도 전환의 근거입니다.
+
 ## 배포 절차
 
 ```bash
-uv run alembic upgrade head          # equipment_anomaly_models 테이블 생성
+uv run alembic upgrade head          # 이상 감지 테이블 생성
 uv run anomaly-fit                   # 공정 유형별 모델 적합·저장 (정상 데이터 필요)
-# .env에서 ANOMALY_DETECTION_ENABLED=true 후 API 재기동 → 워처 활성
+# 1단계 섀도우: ANOMALY_DETECTION_ENABLED=true, ANOMALY_SHADOW_MODE=true 후 재기동
+#   → N주 관찰, anomaly-shadow-report로 규칙 비교
+# 2단계 실발령: 검증 후 ANOMALY_SHADOW_MODE=false 후 재기동 → WRN-901 실발령
 ```
 
 모델 미적재 상태에서는 워처가 즉시 반환하므로 활성화해도 무해합니다. 서빙 파라미터는

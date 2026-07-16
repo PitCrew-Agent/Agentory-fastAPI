@@ -4,6 +4,8 @@
 알람 발령은 기존 EquipmentAlarm에 기록해 sync_from_alarms → 알림 파이프라인 재사용
 """
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime
 
 import numpy as np
@@ -20,7 +22,7 @@ from agentory.modules.watcher.detector import (
     AnomalyScorer,
     LoadedModel,
 )
-from agentory.modules.watcher.models import EquipmentAnomalyModel
+from agentory.modules.watcher.models import EquipmentAnomalyModel, EquipmentAnomalyShadowEvent
 from anomaly.models.pca_mspc import PcaMspc
 
 
@@ -102,9 +104,9 @@ async def active_anomaly_equipment(session: AsyncSession) -> set[str]:
 
 
 async def raise_anomaly(
-    session: AsyncSession, equipment_id: str, metric: str, now: datetime
+    session: AsyncSession, equipment_id: str, metric: str, score: float, now: datetime
 ) -> None:
-    """WRN-901 활성 알람 발생, 기여 채널을 metric으로 기록"""
+    """WRN-901 활성 알람 발생, 기여 채널을 metric으로 기록 (score는 실발령 미사용)"""
     session.add(
         EquipmentAlarm(
             equipment_id=equipment_id,
@@ -127,3 +129,52 @@ async def clear_anomaly(session: AsyncSession, equipment_id: str, now: datetime)
         )
         .values(cleared_at=now)
     )
+
+
+async def active_shadow_equipment(session: AsyncSession) -> set[str]:
+    """열린 섀도우 관찰이 있는 설비 집합"""
+    rows = await session.scalars(
+        select(EquipmentAnomalyShadowEvent.equipment_id).where(
+            EquipmentAnomalyShadowEvent.cleared_at.is_(None)
+        )
+    )
+    return set(rows)
+
+
+async def raise_shadow(
+    session: AsyncSession, equipment_id: str, metric: str, score: float, now: datetime
+) -> None:
+    """섀도우 관찰 발생, 실알람 미발령 (알림 파이프라인 미연결)"""
+    session.add(
+        EquipmentAnomalyShadowEvent(
+            equipment_id=equipment_id, metric=metric, score=score, raised_at=now
+        )
+    )
+
+
+async def clear_shadow(session: AsyncSession, equipment_id: str, now: datetime) -> None:
+    """설비의 열린 섀도우 관찰 해제"""
+    await session.execute(
+        update(EquipmentAnomalyShadowEvent)
+        .where(
+            EquipmentAnomalyShadowEvent.equipment_id == equipment_id,
+            EquipmentAnomalyShadowEvent.cleared_at.is_(None),
+        )
+        .values(cleared_at=now)
+    )
+
+
+@dataclass(frozen=True)
+class AlarmSink:
+    """발령 싱크 추상화, 섀도우/실발령을 동일 인터페이스로 처리"""
+
+    active: Callable[[AsyncSession], Awaitable[set[str]]]
+    raise_event: Callable[[AsyncSession, str, str, float, datetime], Awaitable[None]]
+    clear: Callable[[AsyncSession, str, datetime], Awaitable[None]]
+
+
+def resolve_sink(shadow: bool) -> AlarmSink:
+    """섀도우 여부로 싱크 선택, 실발령은 EquipmentAlarm·섀도우는 관찰 저널"""
+    if shadow:
+        return AlarmSink(active_shadow_equipment, raise_shadow, clear_shadow)
+    return AlarmSink(active_anomaly_equipment, raise_anomaly, clear_anomaly)

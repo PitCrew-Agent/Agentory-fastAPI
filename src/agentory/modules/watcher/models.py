@@ -6,7 +6,18 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,3 +39,32 @@ class EquipmentAnomalyModel(Base):
     fitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class EquipmentAnomalyShadowEvent(Base):
+    """섀도우 모드 이상 감지 관찰 저널 (BE_ANOM01_SHADOW01)
+
+    스코어러 판정을 EquipmentAlarm과 동일한 발생/해제 구조로 기록하되 알림 파이프라인
+    미연결, 규칙 레이어 알람과 조인해 감지 격차를 정량 리뷰
+    """
+
+    __tablename__ = "equipment_anomaly_shadow_events"
+    __table_args__ = (
+        # 활성 섀도우 관찰 조회 부분 인덱스, 발생/해제 전이 판정용
+        Index(
+            "ix_anomaly_shadow_active",
+            "equipment_id",
+            postgresql_where=text("cleared_at IS NULL"),
+        ),
+    )
+
+    event_id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    equipment_id: Mapped[str] = mapped_column(
+        ForeignKey("equipment_masters.equipment_id"), nullable=False
+    )
+    metric: Mapped[str] = mapped_column(String(20), nullable=False)  # 최대 기여 센서
+    score: Mapped[float] = mapped_column(Float, nullable=False)  # 발생 시 정규화 점수
+    raised_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # NULL이면 활성
