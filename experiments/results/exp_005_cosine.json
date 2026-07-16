@@ -1,0 +1,39 @@
+{
+  "experiment": "EXP-005-COSINE",
+  "run_at": "2026-07-16T03:46:21+00:00",
+  "git_commit": "273c141bdb81e373c7b49dd428fd9b6e4843023f",
+  "eval_set_version": "v2",
+  "config": {
+    "name": "EXP-005-COSINE",
+    "method": "ts2vec_knn",
+    "eval_set": "data/eval/v2",
+    "window": 24,
+    "stride": 12,
+    "repr_dims": 64,
+    "depth": 6,
+    "iters": 600,
+    "batch_size": 32,
+    "lr": 0.001,
+    "k_neighbors": 5,
+    "threshold_quantile": 0.999,
+    "baseline": "cosine",
+    "seed": 20260716,
+    "max_delay_ticks": 60
+  },
+  "metrics": {
+    "events_total": 22.0,
+    "events_detected": 16.0,
+    "event_recall": 0.7272727272727273,
+    "false_alarms_total": 22.0,
+    "false_alarms_per_equipment_day": 3.259259259259259,
+    "detection_delay_mean_ticks": 14.75,
+    "detection_delay_p90_ticks": 23.0,
+    "recall_acute": 1.0,
+    "recall_corr_break": 0.0,
+    "recall_drift": 1.0,
+    "recall_drift_inband": 0.0,
+    "recall_oscillation": 0.0,
+    "recall_variance": 1.0,
+    "auc_pr": 0.9258611466263759
+  }
+}

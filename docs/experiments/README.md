@@ -19,8 +19,8 @@
 | EXP-002 | PCA MSPC (T² + SPE) | v0 후보 (완료) |
 | EXP-003 | ablation (윈도우 길이·오버랩, 임계 퍼센타일) | v0 확정 config (완료) |
 | EXP-004 | 평가 세트 v2 (임계 안쪽 이상) 구축·재채점 | data/eval/v2 + 사각 정량화 (완료) |
-| EXP-005 | TS2Vec + kNN 거리 | v1 후보, 판정 기준은 corr_break 유예 내 감지 |
-| EXP-006 | v0 vs v1 A/B + 설비별 캘리브레이션 | 채택 결정 |
+| EXP-005 | TS2Vec + kNN 거리 | v1 보류 판정, corr_break 신호 부재 (완료) |
+| EXP-006 | 점수 누적(EWMA/CUSUM) + A/B 종합·설비별 캘리브레이션 | 채택 결정 |
 
 ## 실험 1건의 규약
 

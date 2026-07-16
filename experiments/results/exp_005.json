@@ -1,0 +1,39 @@
+{
+  "experiment": "EXP-005",
+  "run_at": "2026-07-16T03:42:56+00:00",
+  "git_commit": "273c141bdb81e373c7b49dd428fd9b6e4843023f",
+  "eval_set_version": "v2",
+  "config": {
+    "name": "EXP-005",
+    "method": "ts2vec_knn",
+    "eval_set": "data/eval/v2",
+    "window": 24,
+    "stride": 12,
+    "repr_dims": 64,
+    "depth": 6,
+    "iters": 600,
+    "batch_size": 32,
+    "lr": 0.001,
+    "k_neighbors": 5,
+    "threshold_quantile": 0.999,
+    "baseline": "knn",
+    "seed": 20260716,
+    "max_delay_ticks": 60
+  },
+  "metrics": {
+    "events_total": 22.0,
+    "events_detected": 17.0,
+    "event_recall": 0.7727272727272727,
+    "false_alarms_total": 25.0,
+    "false_alarms_per_equipment_day": 3.7037037037037037,
+    "detection_delay_mean_ticks": 15.235294117647058,
+    "detection_delay_p90_ticks": 23.0,
+    "recall_acute": 1.0,
+    "recall_corr_break": 0.0,
+    "recall_drift": 1.0,
+    "recall_drift_inband": 0.0,
+    "recall_oscillation": 0.5,
+    "recall_variance": 1.0,
+    "auc_pr": 0.9123176670495696
+  }
+}
