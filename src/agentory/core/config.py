@@ -55,9 +55,10 @@ class Settings(BaseSettings):
     # 멀티턴 history 로드 상한(최근 N개), 대화가 길어질수록 커지는 프롬프트 지연 방지
     agent_history_max_messages: int = 12
 
-    # 임베딩
-    embedding_model: str = ""
-    embedding_dim: int = 1536
+    # 임베딩, provider로 어댑터 선택 (e5=로컬 sentence-transformers 768, openai=API 1536)
+    embedding_provider: str = "e5"
+    embedding_model: str = ""  # 비우면 provider별 기본 모델 사용
+    embedding_dim: int = 768
 
     # RAG 매뉴얼 검색 (BE_MCP04_RAG01)
     rag_search_top_k: int = 3  # 검색 기본 Top-K
