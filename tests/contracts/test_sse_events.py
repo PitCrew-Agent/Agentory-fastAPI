@@ -67,6 +67,7 @@ NOTIFICATION_PAYLOAD = {
     "equipment_id": "EQP-003",
     "metric": "temperature",
     "alarm_code": "ERR-402",
+    "severity": "위험",
     "message": "EQP-003 냉각 이상 (온도 상승·압력 하강)",
     "is_read": False,
 }
@@ -78,6 +79,7 @@ def test_notification_event_parses():
     assert event.id == 42
     assert event.metric == "temperature"
     assert event.alarm_code == "ERR-402"
+    assert event.severity == "위험"
 
 
 def test_notification_event_allows_null_metric():
