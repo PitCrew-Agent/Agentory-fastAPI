@@ -1,0 +1,16 @@
+# EXP-006 PCAX + EWMA 점수 누적
+# 상관 피처(PCAX)가 산출하는 윈도우당 약 3sigma 지속 신호를 EWMA로 누적해
+# 단발 임계가 못 잡던 corr_break 감지 검증 (EXP-004 발견 3, EXP-005 결론의 우선 경로)
+# alpha 스윕(0.1/0.2/0.3) 결과 0.1 채택: corr_break 초과비율 0.91~0.95 (지속 감지),
+# 정상 오탐 최소. 시정수 약 10 윈도우(120 tick)라 유예 60은 구조적 미달, 180과 병행 채점
+name: EXP-006
+method: pca_mspc
+eval_set: data/eval/v2
+window: 24
+stride: 12
+n_components: 0.9
+threshold_quantile: 0.999
+cross_correlation: true
+ewma_alpha: 0.1
+ewma_clip: 3.0
+max_delay_ticks: 60
