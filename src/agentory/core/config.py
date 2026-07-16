@@ -74,6 +74,16 @@ class Settings(BaseSettings):
     # 알림 동기화 워처 주기(초), 클라이언트 접속과 무관하게 알람→알림 동기화 (NEW_PROACT01_DETECT01)
     notification_sync_interval_seconds: float = 5.0
 
+    # 이상 감지 스코어러 (BE_ANOM01_SERVE01), 서빙 파라미터는 EXP-006·007 확정값
+    anomaly_detection_enabled: bool = False  # 스코어러 루프 활성 (모델 적재 후 켬)
+    anomaly_score_interval_seconds: float = 30.0  # 스코어링 주기 = stride (EXP-007)
+    anomaly_window_ticks: int = 12  # 윈도우 길이 60초 (tick 5초 기준)
+    anomaly_stride_ticks: int = 6  # 슬라이드 30초
+    anomaly_confirm_k: int = 2  # 지속 확인 윈도우 수 (오탐 억제)
+    anomaly_ewma_alpha: float = 0.1  # EWMA 누적 계수 (상관 붕괴 감지)
+    anomaly_ewma_clip: float = 3.0  # EWMA 전 원점수 상한 (모드 전이 꼬리 억제)
+    anomaly_lookback_rows: int = 300  # 설비별 조회 행수, EWMA 웜업 포함
+
     redis_url: str = "redis://localhost:6379/0"
     redis_key_prefix: str = "agentory"
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 14

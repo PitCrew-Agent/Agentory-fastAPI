@@ -57,6 +57,7 @@ mcp-realtime = "mcp_realtime.server:run"
 mcp-knowledge = "mcp_knowledge.server:run"
 mcp-maintenance = "mcp_maintenance.server:run"
 simulator = "simulator.main:run"
+anomaly-fit = "agentory.modules.watcher.fit:run"
 
 [build-system]
 requires = ["hatchling"]

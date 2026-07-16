@@ -25,6 +25,7 @@ from agentory.modules.chat.router import router as chat_router
 from agentory.modules.incident.router import router as incident_router
 from agentory.modules.notification.router import router as notification_router
 from agentory.modules.telemetry.router import router as telemetry_router
+from agentory.modules.watcher.anomaly_worker import run_anomaly_loop
 from agentory.modules.watcher.sync_worker import run_sync_loop
 from agentory.modules.worklog.router import router as worklog_router
 
@@ -32,14 +33,19 @@ from agentory.modules.worklog.router import router as worklog_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    settings = get_settings()
     # 알림 동기화 워처 시작, 클라이언트 접속과 무관하게 알람을 알림화 (NEW_PROACT01_DETECT01)
-    interval = get_settings().notification_sync_interval_seconds
-    watcher_task = asyncio.create_task(run_sync_loop(interval))
+    tasks = [asyncio.create_task(run_sync_loop(settings.notification_sync_interval_seconds))]
+    # 이상 감지 스코어러 워처, 모델 적재 후 활성 (BE_ANOM01_SERVE01)
+    if settings.anomaly_detection_enabled:
+        tasks.append(asyncio.create_task(run_anomaly_loop(settings)))
     yield
-    # 앱 종료 시 워처 취소 후 정리 완료까지 대기
-    watcher_task.cancel()
-    with suppress(asyncio.CancelledError):
-        await watcher_task
+    # 앱 종료 시 전 워처 취소 후 정리 완료까지 대기
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 # 태그별 그룹 라벨, Swagger 엔드포인트 그룹 헤더에 표시
