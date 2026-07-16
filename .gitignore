@@ -31,3 +31,6 @@ htmlcov/
 
 # 로그
 *.log
+
+# 실험 기록 (MLflow 로컬 스토어)
+mlruns/

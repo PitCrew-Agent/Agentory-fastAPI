@@ -34,6 +34,21 @@ dev = [
     "pre-commit>=3.8",
     "python-docx>=1.2.0",
 ]
+# 이상 감지 파이프라인 (src/anomaly) 런타임 의존성
+anomaly = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "pyarrow>=17",
+    "scikit-learn>=1.5",
+]
+# 실험 실행·기록 전용 (MLflow 로컬 추적), CI 기본 설치에서 제외
+experiment = [
+    "mlflow>=2.16",
+    {include-group = "anomaly"},
+]
+
+[tool.uv]
+default-groups = ["dev", "anomaly"]
 
 [project.scripts]
 agentory-api = "agentory.main:run"
@@ -53,6 +68,7 @@ packages = [
     "src/mcp_knowledge",
     "src/mcp_maintenance",
     "src/simulator",
+    "src/anomaly",
 ]
 
 [tool.ruff]
