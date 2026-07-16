@@ -1,0 +1,33 @@
+{
+  "experiment": "EXP-004-PCAX",
+  "run_at": "2026-07-16T03:30:39+00:00",
+  "git_commit": "8729453a24a1bdb27a2bf467ac2091f0d951cdeb",
+  "eval_set_version": "v2",
+  "config": {
+    "name": "EXP-004-PCAX",
+    "method": "pca_mspc",
+    "eval_set": "data/eval/v2",
+    "window": 24,
+    "stride": 12,
+    "n_components": 0.9,
+    "threshold_quantile": 0.999,
+    "max_delay_ticks": 60,
+    "cross_correlation": true
+  },
+  "metrics": {
+    "events_total": 22.0,
+    "events_detected": 17.0,
+    "event_recall": 0.7727272727272727,
+    "false_alarms_total": 36.0,
+    "false_alarms_per_equipment_day": 5.333333333333333,
+    "detection_delay_mean_ticks": 13.117647058823529,
+    "detection_delay_p90_ticks": 15.800000000000004,
+    "recall_acute": 1.0,
+    "recall_corr_break": 0.0,
+    "recall_drift": 1.0,
+    "recall_drift_inband": 0.0,
+    "recall_oscillation": 0.5,
+    "recall_variance": 1.0,
+    "auc_pr": 0.956633302447337
+  }
+}

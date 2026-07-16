@@ -1,0 +1,7 @@
+# EXP-004 규칙 레이어 재채점 (평가 세트 v2)
+# 임계 안쪽 이상 6건에 대한 규칙 recall 격차 정량화 목적
+# 감지 유예 60 tick(5분), 장구간 이벤트의 우연 적중으로 인한 recall 포화 방지
+name: EXP-004-RULE
+method: rule_baseline
+eval_set: data/eval/v2
+max_delay_ticks: 60

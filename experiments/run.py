@@ -21,6 +21,7 @@ from anomaly.eval_set import load_eval_frame, load_events, load_manifest, load_t
 from anomaly.evaluation import auc_pr, point_labels, summarize
 from anomaly.models.pca_mspc import PcaMspc
 from anomaly.rule_baseline import equipment_n_ticks, rule_detections, rule_point_scores
+from anomaly.scoring import ewma
 from anomaly.windowing import sliding_windows, window_starts
 from simulator.generator import VARS
 
@@ -38,6 +39,11 @@ def _git_commit() -> str | None:
         return None
 
 
+def _clip(scores: np.ndarray, upper: float | None) -> np.ndarray:
+    # EWMA 입력 winsorize, 미지정 시 원 점수 유지
+    return np.minimum(scores, upper) if upper else scores
+
+
 def run_rule_baseline(config: dict) -> dict[str, float]:
     """EXP-001 규칙 레이어 단독 채점, 평가 세트 저장 컬럼만 사용 (재실행 없음)"""
     root = Path(config["eval_set"])
@@ -45,17 +51,26 @@ def run_rule_baseline(config: dict) -> dict[str, float]:
     events = load_events(root)
     tick_seconds = load_manifest(root)["config"]["tick_seconds"]
 
-    metrics = summarize(events, rule_detections(frame), equipment_n_ticks(frame), tick_seconds)
+    metrics = summarize(
+        events,
+        rule_detections(frame),
+        equipment_n_ticks(frame),
+        tick_seconds,
+        config.get("max_delay_ticks"),
+    )
     scores, labels = rule_point_scores(frame, events)
     metrics["auc_pr"] = auc_pr(scores, labels)
     return metrics
 
 
-def run_pca_mspc(config: dict) -> dict[str, float]:
-    """EXP-002 PCA MSPC (T²+SPE) 채점
+def _run_windowed(config: dict, make_model) -> dict[str, float]:
+    """윈도우 기반 detector 공용 채점 루프
 
-    공정 유형별 모델 적합 (설비별 캘리브레이션은 EXP-003 이후), 판정 tick은 윈도우 끝
-    포인트 점수는 각 tick 시점까지 완료된 최신 윈도우 점수를 할당 (첫 윈도우 이전은 첫 점수)
+    make_model()이 AnomalyDetector를 반환, 공정 유형별로 정상 학습 세트에 적합
+    판정 tick은 윈도우 끝, 포인트 점수는 각 tick까지 완료된 최신 윈도우 점수 할당
+    (첫 윈도우 이전 구간은 첫 점수)
+    ewma_alpha 지정 시 점수 시계열에 EWMA 적용 + 학습 정상 시퀀스로 한계 재캘리브레이션
+    (EXP-006, 지속 저강도 신호 누적 감지)
     """
     root = Path(config["eval_set"])
     train = load_train_frame(root)
@@ -64,6 +79,10 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
     manifest_cfg = load_manifest(root)["config"]
     tick_seconds = manifest_cfg["tick_seconds"]
     window, stride = config["window"], config["stride"]
+    ewma_alpha = config.get("ewma_alpha")
+    # EWMA 전 원 점수 상한 (winsorize), 급성·모드 전이의 거대 점수가 느린 감쇠로
+    # 수백 tick 오탐 꼬리를 만드는 것을 차단 (지속 저강도 신호 누적에는 영향 없음)
+    ewma_clip = config.get("ewma_clip")
 
     # 설비 → 공정 유형 매핑은 manifest의 config 스냅샷에서 복원 (평가 세트 재생성 불필요)
     eval_types = {s["equipment_id"]: s["process_type"] for s in manifest_cfg["eval"]["segments"]}
@@ -71,19 +90,25 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
         e["equipment_id"]: e["process_type"] for e in manifest_cfg["train"]["equipments"]
     }
 
-    models: dict[str, PcaMspc] = {}
+    def train_windows(equipment_id: str) -> np.ndarray:
+        series = train[train["equipment_id"] == equipment_id].sort_values("tick")
+        return sliding_windows(series[list(VARS)].to_numpy(), window, stride)
+
+    models: dict[str, object] = {}
+    ewma_limits: dict[str, float] = {}
     for ptype in sorted(set(train_types.values())):
-        parts = [
-            sliding_windows(
-                train[train["equipment_id"] == eq].sort_values("tick")[list(VARS)].to_numpy(),
-                window,
-                stride,
+        equipment_ids = [eq for eq, t in train_types.items() if t == ptype]
+        parts = [train_windows(eq) for eq in equipment_ids]
+        model = make_model().fit(np.concatenate(parts))
+        models[ptype] = model
+        if ewma_alpha:
+            # 설비별 정상 점수 시퀀스에 동일 클리핑+EWMA 적용 후 분위수로 한계 재산출
+            accumulated = np.concatenate(
+                [ewma(_clip(model.score(part), ewma_clip), ewma_alpha) for part in parts]
             )
-            for eq, t in train_types.items()
-            if t == ptype
-        ]
-        model = PcaMspc(config["n_components"], config["threshold_quantile"])
-        models[ptype] = model.fit(np.concatenate(parts))
+            ewma_limits[ptype] = max(
+                float(np.quantile(accumulated, config["threshold_quantile"])), 1e-12
+            )
 
     detections: dict[str, np.ndarray] = {}
     n_ticks: dict[str, int] = {}
@@ -95,15 +120,50 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
         n_ticks[str(equipment_id)] = n
         windows = sliding_windows(ordered[list(VARS)].to_numpy(), window, stride)
         ends = window_starts(n, window, stride) + window - 1
-        scores = models[eval_types[str(equipment_id)]].score(windows)
+        ptype = eval_types[str(equipment_id)]
+        scores = models[ptype].score(windows)
+        if ewma_alpha:
+            scores = ewma(_clip(scores, ewma_clip), ewma_alpha) / ewma_limits[ptype]
         detections[str(equipment_id)] = ends[scores > 1.0]
         latest = np.clip(np.searchsorted(ends, np.arange(n), side="right") - 1, 0, None)
         scores_all.append(scores[latest])
         labels_all.append(point_labels(str(equipment_id), n, events))
 
-    metrics = summarize(events, detections, n_ticks, tick_seconds)
+    metrics = summarize(events, detections, n_ticks, tick_seconds, config.get("max_delay_ticks"))
     metrics["auc_pr"] = auc_pr(np.concatenate(scores_all), np.concatenate(labels_all))
     return metrics
+
+
+def run_pca_mspc(config: dict) -> dict[str, float]:
+    """EXP-002~004 PCA MSPC (T²+SPE) 채점"""
+    return _run_windowed(
+        config,
+        lambda: PcaMspc(
+            config["n_components"],
+            config["threshold_quantile"],
+            config.get("cross_correlation", False),
+        ),
+    )
+
+
+def run_ts2vec_knn(config: dict) -> dict[str, float]:
+    """EXP-005 TS2Vec encoder + 거리 판정 채점 (baseline: knn | cosine)"""
+    from anomaly.models.ts2vec import Ts2VecKnn  # torch 의존, 사용 시점 지연 import
+
+    return _run_windowed(
+        config,
+        lambda: Ts2VecKnn(
+            repr_dims=config["repr_dims"],
+            depth=config["depth"],
+            iters=config["iters"],
+            batch_size=config["batch_size"],
+            lr=config["lr"],
+            k_neighbors=config["k_neighbors"],
+            quantile=config["threshold_quantile"],
+            baseline=config.get("baseline", "knn"),
+            seed=config["seed"],
+        ),
+    )
 
 
 def run_pca_mspc_ablation(config: dict) -> dict:
@@ -150,6 +210,7 @@ METHODS = {
     "rule_baseline": run_rule_baseline,
     "pca_mspc": run_pca_mspc,
     "pca_mspc_ablation": run_pca_mspc_ablation,
+    "ts2vec_knn": run_ts2vec_knn,
 }
 
 

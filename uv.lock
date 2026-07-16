@@ -74,6 +74,7 @@ experiment = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "scikit-learn" },
+    { name = "torch" },
 ]
 
 [package.metadata]
@@ -119,6 +120,7 @@ experiment = [
     { name = "pandas", specifier = ">=2.2" },
     { name = "pyarrow", specifier = ">=17" },
     { name = "scikit-learn", specifier = ">=1.5" },
+    { name = "torch", specifier = ">=2.4" },
 ]
 
 [[package]]

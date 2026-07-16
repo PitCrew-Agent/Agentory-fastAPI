@@ -28,6 +28,19 @@ def test_window_features_empty_input():
     assert features.shape == (0, 4 * FEATURES_PER_CHANNEL)
 
 
+def test_window_features_cross_correlation_block():
+    rng = np.random.default_rng(1)
+    base = rng.normal(size=(8, 30, 1))
+    # 채널2 = 채널1 복제 (상관 1), 채널3 = 독립
+    windows = np.concatenate([base, base, rng.normal(size=(8, 30, 1))], axis=2)
+    features = window_features(windows, cross_correlation=True)
+    assert features.shape == (8, 3 * FEATURES_PER_CHANNEL + 3)
+    corr_12 = features[:, 3 * FEATURES_PER_CHANNEL]  # 쌍 순서 (0,1) (0,2) (1,2)
+    assert np.allclose(corr_12, 1.0, atol=1e-6)
+    corr_13 = features[:, 3 * FEATURES_PER_CHANNEL + 1]
+    assert np.all(np.abs(corr_13) < 0.9)
+
+
 def test_window_features_rejects_invalid_shapes():
     with pytest.raises(ValueError):
         window_features(np.zeros((10, 4)))  # 2차원

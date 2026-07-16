@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from anomaly import synthetic
 from anomaly.evaluation import AnomalyEvent
 from simulator.generator import VARS, generate_reading
 from simulator.scenarios import SCENARIOS
@@ -34,16 +35,24 @@ MANIFEST_FILE = "manifest.json"
 
 @dataclass(frozen=True)
 class SegmentSpec:
-    """세그먼트 1개 = 설비 1대 x 시나리오 1개의 연속 관측 구간"""
+    """세그먼트 1개 = 설비 1대 x 시나리오 1개의 연속 관측 구간
+
+    generator: simulator(독립 채널, 규칙 가시 이상) | synthetic(결합 채널, 임계 안쪽 이상)
+    """
 
     equipment_id: str
     process_type: str
     scenario: str
+    generator: str = "simulator"
 
 
 def _generate_segment(
     spec: SegmentSpec, n_ticks: int, drift_start_tick: int, seed: int
 ) -> list[dict]:
+    if spec.generator == "synthetic":
+        return synthetic.generate_rows(
+            spec.equipment_id, spec.scenario, n_ticks, drift_start_tick, seed
+        )
     # 설비별 독립 rng, 다른 세그먼트 추가·삭제가 이 세그먼트 값에 영향 주지 않음
     rng = random.Random(f"{seed}:{spec.equipment_id}")
     history: deque = deque(maxlen=HISTORY_LEN)
@@ -74,7 +83,20 @@ def _generate_segment(
 
 
 def _segment_events(spec: SegmentSpec, n_ticks: int, drift_start_tick: int) -> list[AnomalyEvent]:
-    # 시나리오 정의(SCENARIOS)에서 정답 이벤트 도출, normal은 빈 목록
+    # 시나리오 정의에서 정답 이벤트 도출, normal·ignition(정상 라벨)은 빈 목록
+    if spec.generator == "synthetic":
+        if spec.scenario not in synthetic.EVENT_KINDS:
+            return []
+        kind, variables = synthetic.EVENT_KINDS[spec.scenario]
+        return [
+            AnomalyEvent(
+                equipment_id=spec.equipment_id,
+                kind=kind,
+                variables=variables,
+                start_tick=drift_start_tick,
+                end_tick=n_ticks - 1,
+            )
+        ]
     scenario = SCENARIOS[spec.scenario]
     events: list[AnomalyEvent] = []
     for kind, variables in (

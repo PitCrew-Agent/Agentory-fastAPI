@@ -30,6 +30,15 @@ def test_event_recall_and_delays():
     assert missed == [EVENTS[1]]
 
 
+def test_event_recall_respects_max_delay_grace():
+    # EQP-1 이벤트 [10, 20], 판정 15 → 유예 3이면 미인정(마감 13), 유예 5면 인정
+    detections = {"EQP-1": np.array([15]), "EQP-2": np.array([])}
+    recall_tight, delays, missed = event_recall_and_delays(EVENTS, detections, max_delay_ticks=3)
+    assert recall_tight == 0.0 and delays == [] and len(missed) == 2
+    recall_loose, delays, _missed = event_recall_and_delays(EVENTS, detections, max_delay_ticks=5)
+    assert recall_loose == 0.5 and delays == [5]
+
+
 def test_event_recall_empty_events_is_nan():
     recall, delays, missed = event_recall_and_delays([], {})
     assert math.isnan(recall)
@@ -73,3 +82,13 @@ def test_summarize_keys_and_values():
     assert metrics["events_detected"] == 2.0
     assert metrics["false_alarms_total"] == 0.0
     assert metrics["detection_delay_mean_ticks"] == 2.0
+
+
+def test_summarize_per_kind_recall_breakdown():
+    # acute만 감지, drift 미감지 → 유형별 recall이 집계를 분해
+    detections = {"EQP-1": np.array([12]), "EQP-2": np.array([], dtype=int)}
+    n_ticks = {"EQP-1": 100, "EQP-2": 100}
+    metrics = summarize(EVENTS, detections, n_ticks, tick_seconds=5.0)
+    assert metrics["event_recall"] == 0.5
+    assert metrics["recall_acute"] == 1.0
+    assert metrics["recall_drift"] == 0.0

@@ -1,0 +1,207 @@
+[
+  {
+    "equipment_id": "EVL-A01",
+    "kind": "acute",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-A02",
+    "kind": "acute",
+    "variables": [
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-A03",
+    "kind": "acute",
+    "variables": [
+      "rf_power"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-A04",
+    "kind": "acute",
+    "variables": [
+      "gas_flow"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-D01",
+    "kind": "drift",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-D02",
+    "kind": "drift",
+    "variables": [
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-D03",
+    "kind": "drift",
+    "variables": [
+      "rf_power"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-D04",
+    "kind": "drift",
+    "variables": [
+      "gas_flow"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-V01",
+    "kind": "variance",
+    "variables": [
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C01",
+    "kind": "drift",
+    "variables": [
+      "pressure",
+      "rf_power"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C02",
+    "kind": "acute",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C02",
+    "kind": "drift",
+    "variables": [
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C03",
+    "kind": "acute",
+    "variables": [
+      "rf_power"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C03",
+    "kind": "drift",
+    "variables": [
+      "gas_flow"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C04",
+    "kind": "acute",
+    "variables": [
+      "gas_flow"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "EVL-C04",
+    "kind": "drift",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-B01",
+    "kind": "corr_break",
+    "variables": [
+      "gas_flow",
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-B02",
+    "kind": "corr_break",
+    "variables": [
+      "gas_flow",
+      "pressure"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-O01",
+    "kind": "oscillation",
+    "variables": [
+      "rf_power",
+      "pressure",
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-O02",
+    "kind": "oscillation",
+    "variables": [
+      "rf_power",
+      "pressure",
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-L01",
+    "kind": "drift_inband",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  },
+  {
+    "equipment_id": "SYN-L02",
+    "kind": "drift_inband",
+    "variables": [
+      "temperature"
+    ],
+    "start_tick": 720,
+    "end_tick": 4319
+  }
+]

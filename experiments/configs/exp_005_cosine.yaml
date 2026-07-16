@@ -1,0 +1,17 @@
+# EXP-005 대조군: 동일 encoder + 단일 centroid cosine 거리 (D3 검증)
+# 최초 구상(단일 baseline + cosine)이 kNN 은행 대비 얼마나 뒤지는지 정량 확인
+name: EXP-005-COSINE
+method: ts2vec_knn
+eval_set: data/eval/v2
+window: 24
+stride: 12
+repr_dims: 64
+depth: 6
+iters: 600
+batch_size: 32
+lr: 0.001
+k_neighbors: 5
+threshold_quantile: 0.999
+baseline: cosine
+seed: 20260716
+max_delay_ticks: 60

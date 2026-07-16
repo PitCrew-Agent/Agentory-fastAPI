@@ -43,7 +43,7 @@ EXP-002의 첫 설정값(윈도우 60·stride 12·분위수 0.997·유지분산 
 
 v0 config를 **윈도우 24 tick(2분)·stride 12 tick(1분)·분위수 0.999·유지분산 0.9**로
 확정합니다. 규칙 베이스라인 대비 오탐 72.8 → 0.53건/설비·일 (-99.3%), recall·지연 p90
-유지입니다. EXP-004(TS2Vec)는 이 config의 windowing을 공유하고 encoder·거리만 교체해
+유지입니다. EXP-005(TS2Vec)는 이 config의 windowing을 공유하고 encoder·거리만 교체해
 비교합니다.
 
 ## 한계
