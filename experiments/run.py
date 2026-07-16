@@ -106,10 +106,50 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
     return metrics
 
 
+def run_pca_mspc_ablation(config: dict) -> dict:
+    """EXP-003 PCA MSPC 그리드 스윕, 지연-오탐 곡선용 전 조합 채점
+
+    선정 기준: recall 1.0 조합 중 오탐/설비·일 최소, 동률이면 지연 p90 → mean 순
+    반환: {"grid": 전 조합 결과, "best": 선정 조합, "best_metrics": 선정 조합 지표}
+    """
+    grid: list[dict] = []
+    for window in config["windows"]:
+        for stride in config["strides"]:
+            for quantile in config["quantiles"]:
+                for n_components in config["n_components_list"]:
+                    params = {
+                        "window": window,
+                        "stride": stride,
+                        "threshold_quantile": quantile,
+                        "n_components": n_components,
+                    }
+                    metrics = run_pca_mspc({**config, **params})
+                    grid.append({"params": params, "metrics": metrics})
+                    print(
+                        f"  w={window:3d} s={stride:2d} q={quantile} c={n_components}"
+                        f" → FA/일 {metrics['false_alarms_per_equipment_day']:6.2f}"
+                        f" recall {metrics['event_recall']:.2f}"
+                        f" p90 {metrics['detection_delay_p90_ticks']:5.1f}"
+                    )
+
+    perfect = [g for g in grid if g["metrics"]["event_recall"] == 1.0]
+    candidates = perfect or grid
+    best = min(
+        candidates,
+        key=lambda g: (
+            g["metrics"]["false_alarms_per_equipment_day"],
+            g["metrics"]["detection_delay_p90_ticks"],
+            g["metrics"]["detection_delay_mean_ticks"],
+        ),
+    )
+    return {"grid": grid, "best": best["params"], "best_metrics": best["metrics"]}
+
+
 # method 키 → 채점 함수, 실험 추가 시 여기 등록
 METHODS = {
     "rule_baseline": run_rule_baseline,
     "pca_mspc": run_pca_mspc,
+    "pca_mspc_ablation": run_pca_mspc_ablation,
 }
 
 
@@ -123,20 +163,27 @@ def main() -> None:
     commit = _git_commit()
     eval_version = load_manifest(Path(config["eval_set"]))["version"]
 
-    metrics = METHODS[config["method"]](config)
+    result = METHODS[config["method"]](config)
+    is_grid = "grid" in result
+    metrics = result["best_metrics"] if is_grid else result
 
-    # MLflow 기록 (로컬 파일 스토어)
+    # MLflow 기록 (로컬 스토어), 그리드는 조합별 개별 run + 대표(best) run
+    base_params = {
+        "config_path": args.config,
+        "method": config["method"],
+        "eval_set": config["eval_set"],
+        "eval_set_version": eval_version,
+        "git_commit": commit,
+    }
     mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    if is_grid:
+        for entry in result["grid"]:
+            suffix = "-".join(f"{k[0]}{v}" for k, v in entry["params"].items())
+            with mlflow.start_run(run_name=f"{name}/{suffix}"):
+                mlflow.log_params({**base_params, **entry["params"]})
+                mlflow.log_metrics({k: v for k, v in entry["metrics"].items() if v == v})
     with mlflow.start_run(run_name=name):
-        mlflow.log_params(
-            {
-                "config_path": args.config,
-                "method": config["method"],
-                "eval_set": config["eval_set"],
-                "eval_set_version": eval_version,
-                "git_commit": commit,
-            }
-        )
+        mlflow.log_params({**base_params, **(result["best"] if is_grid else {})})
         mlflow.log_metrics({k: v for k, v in metrics.items() if v == v})  # nan 제외
 
     # 확정 지표 스냅샷 (git 커밋 대상, 실험 문서 비교표의 단일 소스)
@@ -149,6 +196,9 @@ def main() -> None:
         "config": config,
         "metrics": metrics,
     }
+    if is_grid:
+        snapshot["best_params"] = result["best"]
+        snapshot["grid"] = result["grid"]
     out_path = RESULTS_DIR / f"{name.lower().replace('-', '_')}.json"
     out_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2))
 
