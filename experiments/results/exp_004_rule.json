@@ -1,0 +1,28 @@
+{
+  "experiment": "EXP-004-RULE",
+  "run_at": "2026-07-16T03:30:35+00:00",
+  "git_commit": "8729453a24a1bdb27a2bf467ac2091f0d951cdeb",
+  "eval_set_version": "v2",
+  "config": {
+    "name": "EXP-004-RULE",
+    "method": "rule_baseline",
+    "eval_set": "data/eval/v2",
+    "max_delay_ticks": 60
+  },
+  "metrics": {
+    "events_total": 22.0,
+    "events_detected": 19.0,
+    "event_recall": 0.8636363636363636,
+    "false_alarms_total": 788.0,
+    "false_alarms_per_equipment_day": 116.74074074074075,
+    "detection_delay_mean_ticks": 6.947368421052632,
+    "detection_delay_p90_ticks": 21.4,
+    "recall_acute": 1.0,
+    "recall_corr_break": 0.0,
+    "recall_drift": 1.0,
+    "recall_drift_inband": 0.5,
+    "recall_oscillation": 1.0,
+    "recall_variance": 1.0,
+    "auc_pr": 0.8685439241187392
+  }
+}
