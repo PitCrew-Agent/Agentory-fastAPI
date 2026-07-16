@@ -1,0 +1,42 @@
+# EXP-000 고정 평가 세트 생성 설정
+# tick 1개 = 5초 (simulator 기본 주기), eval 세그먼트 4320 tick = 6시간
+# drift_start_tick 720 = 앞 1시간 정상 워밍업 후 이상 주입
+# 학습 세트는 평가와 seed·설비 ID 격리 (TRN- vs EVL- 접두)
+version: v1
+seed: 20260716
+tick_seconds: 5.0
+
+train:
+  # 정상 전용 학습 세트, 설비당 17280 tick = 24시간
+  seed: 20260701
+  n_ticks: 17280
+  equipments:
+    - {equipment_id: TRN-E01, process_type: Etching}
+    - {equipment_id: TRN-E02, process_type: Etching}
+    - {equipment_id: TRN-D01, process_type: Deposition}
+    - {equipment_id: TRN-D02, process_type: Deposition}
+
+eval:
+  n_ticks: 4320
+  drift_start_tick: 720
+  segments:
+    # 정상 (오탐 측정용, 공정 유형별 1대)
+    - {equipment_id: EVL-N01, process_type: Etching, scenario: normal}
+    - {equipment_id: EVL-N02, process_type: Deposition, scenario: normal}
+    # 급성 단일변수 (변수 4종 전체 커버)
+    - {equipment_id: EVL-A01, process_type: Etching, scenario: temperature_acute}
+    - {equipment_id: EVL-A02, process_type: Etching, scenario: pressure_acute}
+    - {equipment_id: EVL-A03, process_type: Deposition, scenario: rf_power_acute}
+    - {equipment_id: EVL-A04, process_type: Deposition, scenario: gas_flow_acute}
+    # 드리프트/PM 단일변수 (변수 4종 전체 커버)
+    - {equipment_id: EVL-D01, process_type: Etching, scenario: temperature_drift_pm}
+    - {equipment_id: EVL-D02, process_type: Etching, scenario: pressure_drift_pm}
+    - {equipment_id: EVL-D03, process_type: Deposition, scenario: rf_power_drift_pm}
+    - {equipment_id: EVL-D04, process_type: Deposition, scenario: gas_flow_drift_pm}
+    # 변동성 증가
+    - {equipment_id: EVL-V01, process_type: Etching, scenario: variance_increase}
+    # 복합 (한 설비 다변수 동시 독립 이상)
+    - {equipment_id: EVL-C01, process_type: Etching, scenario: mixed_pm_demo}
+    - {equipment_id: EVL-C02, process_type: Etching, scenario: temp_acute_pressure_drift}
+    - {equipment_id: EVL-C03, process_type: Deposition, scenario: rf_acute_gas_drift}
+    - {equipment_id: EVL-C04, process_type: Deposition, scenario: gas_acute_temp_drift}
