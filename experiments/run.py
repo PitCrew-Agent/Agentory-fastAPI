@@ -45,7 +45,13 @@ def run_rule_baseline(config: dict) -> dict[str, float]:
     events = load_events(root)
     tick_seconds = load_manifest(root)["config"]["tick_seconds"]
 
-    metrics = summarize(events, rule_detections(frame), equipment_n_ticks(frame), tick_seconds)
+    metrics = summarize(
+        events,
+        rule_detections(frame),
+        equipment_n_ticks(frame),
+        tick_seconds,
+        config.get("max_delay_ticks"),
+    )
     scores, labels = rule_point_scores(frame, events)
     metrics["auc_pr"] = auc_pr(scores, labels)
     return metrics
@@ -82,7 +88,11 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
             for eq, t in train_types.items()
             if t == ptype
         ]
-        model = PcaMspc(config["n_components"], config["threshold_quantile"])
+        model = PcaMspc(
+            config["n_components"],
+            config["threshold_quantile"],
+            config.get("cross_correlation", False),
+        )
         models[ptype] = model.fit(np.concatenate(parts))
 
     detections: dict[str, np.ndarray] = {}
@@ -101,7 +111,7 @@ def run_pca_mspc(config: dict) -> dict[str, float]:
         scores_all.append(scores[latest])
         labels_all.append(point_labels(str(equipment_id), n, events))
 
-    metrics = summarize(events, detections, n_ticks, tick_seconds)
+    metrics = summarize(events, detections, n_ticks, tick_seconds, config.get("max_delay_ticks"))
     metrics["auc_pr"] = auc_pr(np.concatenate(scores_all), np.concatenate(labels_all))
     return metrics
 

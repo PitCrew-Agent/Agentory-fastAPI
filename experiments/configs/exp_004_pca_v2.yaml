@@ -1,0 +1,11 @@
+# EXP-004 v0(PCA MSPC) 재채점 (평가 세트 v2)
+# config는 EXP-003 확정값 고정 (w24 s12 q0.999 c0.9)
+# EtchingCoupled는 합성 정상(TRN-C0x)으로 별도 모델 적합
+name: EXP-004-PCA
+method: pca_mspc
+eval_set: data/eval/v2
+window: 24
+stride: 12
+n_components: 0.9
+threshold_quantile: 0.999
+max_delay_ticks: 60

@@ -1,0 +1,12 @@
+# EXP-004 v0 변형: 채널 쌍 상관 피처 추가 (PCAX)
+# 채널별 요약 통계가 상관 붕괴에 둔감한 사각(EXP-004 발견)을 상관 피처로 보완
+# 나머지 설정은 EXP-004-PCA와 동일 (확정 config + 유예 60)
+name: EXP-004-PCAX
+method: pca_mspc
+eval_set: data/eval/v2
+window: 24
+stride: 12
+n_components: 0.9
+threshold_quantile: 0.999
+max_delay_ticks: 60
+cross_correlation: true
