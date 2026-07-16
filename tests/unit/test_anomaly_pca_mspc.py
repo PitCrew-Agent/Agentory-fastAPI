@@ -40,3 +40,30 @@ def test_score_flags_correlation_break():
 def test_score_before_fit_raises():
     with pytest.raises(RuntimeError):
         PcaMspc().score(np.zeros((1, 20, 2)))
+
+
+def test_to_state_from_state_roundtrip():
+    rng = np.random.default_rng(11)
+    train = _normal_windows(rng, 400)
+    model = PcaMspc(n_components=0.9, quantile=0.99, cross_correlation=True).fit(train)
+    restored = PcaMspc.from_state(model.to_state())
+    probe = _normal_windows(rng, 30)
+    # 복원 모델 점수가 원본과 수치 일치
+    assert np.allclose(model.score(probe), restored.score(probe))
+    assert restored.cross_correlation is True
+
+
+def test_to_state_before_fit_raises():
+    with pytest.raises(RuntimeError):
+        PcaMspc().to_state()
+
+
+def test_top_channel_identifies_deviating_channel():
+    rng = np.random.default_rng(11)
+    model = PcaMspc(n_components=0.9, quantile=0.99, cross_correlation=True).fit(
+        _normal_windows(rng, 400)
+    )
+    # 채널 0만 크게 이탈시킨 윈도우 → top_channel이 0을 지목
+    probe = _normal_windows(rng, 20)
+    probe[:, :, 0] += 6.0
+    assert (model.top_channel(probe) == 0).mean() > 0.8
