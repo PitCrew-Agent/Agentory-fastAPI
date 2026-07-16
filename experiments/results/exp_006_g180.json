@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-006-G180",
-  "run_at": "2026-07-16T04:49:00+00:00",
-  "git_commit": "6dd99779acc54aebd53c5ad7dd2fba47c87e7d50",
+  "run_at": "2026-07-16T05:46:10+00:00",
+  "git_commit": "29c123a906e087be322cdff33d350f5d8561a36f",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-006-G180",
@@ -25,11 +25,17 @@
     "detection_delay_mean_ticks": 27.8,
     "detection_delay_p90_ticks": 86.60000000000005,
     "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 11.0,
     "recall_corr_break": 1.0,
+    "delay_mean_corr_break_ticks": 125.0,
     "recall_drift": 1.0,
+    "delay_mean_drift_ticks": 12.5,
     "recall_drift_inband": 0.0,
+    "delay_mean_drift_inband_ticks": NaN,
     "recall_oscillation": 1.0,
+    "delay_mean_oscillation_ticks": 59.0,
     "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 11.0,
     "auc_pr": 0.9711115536350765
   }
 }
