@@ -15,10 +15,14 @@ def _result(doc_id: str, score: float) -> dict:
 
 
 class _FakeEmbedder:
+    def __init__(self):
+        self.query: str | None = None
+
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 4 for _ in texts]
 
     async def embed_query(self, text: str) -> list[float]:
+        self.query = text
         return [0.0] * 4
 
 
@@ -43,8 +47,16 @@ class _FakeReranker:
         return list(reversed(documents))[:top_k]
 
 
-def _patch_pipeline(monkeypatch, store: _FakeStore, settings: Settings, reranker=None) -> None:
-    monkeypatch.setattr(server, "get_embedder", lambda: _FakeEmbedder())
+class _FailingReranker:
+    async def rerank(self, query, documents, top_k):
+        raise RuntimeError("모델 로드 실패")
+
+
+def _patch_pipeline(
+    monkeypatch, store: _FakeStore, settings: Settings, reranker=None
+) -> _FakeEmbedder:
+    embedder = _FakeEmbedder()
+    monkeypatch.setattr(server, "get_embedder", lambda: embedder)
     monkeypatch.setattr(server, "PgVectorStore", lambda: store)
     monkeypatch.setattr(server, "get_settings", lambda: settings)
     # 기본 None으로 실모델 로드 차단, 리랭커 경로 검증 시에만 fake 주입
@@ -54,6 +66,7 @@ def _patch_pipeline(monkeypatch, store: _FakeStore, settings: Settings, reranker
     monkeypatch.setattr(server, "_store", None)
     monkeypatch.setattr(server, "_reranker", None)
     monkeypatch.setattr(server, "_reranker_ready", False)
+    return embedder
 
 
 def test_above_threshold_keeps_scores_at_or_above():
@@ -123,6 +136,17 @@ async def test_search_manuals_uses_settings_defaults(monkeypatch):
     assert [item["doc_id"] for item in results] == ["MAN-ETC-042"]
 
 
+async def test_search_manuals_expands_alarm_code_count_query(monkeypatch):
+    store = _FakeStore([_result("MAN-SOP-001", 0.9)])
+    settings = Settings(_env_file=None, rag_search_top_k=3)
+    embedder = _patch_pipeline(monkeypatch, store, settings)
+
+    await search_manuals(query="SOP 문서에서 알람코드는 몇 개 있어?")
+
+    assert embedder.query == "SOP 문서에서 알람코드는 몇 개 있어? 적용 알람 코드 목록"
+    assert store.called_with == {"top_k": 6, "equipment_type": None}
+
+
 async def test_search_manuals_explicit_top_k_overrides_settings(monkeypatch):
     store = _FakeStore([])
     settings = Settings(_env_file=None, rag_search_top_k=5)
@@ -145,6 +169,17 @@ async def test_search_manuals_reranker_expands_pool_and_reorders(monkeypatch):
     assert store.called_with["top_k"] == 10  # 풀 = max(3, 10)
     assert reranker.called_with == {"query": "ERR-402 조치", "n_docs": 10, "top_k": 3}
     assert [item["doc_id"] for item in results] == ["MAN-009", "MAN-008", "MAN-007"]
+
+
+async def test_search_manuals_uses_vector_results_when_reranker_fails(monkeypatch):
+    docs = [_result("MAN-SOP-001", 0.9), _result("MAN-SOP-002", 0.8)]
+    store = _FakeStore(docs)
+    settings = Settings(_env_file=None, rag_search_top_k=2, rag_search_min_score=0.0)
+    _patch_pipeline(monkeypatch, store, settings, reranker=_FailingReranker())
+
+    results = await search_manuals(query="SOP 알람 코드")
+
+    assert results == docs
 
 
 async def test_search_manuals_all_below_threshold_returns_empty(monkeypatch):

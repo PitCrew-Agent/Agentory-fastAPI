@@ -4,6 +4,8 @@
 검색 로직은 agentory.modules.rag 포트(Embedder, VectorStore) 재사용
 """
 
+import logging
+import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -13,10 +15,14 @@ from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.rerank import get_reranker
 from agentory.modules.rag.store.pgvector import PgVectorStore
 
+log = logging.getLogger(__name__)
+
 mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
 
 # LLM이 과대 top_k를 넣는 것 방지, 튜닝 대상 아닌 정적 가드라 상수 유지
 MAX_TOP_K = 20
+_COUNT_QUERY_TOP_K = 6
+_ALARM_CODE_COUNT_QUERY = re.compile(r"알람\s*코드.*(몇\s*개|개수|갯수|수량|목록)")
 
 # 임베더·스토어·리랭커는 검색마다 재생성하지 않고 프로세스 단위로 재사용(초기화 비용 절감)
 _embedder = None
@@ -42,6 +48,14 @@ def _above_threshold(results: list[dict[str, Any]], threshold: float) -> list[di
     return [item for item in results if item["score"] >= threshold]
 
 
+def _expand_alarm_code_count_query(query: str, top_k: int | None) -> tuple[str, int | None]:
+    if not _ALARM_CODE_COUNT_QUERY.search(query):
+        return query, top_k
+    search_query = f"{query} 적용 알람 코드 목록"
+    resolved_top_k = max(top_k or 0, _COUNT_QUERY_TOP_K)
+    return search_query, resolved_top_k
+
+
 @mcp.tool()
 async def search_manuals(
     query: str,
@@ -57,8 +71,11 @@ async def search_manuals(
     """
     if not query.strip():
         raise ValueError("query는 비어있을 수 없음")
+    if top_k is not None and not 1 <= top_k <= MAX_TOP_K:
+        raise ValueError(f"top_k는 1 이상 {MAX_TOP_K} 이하여야 함")
     settings = get_settings()
-    resolved_top_k = settings.rag_search_top_k if top_k is None else top_k
+    query, count_top_k = _expand_alarm_code_count_query(query, top_k)
+    resolved_top_k = count_top_k or settings.rag_search_top_k
     if not 1 <= resolved_top_k <= MAX_TOP_K:
         raise ValueError(f"top_k는 1 이상 {MAX_TOP_K} 이하여야 함")
     embedder, store, reranker = _get_search_deps()
@@ -69,7 +86,11 @@ async def search_manuals(
     # 코사인 임계값 필터를 먼저 적용(리랭크 점수는 척도가 달라 임계 기준이 아님), 이후 재정렬
     results = _above_threshold(results, threshold=settings.rag_search_min_score)
     if reranker and results:
-        results = await reranker.rerank(query, results, top_k=resolved_top_k)
+        try:
+            results = await reranker.rerank(query, results, top_k=resolved_top_k)
+        except Exception:
+            log.exception("리랭커 실패, 벡터 검색 결과 사용")
+            results = results[:resolved_top_k]
     else:
         results = results[:resolved_top_k]
     return results
