@@ -14,11 +14,11 @@ import random
 from collections import deque
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from agentory.core.db import SessionLocal
 from agentory.modules.admin.models import EquipmentRepair, Line, UserLine
-from agentory.modules.auth import models as _auth_models  # noqa: F401  users FK 대상 등록
+from agentory.modules.auth.models import User
 from agentory.modules.telemetry.models import (
     EquipmentAlarm,
     EquipmentMaster,
@@ -213,43 +213,54 @@ def build_telemetry(
     return rows, alarms
 
 
-# 데모용 수리 이력 (BE_MCP05_MAINT01), 일부는 동일 알람 재발로 반복 고장 패턴 재현
-# (equipment_id, repaired_at, alarm_code_before, note)
-REPAIRS: list[tuple[str, datetime, str, str]] = [
-    (
-        "EQP-A05",
-        datetime(2026, 6, 18, 9, 0, tzinfo=UTC),
-        "ERR-401",
-        "온도 급상승, 냉각 밸브 점검·교체",
-    ),
-    (
-        "EQP-A05",
-        datetime(2026, 7, 2, 14, 0, tzinfo=UTC),
-        "ERR-401",
-        "동일 증상 재발, 냉각수 라인 세정",
-    ),
-    ("EQP-B03", datetime(2026, 6, 25, 11, 0, tzinfo=UTC), "ERR-301", "압력 이상, 배관 누설 보수"),
-    (
-        "EQP-B06",
-        datetime(2026, 6, 30, 16, 0, tzinfo=UTC),
-        "ERR-201",
-        "RF 파워 이상, 매칭 네트워크 조정",
-    ),
-]
+# 수리 이력 랜덤 생성 기간·건수 (BE_MCP05_MAINT01), 텔레메트리 앵커(7/8) 이전으로 설정
+REPAIR_PERIOD_START = datetime(2026, 4, 1, 0, 0, tzinfo=UTC)
+REPAIR_PERIOD_END = datetime(2026, 7, 7, 18, 0, tzinfo=UTC)
+REPAIR_MIN_COUNT = 4  # 장비별 최소 건수
+REPAIR_MAX_COUNT = 5  # 장비별 최대 건수
+
+# 알람 코드별 수리 비고 풀, 코드 풀이 작아 동일 코드가 반복되며 반복 고장 패턴 재현
+REPAIR_NOTES: dict[str, list[str]] = {
+    "ERR-401": ["온도 급상승, 냉각 밸브 점검·교체", "동일 증상 재발, 냉각수 라인 세정"],
+    "ERR-301": ["압력 이상, 배관 누설 보수", "진공 펌프 오일 교환·리크 체크"],
+    "ERR-201": ["RF 파워 이상, 매칭 네트워크 조정", "RF 제너레이터 출력 캘리브레이션"],
+    "WRN-501": ["가스 유량 저하, MFC 점검·퍼지", "가스 공급 라인 필터 교체"],
+}
+
+# 팀 공용 로그인 계정 더미 배정 (BE_NOTI01_SCOPE01), field_engineer라 배정 라인 알림만 조회
+# SSO 자동 프로비저닝이 이메일로 기존 유저를 연결하므로 선시드해도 로그인 시 정상 연결
+SEED_USER_EMAIL = "agentory@minhoan11572025gmail.onmicrosoft.com"
+SEED_USER_NAME = "Agentory 공용"
+SEED_USER_ROLE = "field_engineer"
+SEED_USER_LINE = "A라인"
 
 
 def build_repairs() -> list[EquipmentRepair]:
-    # 데모 수리 이력, 책임자 유저는 시드 범위 밖이라 repaired_by 미지정(NULL)
-    return [
-        EquipmentRepair(
-            equipment_id=equipment_id,
-            repaired_by=None,
-            repaired_at=repaired_at,
-            alarm_code_before=alarm_code,
-            note=note,
-        )
-        for equipment_id, repaired_at, alarm_code, note in REPAIRS
-    ]
+    # 장비별 4~5건 수리 이력을 기간 내 랜덤 시각(분 단위)으로 부여 (BE_MCP05_MAINT01)
+    # 문자열 시드 고정으로 재실행에도 동일 데이터 재현, repaired_by는 시드 범위 밖이라 NULL
+    repairs: list[EquipmentRepair] = []
+    period_minutes = int((REPAIR_PERIOD_END - REPAIR_PERIOD_START).total_seconds() // 60)
+    codes = sorted(REPAIR_NOTES)
+    for line_code, *_ in LINES:
+        for order, *_rest in LAYOUT[line_code]:
+            equipment_id = f"EQP-{line_code}{order:02d}"
+            rng = random.Random(f"repair-{equipment_id}")
+            count = rng.randint(REPAIR_MIN_COUNT, REPAIR_MAX_COUNT)
+            offsets = sorted(rng.sample(range(period_minutes), count))
+            picked = [rng.choice(codes) for _ in range(count)]
+            if len(set(picked)) == len(picked):
+                picked[-1] = picked[0]  # 전부 다른 코드로 뽑히면 반복 고장 패턴 보장용 보정
+            for offset, code in zip(offsets, picked, strict=True):
+                repairs.append(
+                    EquipmentRepair(
+                        equipment_id=equipment_id,
+                        repaired_by=None,
+                        repaired_at=REPAIR_PERIOD_START + timedelta(minutes=offset),
+                        alarm_code_before=code,
+                        note=rng.choice(REPAIR_NOTES[code]),
+                    )
+                )
+    return repairs
 
 
 async def seed() -> None:
@@ -273,7 +284,7 @@ async def seed() -> None:
         await session.execute(delete(EquipmentTelemetry))
         await session.execute(delete(EquipmentRepair))
         await session.execute(delete(EquipmentMaster))
-        # 라인 마스터 재적재, 배정(user_lines)은 라인 FK라 함께 비우고 운영 화면에서 재배정
+        # 라인 마스터 재적재, 배정(user_lines)은 라인 FK라 함께 비우고 아래에서 재시드
         await session.execute(delete(UserLine))
         await session.execute(delete(Line))
         session.add_all(lines)
@@ -282,13 +293,24 @@ async def seed() -> None:
         session.add_all(telemetry)
         session.add_all(alarms)
         session.add_all(repairs)
+        # 공용 계정 더미 라인 배정, 유저는 로그인 이력 보존 위해 삭제하지 않고 이메일로 업서트
+        user = (
+            await session.execute(select(User).where(User.email == SEED_USER_EMAIL))
+        ).scalar_one_or_none()
+        if user is None:
+            user = User(email=SEED_USER_EMAIL, name=SEED_USER_NAME, role=SEED_USER_ROLE)
+            session.add(user)
+            await session.flush()
+        line_a = next(line for line in lines if line.code == SEED_USER_LINE)
+        session.add(UserLine(user_id=user.id, line_id=line_a.id))
         await session.commit()
 
     print(
         f"[seed] 라인 {len(lines)}건, 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건, "
         f"알람 이벤트 {len(alarms)}건, 수리 이력 {len(repairs)}건 적재 완료"
     )
-    print("[seed] 담당 라인 배정은 비어 있음, 운영 화면에서 사용자별 라인을 배정해야 알림이 표시됨")
+    print(f"[seed] 공용 계정({SEED_USER_EMAIL}) {SEED_USER_LINE} 더미 배정 완료")
+    print("[seed] 그 외 사용자 라인 배정은 비어 있음, 운영 화면에서 배정 필요")
 
 
 if __name__ == "__main__":
