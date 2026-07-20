@@ -8,6 +8,7 @@ doc_id별 재적재 멱등, OPENAI_API_KEY·DB 필요
 import argparse
 import asyncio
 import json
+import time
 from pathlib import Path
 
 from agentory.modules.rag.embedding import get_embedder
@@ -50,7 +51,10 @@ async def main() -> None:
     embedder = get_embedder()
     store = PgVectorStore()
     total = 0
-    for entry in entries:
+    for index, entry in enumerate(entries, start=1):
+        # 문서 단위로만 로그가 찍히면 장시간 무음 구간이 생겨 진행 중인지 멈춘 건지 구분 불가
+        print(f"[{index}/{len(entries)}] {entry['doc_id']} 시작: {entry['file']}", flush=True)
+        started = time.monotonic()
         count = await ingest_document(
             documents_dir / entry["file"],
             doc_id=entry["doc_id"],
@@ -60,7 +64,11 @@ async def main() -> None:
             store=store,
         )
         total += count
-        print(f"{entry['doc_id']}: {count} chunks")
+        print(
+            f"[{index}/{len(entries)}] {entry['doc_id']}: {count} chunks "
+            f"({time.monotonic() - started:.1f}s)",
+            flush=True,
+        )
     # 매니페스트에서 빠진 구 문서(교체 전 doc_id 등) 잔존 청크 정리
     removed = await store.purge_except({entry["doc_id"] for entry in entries})
     if removed:
