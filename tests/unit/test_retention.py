@@ -20,6 +20,8 @@ WINDOW_8D = DataWindow(
     last=datetime(2026, 7, 16, 0, 0, tzinfo=UTC),
 )
 WINDOW_EMPTY = DataWindow(first=None, last=None)
+# 조회 자체가 실패한 경우, 기간 검증을 적용하지 않음
+WINDOW_UNKNOWN = DataWindow(first=None, last=None, known=False)
 
 
 def test_span_days_from_actual_range():
@@ -81,6 +83,13 @@ def test_rejects_all_periods_when_no_data():
     # 적재 데이터가 없으면 기간을 특정한 요청은 답할 수 없음
     assert within_data_window("최근 2일 알람 확인해줘", WINDOW_EMPTY) is False
     assert within_data_window("최근 알람 확인해줘", WINDOW_EMPTY) is True
+
+
+def test_unknown_window_skips_period_check():
+    # 보유 범위 조회 실패는 추천 전면 차단으로 번지지 않도록 검증을 생략
+    assert within_data_window("최근 30일 추세 보여줘", WINDOW_UNKNOWN) is True
+    assert within_data_window("최근 2일 알람 확인해줘", WINDOW_UNKNOWN) is True
+    assert format_data_window(WINDOW_UNKNOWN) == "보유 범위 확인 불가 (조회 실패)"
 
 
 def test_format_window_shows_range_and_length():
