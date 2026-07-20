@@ -18,6 +18,7 @@ from agentory.modules.agent.prompts.equipment_suggest import (
     EQUIPMENT_SUGGEST_CONTEXT_PROMPT,
     EQUIPMENT_SUGGEST_SYSTEM_PROMPT,
 )
+from agentory.modules.agent.retention import format_available_window, within_available_window
 
 log = logging.getLogger(__name__)
 
@@ -90,16 +91,22 @@ async def generate_equipment_suggestions(
             equipment_id, status, alarm_code, alarm_metrics or [], sensors or {}
         )
     )
+    # 실제 조회 가능한 최근 구간을 주입해 불가능한 기간 제안 억제
+    system_prompt = EQUIPMENT_SUGGEST_SYSTEM_PROMPT.format(
+        available_window=format_available_window()
+    )
     try:
         result = await structured_llm.ainvoke(
             [
-                SystemMessage(content=EQUIPMENT_SUGGEST_SYSTEM_PROMPT),
+                SystemMessage(content=system_prompt),
                 SystemMessage(content=context_prompt),
             ]
         )
-        # 확인 범위 밖 식별자를 지어낸 메시지는 후처리에서 하드 차단
+        # 확인 범위 밖 식별자·조회 불가 기간을 지어낸 메시지는 후처리에서 하드 차단
         messages = [m.strip() for m in result.messages if m.strip()]
-        messages = [m for m in messages if _within_known_scope(m, known)][:MAX_SUGGESTIONS]
+        messages = [
+            m for m in messages if _within_known_scope(m, known) and within_available_window(m)
+        ][:MAX_SUGGESTIONS]
     except Exception as exc:
         # 생성 실패 시 빈 목록으로 격리 (칩만 미표시)
         log.warning("[equipment_suggest] 추천 메시지 생성 실패: %s", exc)

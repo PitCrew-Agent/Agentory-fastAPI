@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     mcp_maintenance_url: str = "http://localhost:8103/mcp"  # 정비 이력 (BE_MCP05_MAINT01)
     # 센서 로그 단일 조회 최대 행수, 초과 시 최근 행 우선 반환 (BE_MCP02_TELEMETRY01)
     sensor_log_max_rows: int = 500
+    # 센서 수집 주기(초), 행수 상한과 함께 실제 조회 가능 구간 산출에 사용 (BE_CHAT02_SUGGEST02)
+    sensor_sampling_interval_seconds: float = 5.0
     # 수리 후 시뮬레이터가 정상 강제하는 힐 윈도우(분), 경과 후 원래 시나리오 재개 (NEW_REPAIR01)
     sim_repair_heal_minutes: int = 60
     # 알림 동기화 워처 주기(초), 클라이언트 접속과 무관하게 알람→알림 동기화 (NEW_PROACT01_DETECT01)
