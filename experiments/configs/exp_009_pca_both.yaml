@@ -1,0 +1,17 @@
+# EXP-009 검출기 계열 비교, 현행 PCA MSPC (T²+SPE) 기준선
+# 파라미터·후처리는 EXP-007 확정값 고정, 검출기만 교체해 동일 지표로 비교
+name: EXP-009-PCA
+method: pca_mspc
+eval_set: data/eval/v2
+window: 12
+stride: 6
+n_components: 0.9
+threshold_quantile: 0.999
+cross_correlation: true
+ewma_alpha: 0.1
+ewma_clip: 3.0
+confirm_k: 2
+max_delay_ticks: 180
+transition_threshold: 1000.0
+transition_settle: 10
+statistic: both

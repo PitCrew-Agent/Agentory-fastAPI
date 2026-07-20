@@ -23,6 +23,7 @@
 | EXP-006 | 점수 누적(EWMA) + 아키텍처 종합 | corr_break 지속 감지, 아키텍처 확정 (완료) |
 | EXP-007 | 윈도우·stride 실시간성 재조정 + 지속 K규칙 | 서빙 파라미터 60초/30초/K2 재확정 (완료) |
 | EXP-008 | 전이/정착 억제로 모드 전이 오탐 제거 | 오탐 -79%·recall 유지, 레시피 신호 불요 (완료) |
+| EXP-009 | 검출기 계열 비교 (UMAP·VAR·KPCA·AE·IF·T²/SPE) | PCA 유지 타당, VAR 상관붕괴 4.5배 빠름 (완료) |
 
 확정 아키텍처는 EXP-006-ewma-final.md, 서빙 파라미터는 EXP-007-realtime-tuning.md 결론
 참고 바랍니다.

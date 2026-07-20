@@ -25,10 +25,15 @@ class PcaMspc:
         n_components: float = 0.9,
         quantile: float = 0.997,
         cross_correlation: bool = False,
+        statistic: str = "both",
     ) -> None:
+        if statistic not in ("both", "t2", "spe"):
+            raise ValueError(f"미지원 statistic: {statistic}")
         self.n_components = n_components
         self.quantile = quantile
         self.cross_correlation = cross_correlation  # 채널 쌍 상관 피처 (상관 붕괴 감지 보완)
+        # 점수에 쓸 통계량, both=max(T²,SPE), 단독 지정은 기여 분해 실험용 (EXP-009)
+        self.statistic = statistic
         self._scaler = StandardScaler()
         self._pca = PCA(n_components=n_components, svd_solver="full")
         self._t2_limit: float | None = None
@@ -50,6 +55,10 @@ class PcaMspc:
             raise RuntimeError("fit 이전 score 호출 불가")
         features = self._scaler.transform(window_features(windows, self.cross_correlation))
         t2, spe = self._statistics(features)
+        if self.statistic == "t2":
+            return t2 / self._t2_limit
+        if self.statistic == "spe":
+            return spe / self._spe_limit
         return np.maximum(t2 / self._t2_limit, spe / self._spe_limit)
 
     def top_channel(self, windows: np.ndarray) -> np.ndarray:
