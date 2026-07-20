@@ -68,3 +68,22 @@ class EquipmentAnomalyShadowEvent(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # NULL이면 활성
+
+
+class EquipmentAnomalyCalibration(Base):
+    """설비별 EWMA 한계 캘리브레이션 (BE_ANOM01_CALIB01)
+
+    공유 공정 유형 모델에 대해 설비 개체 정상 분포로 산출한 한계, 개체 오프셋 흡수
+    미보유 설비는 스코어러가 공정 유형 한계로 폴백
+    """
+
+    __tablename__ = "equipment_anomaly_calibrations"
+
+    equipment_id: Mapped[str] = mapped_column(
+        ForeignKey("equipment_masters.equipment_id"), primary_key=True
+    )
+    ewma_limit: Mapped[float] = mapped_column(Float, nullable=False)  # 설비별 EWMA 한계
+    train_windows: Mapped[int] = mapped_column(Integer, nullable=False)  # 캘리브 표본 수
+    calibrated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
