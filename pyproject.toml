@@ -41,10 +41,14 @@ anomaly = [
     "pyarrow>=17",
     "scikit-learn>=1.5",
 ]
-# 실험 실행·기록 전용 (MLflow 로컬 추적 + v1 encoder 학습), CI 기본 설치에서 제외
+# 실험 실행·기록 전용 (MLflow 로컬 추적 + v1 encoder 학습 + 오프라인 구조 분석)
+# CI·서빙 이미지 설치에서 제외, uv sync --group experiment로만 설치
 experiment = [
     "mlflow>=2.16",
     "torch>=2.4",
+    "umap-learn>=0.5",
+    "numba>=0.60",  # py3.12 휠 사용, 미지정 시 구형 numba 소스 빌드 실패
+    "matplotlib>=3.9",
     {include-group = "anomaly"},
 ]
 
