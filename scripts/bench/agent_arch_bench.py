@@ -30,11 +30,13 @@ RATE_OUT = 2.00
 # 도구별 모의 지연(초), MCP 왕복을 흉내내 병렬 Fetch 이득이 드러나게 함, main에서 갱신
 TOOL_LATENCY = 0.3
 
-# 워크로드: 라우팅 경로가 다른 3종 (기존 예산 벤치와 동일 질의)
+# 워크로드: 라우팅 경로가 다른 4종 (앞 3종은 기존 예산 벤치와 동일 질의)
+# smalltalk은 Fast Router의 Direct Answer 바이패스 경로 측정용
 QUERIES = [
     ("diag_chain", "A라인에서 최근 이상 징후가 있는 설비를 찾아 원인과 조치를 알려줘"),
     ("knowledge", "ERR-402 알람의 원인과 조치 방법을 알려줘"),
     ("diag_one", "EQP-A05 설비에 무슨 문제가 있는지 진단하고 조치를 알려줘"),
+    ("smalltalk", "안녕? 너는 무슨 일을 할 수 있어?"),
 ]
 
 # (라벨, orchestrator_enabled)
@@ -144,22 +146,35 @@ async def run_once(graph, query: str) -> dict:
     }
 
 
-def _aggregate(rows: list[dict], label: str) -> dict:
-    sub = [r for r in rows if r["config"] == label]
+def _p95(values: list[float]) -> float:
+    # 표본이 작아 보간 없이 상위 5% 지점의 관측값을 취함
+    ordered = sorted(values)
+    idx = max(0, min(len(ordered) - 1, int(round(0.95 * (len(ordered) - 1)))))
+    return ordered[idx]
+
+
+def _aggregate(rows: list[dict], label: str, query: str | None = None) -> dict:
+    sub = [r for r in rows if r["config"] == label and (query is None or r["query"] == query)]
     lat = [r["latency"] for r in sub]
     cost = statistics.mean(
         [(r["in_tok"] * RATE_IN + r["out_tok"] * RATE_OUT) / 1_000_000 for r in sub]
     )
-    return {
+    agg = {
         "config": label,
         "n": len(sub),
         "mean_s": round(statistics.mean(lat), 2),
         "p50_s": round(statistics.median(lat), 2),
+        "p95_s": round(_p95(lat), 2),
+        "min_s": round(min(lat), 2),
+        "max_s": round(max(lat), 2),
         "mean_calls": round(statistics.mean([r["calls"] for r in sub]), 1),
         "mean_in_tok": round(statistics.mean([r["in_tok"] for r in sub])),
         "mean_out_tok": round(statistics.mean([r["out_tok"] for r in sub])),
         "mean_cost_usd": round(cost, 5),
     }
+    if query is not None:
+        agg["query"] = query
+    return agg
 
 
 async def main() -> None:
@@ -201,6 +216,12 @@ async def main() -> None:
     for agg in summary:
         print(json.dumps(agg, ensure_ascii=False))
 
+    # 질의 유형별 분해, 경로마다 개선폭이 달라 ADR 근거로 분리 기록
+    per_query = [_aggregate(rows, label, qname) for label, _ in CONFIGS for qname, _ in QUERIES]
+    print("\n===== 질의 유형별 집계 =====")
+    for agg in per_query:
+        print(json.dumps(agg, ensure_ascii=False))
+
     # before 대비 after 개선율
     before = next((s for s in summary if s["config"] == "supervisor_before"), None)
     after = next((s for s in summary if s["config"] == "orchestrator_after"), None)
@@ -221,7 +242,15 @@ async def main() -> None:
 
     with open("scripts/bench/agent_arch_result.json", "w", encoding="utf-8") as f:
         json.dump(
-            {"tool_latency": TOOL_LATENCY, "reps": args.reps, "rows": rows, "summary": summary},
+            {
+                "tool_latency": TOOL_LATENCY,
+                "reps": args.reps,
+                "rate_in_usd_per_1m": RATE_IN,
+                "rate_out_usd_per_1m": RATE_OUT,
+                "rows": rows,
+                "summary": summary,
+                "per_query": per_query,
+            },
             f,
             ensure_ascii=False,
             indent=2,

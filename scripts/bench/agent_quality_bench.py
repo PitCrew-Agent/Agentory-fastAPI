@@ -1,10 +1,11 @@
 """에이전트 답변 품질·속도 정량 벤치 (AI_AGENT01_REACT01, ADR-0003)
 
-현재 구성(워커 3종·max_steps=6·워커 턴 예산 제외)에서 질의당 지연·LLM 호출수·steps와
+Supervisor+워커(orchestrator off)와 하이브리드 오케스트레이터(orchestrator on)를 같은 질의로 비교,
+설정별 질의당 지연·LLM 호출수·토큰·비용·steps와
 답변 품질(라우팅 정확도·정답 키워드 포함·인용 유무)을 실측한다.
 품질 판정은 골든 방식(answer_contains·tool_called·citation)의 객관 기준을 사용한다.
 
-실행: AGENT_MAX_STEPS=6 uv run python scripts/bench/agent_quality_bench.py --reps 2
+실행: AGENT_MAX_STEPS=6 uv run python scripts/bench/agent_quality_bench.py --reps 3
 전제: mcp-realtime(:8101)·mcp-knowledge(:8102)·mcp-maintenance(:8103) 기동, DB 시드, OPENAI_API_KEY
 """
 
@@ -55,12 +56,38 @@ CASES = [
 ]
 
 
+# gpt-5-mini 가정 단가(USD/1M 토큰), 실단가 변동 시 조정 후 재계산
+RATE_IN = 0.25
+RATE_OUT = 2.00
+
+# (라벨, orchestrator_enabled), 아키텍처 전환 전후를 같은 품질 기준으로 비교
+CONFIGS = [
+    ("supervisor_before", False),
+    ("orchestrator_after", True),
+]
+
+
 class Meter(BaseCallbackHandler):
+    # LLM 호출수·입출력 토큰 집계
     def __init__(self) -> None:
         self.calls = 0
+        self.in_tok = 0
+        self.out_tok = 0
 
     def on_llm_end(self, response, **kwargs: Any) -> None:
         self.calls += 1
+        usage = (response.llm_output or {}).get("token_usage") if response.llm_output else None
+        if usage:
+            self.in_tok += usage.get("prompt_tokens", 0)
+            self.out_tok += usage.get("completion_tokens", 0)
+            return
+        for gen_list in response.generations:
+            for gen in gen_list:
+                msg = getattr(gen, "message", None)
+                um = getattr(msg, "usage_metadata", None) if msg else None
+                if um:
+                    self.in_tok += um.get("input_tokens", 0)
+                    self.out_tok += um.get("output_tokens", 0)
 
 
 def _tools_called(messages) -> list[str]:
@@ -105,6 +132,8 @@ async def run_once(graph, case) -> dict:
         "label": label,
         "latency": dt,
         "calls": meter.calls,
+        "in_tok": meter.in_tok,
+        "out_tok": meter.out_tok,
         "steps": final.get("step_count", 0),
         "routing_ok": routing_ok,
         "keyword_ok": keyword_ok,
@@ -119,41 +148,71 @@ async def main() -> None:
     ap.add_argument("--reps", type=int, default=2)
     args = ap.parse_args()
 
-    graph = await build_agent_graph(suggestions_enabled=False)
     rows: list[dict] = []
-    for case in CASES:
-        for rep in range(args.reps):
-            r = await run_once(graph, case)
-            r["rep"] = rep
-            rows.append(r)
-            print(
-                f"[{r['label']}] rep{rep}: {r['latency']:.1f}s calls={r['calls']} "
-                f"steps={r['steps']} pass={r['passed']} tools={r['tools']}"
-            )
+    for cfg_label, orch in CONFIGS:
+        graph = await build_agent_graph(suggestions_enabled=False, orchestrator_enabled=orch)
+        for case in CASES:
+            for rep in range(args.reps):
+                r = await run_once(graph, case)
+                r["rep"] = rep
+                r["config"] = cfg_label
+                rows.append(r)
+                print(
+                    f"[{cfg_label}] {r['label']} rep{rep}: {r['latency']:.1f}s "
+                    f"calls={r['calls']} tok={r['in_tok']}/{r['out_tok']} "
+                    f"steps={r['steps']} pass={r['passed']} tools={r['tools']}"
+                )
 
-    print("\n===== 케이스별 집계 =====")
+    def _cost(sub: list[dict]) -> float:
+        return statistics.mean(
+            [(r["in_tok"] * RATE_IN + r["out_tok"] * RATE_OUT) / 1_000_000 for r in sub]
+        )
+
+    print("\n===== 설정·케이스별 집계 =====")
     summary = []
-    for label, *_ in CASES:
-        sub = [r for r in rows if r["label"] == label]
+    for cfg_label, _ in CONFIGS:
+        for label, *_ in CASES:
+            sub = [r for r in rows if r["config"] == cfg_label and r["label"] == label]
+            agg = {
+                "config": cfg_label,
+                "case": label,
+                "n": len(sub),
+                "p50_s": round(statistics.median([r["latency"] for r in sub]), 1),
+                "mean_calls": round(statistics.mean([r["calls"] for r in sub]), 1),
+                "mean_steps": round(statistics.mean([r["steps"] for r in sub]), 1),
+                "mean_in_tok": round(statistics.mean([r["in_tok"] for r in sub])),
+                "mean_out_tok": round(statistics.mean([r["out_tok"] for r in sub])),
+                "mean_cost_usd": round(_cost(sub), 5),
+                "pass_rate": round(sum(r["passed"] for r in sub) / len(sub), 2),
+            }
+            summary.append(agg)
+            print(json.dumps(agg, ensure_ascii=False))
+
+    print("\n===== 설정별 종합 =====")
+    overall = []
+    for cfg_label, _ in CONFIGS:
+        sub = [r for r in rows if r["config"] == cfg_label]
         agg = {
-            "case": label,
+            "config": cfg_label,
             "n": len(sub),
-            "p50_s": round(statistics.median([r["latency"] for r in sub]), 1),
-            "mean_calls": round(statistics.mean([r["calls"] for r in sub]), 1),
-            "mean_steps": round(statistics.mean([r["steps"] for r in sub]), 1),
-            "pass_rate": round(sum(r["passed"] for r in sub) / len(sub), 2),
+            "overall_pass_rate": round(sum(r["passed"] for r in sub) / len(sub), 2),
+            "routing_ok_rate": round(sum(r["routing_ok"] for r in sub) / len(sub), 2),
+            "keyword_ok_rate": round(sum(r["keyword_ok"] for r in sub) / len(sub), 2),
+            "citation_ok_rate": round(sum(r["citation_ok"] for r in sub) / len(sub), 2),
+            "median_latency_s": round(statistics.median([r["latency"] for r in sub]), 1),
+            "mean_cost_usd": round(_cost(sub), 5),
         }
-        summary.append(agg)
+        overall.append(agg)
         print(json.dumps(agg, ensure_ascii=False))
 
-    overall = {
-        "overall_pass_rate": round(sum(r["passed"] for r in rows) / len(rows), 2),
-        "routing_ok_rate": round(sum(r["routing_ok"] for r in rows) / len(rows), 2),
-        "keyword_ok_rate": round(sum(r["keyword_ok"] for r in rows) / len(rows), 2),
-        "median_latency_s": round(statistics.median([r["latency"] for r in rows]), 1),
+    payload = {
+        "rate_in_usd_per_1m": RATE_IN,
+        "rate_out_usd_per_1m": RATE_OUT,
+        "reps": args.reps,
+        "rows": rows,
+        "summary": summary,
+        "overall": overall,
     }
-    print("\n" + json.dumps(overall, ensure_ascii=False))
-    payload = {"rows": rows, "summary": summary, "overall": overall}
     with open("scripts/bench/agent_quality_result.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
