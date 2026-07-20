@@ -66,12 +66,24 @@ def parse_and_normalize(path: Path) -> str:
 
 
 def _get_converter():
-    """Docling 변환기 지연 생성 후 재사용"""
+    """Docling 변환기 지연 생성 후 재사용, OCR 비활성
+
+    대상 매뉴얼은 전부 텍스트 레이어를 가진 디지털 PDF라 OCR이 불필요
+    docling 기본값은 OCR 활성이라 페이지마다 이미지 렌더링·문자 인식이 돌아 파싱이 극단적으로 느려짐
+    스캔본을 넣어야 하면 do_ocr을 True로 되돌릴 것 (AI_RAG01_PREP01)
+    """
     global _converter
     if _converter is None:
-        from docling.document_converter import DocumentConverter
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, PdfFormatOption
 
-        _converter = DocumentConverter()
+        options = PdfPipelineOptions()
+        options.do_ocr = False
+        options.do_table_structure = True  # 표 구조 보존은 유지, 알람코드 표가 핵심 근거
+        _converter = DocumentConverter(
+            format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
+        )
     return _converter
 
 
