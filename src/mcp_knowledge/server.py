@@ -4,6 +4,8 @@
 검색 로직은 agentory.modules.rag 포트(Embedder, VectorStore) 재사용
 """
 
+import asyncio
+import errno
 import logging
 import re
 from typing import Any
@@ -12,8 +14,9 @@ from mcp.server.fastmcp import FastMCP
 
 from agentory.core.config import get_settings
 from agentory.modules.rag.embedding import get_embedder
+from agentory.modules.rag.prefetch import prefetch_models
 from agentory.modules.rag.rerank import get_reranker
-from agentory.modules.rag.store.pgvector import PgVectorStore
+from agentory.modules.rag.store.pgvector import PgVectorStore, verify_embedding_dim
 
 log = logging.getLogger(__name__)
 
@@ -110,5 +113,31 @@ async def search_similar_cases(
     raise NotImplementedError
 
 
+def _startup() -> None:
+    # DB 벡터 차원 정합성 검증(B), 불일치면 기동 차단, DB 미연결 등은 경고 후 진행
+    try:
+        asyncio.run(verify_embedding_dim())
+    except RuntimeError as exc:
+        log.error("임베딩 차원 불일치로 mcp-knowledge 기동 거부: %s", exc)
+        raise
+    except Exception as exc:
+        log.warning("임베딩 차원 검증 건너뜀(DB 미연결 등): %s", exc)
+    # config 모델 가중치 확보(멱등, 변경·신규만 다운로드), 실패해도 기동은 계속(첫 질의 lazy 재시도)
+    try:
+        prefetch_models()
+    except OSError as exc:
+        if exc.errno == errno.ENOSPC:
+            log.error("가중치 프리페치 실패: 디스크 용량 부족(ENOSPC), 첫 질의 시 재시도")
+        else:
+            log.warning("가중치 프리페치 실패(OS errno=%s): %s, 첫 질의 시 재시도", exc.errno, exc)
+    except Exception as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status is not None:
+            log.error("가중치 프리페치 실패: HF HTTP %s, 첫 질의 시 재시도", status)
+        else:
+            log.warning("가중치 프리페치 실패(연결 등): %s, 첫 질의 시 재시도", exc)
+
+
 def run() -> None:
+    _startup()
     mcp.run(transport="streamable-http")

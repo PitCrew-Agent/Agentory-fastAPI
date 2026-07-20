@@ -34,6 +34,8 @@ uv run pre-commit install
 
 파서·청커·임베더 또는 임베딩 차원을 바꾸면 기존 벡터와 비호환이라 검색이 깨지므로, `uv run python scripts/ingest_manuals.py`로 knowledge_collection을 재적재해야 합니다 적재는 doc_id 기준 멱등이라 반복 실행해도 안전합니다
 
+임베더·리랭커 가중치는 매뉴얼 적재(ingest)와 mcp-knowledge 기동 시 config(`EMBEDDING_*`·`RERANKER_*`) 기준으로 확보하며, 캐시(HF_HOME)에 있으면 건너뜁니다 모델을 바꾸면 다음 기동 때 새 가중치를 받습니다 별도로 미리 받으려면 `uv run python scripts/prefetch_models.py`를 실행합니다 폐쇄망에서는 `EMBEDDING_MODEL`·`RERANKER_MODEL`에 로컬 경로(디렉터리)를 지정하면 다운로드 없이 그 경로에서 로드합니다
+
 ## 구조
 
 ```

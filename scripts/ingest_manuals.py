@@ -12,7 +12,8 @@ from pathlib import Path
 
 from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.ingest import ingest_document
-from agentory.modules.rag.store.pgvector import PgVectorStore
+from agentory.modules.rag.prefetch import prefetch_models
+from agentory.modules.rag.store.pgvector import PgVectorStore, verify_embedding_dim
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DOCUMENTS_DIR = ROOT / "data" / "rags"
@@ -42,6 +43,9 @@ async def main() -> None:
     if not manifest.exists():
         print(f"매니페스트 없음: {manifest} (manifest.example.json 참고)")
         return
+    # 운영자 ingest 시 임베더·리랭커 가중치 미리 확보, 서비스 기동·질의에서 다운로드 지연 방지
+    fetched = prefetch_models()
+    print(f"가중치 준비: {fetched or '없음(로컬 가중치 불필요 설정)'}")
     entries = json.loads(manifest.read_text(encoding="utf-8"))
     embedder = get_embedder()
     store = PgVectorStore()
@@ -62,6 +66,9 @@ async def main() -> None:
     if removed:
         print(f"매니페스트 밖 구 문서 {removed} chunks 제거")
     print(f"총 {total} chunks 적재")
+    # 적재 직후 DB 벡터 컬럼 차원과 설정 정합성 확인 (B)
+    await verify_embedding_dim()
+    print("임베딩 차원 정합성 확인 완료")
 
 
 if __name__ == "__main__":
