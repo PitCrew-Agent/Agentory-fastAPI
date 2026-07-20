@@ -6,7 +6,11 @@
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 임베딩 provider별 기대 차원, embedding_dim 정합성 검증 기준 (provider 추가 시 등록)
+_PROVIDER_DIMS = {"e5": 768, "openai": 1536}
 
 
 class Settings(BaseSettings):
@@ -70,6 +74,17 @@ class Settings(BaseSettings):
     reranker_provider: str = "bge"
     reranker_model: str = ""  # 비우면 provider별 기본 모델 사용
     reranker_top_n: int = 10  # 재정렬 후보 풀, top_n 검색 후 상위 top_k 반환
+
+    @model_validator(mode="after")
+    def _check_embedding_dim(self) -> "Settings":
+        # provider별 기대 차원과 embedding_dim 불일치 시 기동 즉시 차단 (조용한 dim 불일치 방지)
+        expected = _PROVIDER_DIMS.get(self.embedding_provider)
+        if expected is not None and self.embedding_dim != expected:
+            raise ValueError(
+                f"embedding_provider={self.embedding_provider}는 "
+                f"embedding_dim {expected} 필요, 현재 {self.embedding_dim}"
+            )
+        return self
 
     # MCP 서버
     mcp_realtime_url: str = "http://localhost:8101/mcp"
