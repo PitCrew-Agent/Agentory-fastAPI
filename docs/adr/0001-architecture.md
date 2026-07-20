@@ -1,6 +1,6 @@
 # ADR-0001: 모듈러 모놀리스 + 멀티 엔트리포인트 모노레포
 
-- 상태: 승인 (2026-07-02)
+- 상태: 승인 (2026-07-02), 결정 2의 에이전트 내부 구조는 [ADR-0009](0009-agent-hybrid-orchestration.md)로 대체 (2026-07-20)
 - 결정자: 주희정 (팀 공유 필요)
 
 ## 배경
@@ -15,6 +15,10 @@ MCP 서버는 표준상 별도 프로세스가 자연스러우므로 완전한 �
    `mcp-knowledge`, `simulator`. uv 단일 패키지에 엔트리포인트 스크립트로 분리.
 2. **Agent(Supervisor+ReAct)는 FastAPI 앱 in-process**: SSE로 Thought/Action/Observation을
    중계 계층 없이 바로 스트리밍하기 위함.
+   - 이 중 **내부 구조(Supervisor+워커 ReAct)는 [ADR-0009](0009-agent-hybrid-orchestration.md)로
+     대체**되었습니다. 라우팅 왕복이 직렬로 쌓이는 문제로 Planner + 병렬 Fetch 구조로 교체했으며,
+     실측 근거는 ADR-0009에 있습니다. 다만 **in-process 배치 결정 자체는 유효**합니다. 오케스트레이터도
+     동일하게 FastAPI 앱 안에서 실행되며 SSE 중계 계층을 두지 않습니다.
 3. **모듈 경계 = 담당자 경계**: `modules/` 하위 패키지를 역할 분담표와 1:1로 맞춰
    머지 컨플릭트를 최소화.
 4. **계층은 router → service → repository 3단**만 사용. 포트(인터페이스)는 비기능 요구사항
