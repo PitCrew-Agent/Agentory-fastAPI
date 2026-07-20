@@ -13,6 +13,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from agentory.core.config import get_settings
+from agentory.core.db import engine
 from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.prefetch import prefetch_models
 from agentory.modules.rag.rerank import get_reranker
@@ -113,10 +114,21 @@ async def search_similar_cases(
     raise NotImplementedError
 
 
+async def _verify_and_release_pool() -> None:
+    # 차원 검증 후 임시 루프에 바인딩된 DB 커넥션을 공유 풀에서 제거
+    # asyncio.run이 만든 임시 루프의 asyncpg 커넥션이 풀에 남으면 이후 mcp.run의
+    # 새 루프가 그 커넥션을 체크아웃할 때 Event loop is closed로 실패하므로
+    # engine.dispose로 풀을 비워 다음 사용 시 현재 루프 기준 커넥션을 새로 열게 함
+    try:
+        await verify_embedding_dim()
+    finally:
+        await engine.dispose()
+
+
 def _startup() -> None:
     # DB 벡터 차원 정합성 검증(B), 불일치면 기동 차단, DB 미연결 등은 경고 후 진행
     try:
-        asyncio.run(verify_embedding_dim())
+        asyncio.run(_verify_and_release_pool())
     except RuntimeError as exc:
         log.error("임베딩 차원 불일치로 mcp-knowledge 기동 거부: %s", exc)
         raise
