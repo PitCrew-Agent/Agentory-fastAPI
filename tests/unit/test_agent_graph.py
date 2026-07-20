@@ -265,6 +265,23 @@ def test_classify_intent_rules():
     assert classify_intent("") == "diagnostic"
 
 
+def test_classify_intent_keeps_followup_turn_diagnostic():
+    # 후속 턴 참조 질의는 진단 키워드가 없어도 데이터 수집 경로 유지 (AI_AGENT01_REACT01)
+    from agentory.modules.agent.supervisor.fast_router import classify_intent
+
+    # 지시대명사·시점 참조로 앞 맥락의 데이터를 다시 요구하는 케이스
+    assert classify_intent("고마워, 근데 아까 그 값 다시 보여줄래?") == "diagnostic"
+    assert classify_intent("감사합니다. 어제 것도 뽑아주세요") == "diagnostic"
+    assert classify_intent("수고했어, 방금 그거 그래프로 그려줘") == "diagnostic"
+    assert classify_intent("안녕, 그 다음 건 어떻게 됐어?") == "diagnostic"
+    # 잡담이 접두부에 그치고 뒤에 요청절이 이어지는 케이스
+    assert classify_intent("감사합니다. 하나만 더 뽑아주세요") == "diagnostic"
+    # 순수 잡담은 direct 유지, 바이패스 이득 회귀 가드
+    assert classify_intent("고마워 다음에 또 부탁해") == "direct"
+    assert classify_intent("반가워요 처음 뵙겠습니다") == "direct"
+    assert classify_intent("또 봐") == "direct"
+
+
 def test_extract_and_merge_entities():
     # 도구 결과 텍스트에서 설비·알람 추출 및 장부 병합 (ERR·WRN 알람 모두 인식)
     found = extract_entities("EQP-003 ERR-402 WRN-702 EQP-001")
