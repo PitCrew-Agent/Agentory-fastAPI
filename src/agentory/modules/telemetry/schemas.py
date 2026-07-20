@@ -80,7 +80,7 @@ class EquipmentSuggestionsResponse(BaseModel):
     suggestions: list[str] = Field(
         default=[],
         description="설비 상태 기반 추천 질문 (보통 3개)",
-        examples=[["EQP-A01 온도 추세 24시간 보여줘", "EQP-A01 최근 알람 이력 확인해줘"]],
+        examples=[["EQP-A01 최신 온도 확인해줘", "EQP-A01 최근 알람 이력 확인해줘"]],
     )
 
 

@@ -10,7 +10,7 @@ from agentory.common.events import Citation
 
 class ChatRequest(BaseModel):
     message: str = Field(
-        min_length=1, description="사용자 자연어 질의", examples=["EQP-A01 온도 추세 24시간 보여줘"]
+        min_length=1, description="사용자 자연어 질의", examples=["EQP-A01 최신 온도 확인해줘"]
     )
     session_id: str = Field(
         description="멀티턴 대화 세션 id (UUID), 새 대화면 클라이언트가 새 UUID 생성",
@@ -50,7 +50,7 @@ class ChatSessionSummary(BaseModel):
     )
     title: str = Field(
         description="제목 (첫 질문 요약, 앞 장비id 중복은 제거)",
-        examples=["온도 추세 24시간 보여줘"],
+        examples=["최신 온도 확인해줘"],
     )
     created_at: datetime = Field(description="세션 생성 시각")
     last_message_at: datetime | None = Field(
