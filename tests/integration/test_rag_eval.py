@@ -27,6 +27,10 @@ class FakeEmbedder:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [self._vector(value) for value in texts]
 
+    async def embed_query(self, text: str) -> list[float]:
+        # 질의도 동일 결정론 벡터, 동일 텍스트는 문서·질의 구분 없이 정확 매칭
+        return self._vector(text)
+
     @staticmethod
     def _vector(value: str) -> list[float]:
         seed = int(hashlib.sha256(value.encode("utf-8")).hexdigest(), 16)

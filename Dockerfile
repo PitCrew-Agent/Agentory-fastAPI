@@ -18,6 +18,7 @@ COPY README.md ./
 RUN uv sync --frozen --no-install-project --no-dev
 
 COPY src ./src
+COPY scripts ./scripts
 COPY alembic ./alembic
 COPY alembic.ini ./
 # 매뉴얼 원본·매니페스트, ingest run-task가 이미지 내부 경로에서 읽음

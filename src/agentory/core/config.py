@@ -6,7 +6,11 @@
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 임베딩 provider별 기대 차원, embedding_dim 정합성 검증 기준 (provider 추가 시 등록)
+_PROVIDER_DIMS = {"e5": 768, "openai": 1536}
 
 
 class Settings(BaseSettings):
@@ -55,13 +59,32 @@ class Settings(BaseSettings):
     # 멀티턴 history 로드 상한(최근 N개), 대화가 길어질수록 커지는 프롬프트 지연 방지
     agent_history_max_messages: int = 12
 
-    # 임베딩
-    embedding_model: str = ""
-    embedding_dim: int = 1536
+    # 임베딩, provider로 어댑터 선택 (e5=로컬 sentence-transformers 768, openai=API 1536)
+    embedding_provider: str = "e5"
+    embedding_model: str = ""  # 비우면 provider별 기본 모델 사용
+    embedding_dim: int = 768
 
     # RAG 매뉴얼 검색 (BE_MCP04_RAG01)
     rag_search_top_k: int = 3  # 검색 기본 Top-K
     rag_search_min_score: float = 0.2  # 유사도 임계값, 미달 결과 제외로 환각 방지
+
+    # 리랭커, provider로 어댑터 선택 (교체 가능 지점 ③) (AI_RAG02_RERANK01)
+    # bge=고품질 기본, minilm=경량, none=미적용
+    # 주의: CPU에서 bge(568M)는 질의당 수 초 지연, GPU 아니면 minilm/none 고려
+    reranker_provider: str = "bge"
+    reranker_model: str = ""  # 비우면 provider별 기본 모델 사용
+    reranker_top_n: int = 10  # 재정렬 후보 풀, top_n 검색 후 상위 top_k 반환
+
+    @model_validator(mode="after")
+    def _check_embedding_dim(self) -> "Settings":
+        # provider별 기대 차원과 embedding_dim 불일치 시 기동 즉시 차단 (조용한 dim 불일치 방지)
+        expected = _PROVIDER_DIMS.get(self.embedding_provider)
+        if expected is not None and self.embedding_dim != expected:
+            raise ValueError(
+                f"embedding_provider={self.embedding_provider}는 "
+                f"embedding_dim {expected} 필요, 현재 {self.embedding_dim}"
+            )
+        return self
 
     # MCP 서버
     mcp_realtime_url: str = "http://localhost:8101/mcp"

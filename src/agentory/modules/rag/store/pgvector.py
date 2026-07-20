@@ -6,9 +6,10 @@ session_factory 주입으로 테스트는 자체 엔진 세션 사용 가능
 
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.modules.rag.store.models import KnowledgeChunk
 
@@ -18,6 +19,19 @@ class PgVectorStore:
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession] = SessionLocal) -> None:
         self._session_factory = session_factory
+
+    async def embedding_column_dim(self) -> int | None:
+        """knowledge_collection.embedding 컬럼의 pgvector 차원, 부재·미지정이면 None"""
+        async with self._session_factory() as session:
+            row = await session.execute(
+                text(
+                    "SELECT atttypmod FROM pg_attribute "
+                    "WHERE attrelid = to_regclass('knowledge_collection') "
+                    "AND attname = 'embedding' AND NOT attisdropped"
+                )
+            )
+            dim = row.scalar_one_or_none()
+        return dim if dim and dim > 0 else None
 
     async def upsert(self, chunks: list[dict[str, Any]]) -> int:
         """청크 적재, 반환: 적재 건수
@@ -84,3 +98,17 @@ class PgVectorStore:
                 {"doc_id": chunk.doc_id, "content": chunk.content, "score": 1.0 - distance_value}
                 for chunk, distance_value in rows
             ]
+
+
+async def verify_embedding_dim() -> None:
+    """DB 벡터 컬럼 차원과 설정 embedding_dim 대조, 불일치면 RuntimeError로 기동 차단 (B)
+
+    컬럼 부재(마이그레이션 전)는 통과, 마이그레이션이 차원을 강제하므로 실제 값 불일치만 검사
+    """
+    db_dim = await PgVectorStore().embedding_column_dim()
+    expected = get_settings().embedding_dim
+    if db_dim is not None and db_dim != expected:
+        raise RuntimeError(
+            f"pgvector 컬럼 차원({db_dim})과 embedding_dim({expected}) 불일치, "
+            "마이그레이션·재적재 필요"
+        )

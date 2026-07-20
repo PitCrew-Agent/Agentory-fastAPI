@@ -85,8 +85,8 @@ async def evaluate_retrieval(
         expected = set(expected_docs)
         if not expected:
             continue
-        embeddings = await embedder.embed([case["query"]])
-        results = await store.search(embeddings[0], top_k=k)
+        embedding = await embedder.embed_query(case["query"])
+        results = await store.search(embedding, top_k=k)
         if min_score is not None:
             results = [item for item in results if item["score"] >= min_score]
         retrieved = [str(item["doc_id"]) for item in results]

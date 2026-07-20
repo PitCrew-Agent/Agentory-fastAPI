@@ -7,7 +7,6 @@ EMBEDDING_MODEL 미설정 시 text-embedding-3-small(1536차원)로 폴백
 from langchain_openai import OpenAIEmbeddings
 
 from agentory.core.config import get_settings
-from agentory.modules.rag.embedding.base import Embedder
 
 # 1536차원, EMBEDDING_DIM 기본값·knowledge_collection 스키마와 일치
 _DEFAULT_MODEL = "text-embedding-3-small"
@@ -24,10 +23,9 @@ class OpenAIEmbedder:
         )
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """텍스트 목록을 임베딩 벡터 목록으로 변환 (차원: settings.embedding_dim)"""
+        """문서 목록을 임베딩 벡터 목록으로 변환 (차원: settings.embedding_dim)"""
         return await self._client.aembed_documents(texts)
 
-
-def get_embedder() -> Embedder:
-    """settings 기반 기본 임베더 반환"""
-    return OpenAIEmbedder()
+    async def embed_query(self, text: str) -> list[float]:
+        """질의 임베딩, OpenAI는 대칭 모델이라 문서와 동일 인코딩"""
+        return await self._client.aembed_query(text)
