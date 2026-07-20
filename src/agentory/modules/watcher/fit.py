@@ -29,8 +29,14 @@ log = logging.getLogger("anomaly-fit")
 
 # 공정 유형당 최소 학습 윈도우 수, 미달 시 스킵 (표본 부족 모델 방지)
 MIN_TRAIN_WINDOWS = 200
+# 설비별 캘리브 최소 윈도우 수, 미달 설비는 공정 유형 한계로 폴백 (BE_ANOM01_CALIB01)
+MIN_CALIBRATION_WINDOWS = 200
 # 설비별 정상 조회 상한, 최근 구간 우선
 NORMAL_ROWS_PER_EQUIPMENT = 20000
+# EWMA 워밍업 제외 길이(시정수 배수), 초기 전이가 극단 분위수를 부풀리는 것 차단
+EWMA_WARMUP_TAUS = 5
+# 워밍업 제외 후 최소 잔여 윈도우, 미달 시 전체 사용
+MIN_STEADY_WINDOWS = 100
 
 
 def _effective_since(
@@ -114,23 +120,23 @@ async def fit_in_session(
     for ptype, equipment in by_type.items():
         if only_stale and (last := fitted_at.get(ptype)) is not None and last >= stale_cutoff:
             continue  # 아직 신선, 재적합 불요
-        parts = []
+        per_equipment: list[tuple[str, np.ndarray]] = []
         for eid, repaired_at in equipment:
             since = _effective_since(recency_cutoff, repaired_at)
             w = await _normal_windows(session, eid, window, stride, since)
             if w.shape[0] > 0:
-                parts.append(w)
-        train = np.concatenate(parts) if parts else np.empty((0, window, len(VARS)))
+                per_equipment.append((eid, w))
+        train = (
+            np.concatenate([w for _, w in per_equipment])
+            if per_equipment
+            else np.empty((0, window, len(VARS)))
+        )
         if train.shape[0] < MIN_TRAIN_WINDOWS:
             # 표본 부족 시 기존 모델 유지 (좋은 모델을 나쁜 데이터로 덮어쓰지 않음)
             log.warning("[anomaly-fit] %s 학습 윈도우 부족(%d), 스킵", ptype, train.shape[0])
             continue
         model = PcaMspc(0.9, 0.999, cross_correlation=True).fit(train)
-        accumulated = ewma(
-            np.minimum(model.score(train), settings.anomaly_ewma_clip),
-            settings.anomaly_ewma_alpha,
-        )
-        ewma_limit = max(float(np.quantile(accumulated, 0.999)), 1e-12)
+        ewma_limit = _limit_from_parts([w for _, w in per_equipment], model, settings)
         await repo.save_model(
             session,
             process_type=ptype,
@@ -141,9 +147,65 @@ async def fit_in_session(
             state=model.to_state(),
             train_rows=int(train.shape[0]),
         )
+        # 설비별 캘리브 한계, 개체 정상 분포로 산출 (BE_ANOM01_CALIB01)
+        for eid, w in per_equipment:
+            if w.shape[0] < MIN_CALIBRATION_WINDOWS:
+                continue  # 표본 부족 설비는 공정 유형 한계로 폴백
+            await repo.save_calibration(
+                session,
+                equipment_id=eid,
+                ewma_limit=_clamped_equipment_limit(
+                    _limit_from_windows(w, model, settings), ewma_limit, settings
+                ),
+                train_windows=int(w.shape[0]),
+            )
         fitted[ptype] = int(train.shape[0])
         log.info("[anomaly-fit] %s 적합 완료, 학습 윈도우 %d", ptype, train.shape[0])
     return fitted
+
+
+def _limit_from_windows(windows: np.ndarray, model: PcaMspc, settings: Settings) -> float:
+    """정상 윈도우 EWMA 점수 분위수로 한계 산출 (공정·설비 공통)
+
+    EWMA 워밍업 구간 제외가 필수, 초기값(scores[0])이 높으면 감쇠 구간이 극단 분위수를
+    독점해 한계가 수배 부풀려짐. 스코어러는 정상 상태 윈도우로 판정하므로 한계도 동일
+    구간에서 캘리브해야 일관 (BE_ANOM01_CALIB01 진단)
+    """
+    return max(float(np.quantile(_steady_scores(windows, model, settings), 0.999)), 1e-12)
+
+
+def _steady_scores(windows: np.ndarray, model: PcaMspc, settings: Settings) -> np.ndarray:
+    # 단일 연속 시퀀스의 EWMA 정상 상태 구간, 워밍업 제외
+    accumulated = ewma(
+        np.minimum(model.score(windows), settings.anomaly_ewma_clip),
+        settings.anomaly_ewma_alpha,
+    )
+    warmup = int(EWMA_WARMUP_TAUS / settings.anomaly_ewma_alpha)
+    steady = accumulated[warmup:]
+    return accumulated if steady.size < MIN_STEADY_WINDOWS else steady
+
+
+def _limit_from_parts(parts: list[np.ndarray], model: PcaMspc, settings: Settings) -> float:
+    """설비별 시퀀스를 각각 EWMA 후 결합해 공정 유형 한계 산출
+
+    이어붙인 시퀀스에 EWMA를 통째로 돌리면 설비 경계마다 전이가 생겨 극단 분위수가
+    부풀려짐, 실험 하네스(run.py)와 동일하게 파트별 계산 후 결합 (BE_ANOM01_CALIB01 진단)
+    """
+    pooled = np.concatenate([_steady_scores(w, model, settings) for w in parts])
+    return max(float(np.quantile(pooled, 0.999)), 1e-12)
+
+
+def _clamped_equipment_limit(
+    equipment_limit: float, process_limit: float, settings: Settings
+) -> float:
+    """설비별 한계를 공정 한계 대비 비율로 제한 (추정 잡음 방어)
+
+    설비 표본은 공정 대비 훨씬 적어 q0.999 추정 분산이 큼, 진짜 개체 오프셋은 완만하므로
+    비율 밖 값은 잡음으로 보고 잘라 과민·과둔감을 모두 차단
+    """
+    low = process_limit * settings.anomaly_calibration_min_ratio
+    high = process_limit * settings.anomaly_calibration_max_ratio
+    return min(max(equipment_limit, low), high)
 
 
 async def fit_all(

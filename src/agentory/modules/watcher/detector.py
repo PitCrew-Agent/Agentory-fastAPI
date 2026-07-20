@@ -48,8 +48,12 @@ class ScoreResult:
 class AnomalyScorer:
     """공정 유형별 모델 보관·최근 시계열 판정"""
 
-    def __init__(self, models: dict[str, LoadedModel]) -> None:
+    def __init__(
+        self, models: dict[str, LoadedModel], equipment_limits: dict[str, float] | None = None
+    ) -> None:
         self._models = models
+        # 설비별 EWMA 한계 override, 미보유 설비는 공정 유형 한계로 폴백 (BE_ANOM01_CALIB01)
+        self._equipment_limits = equipment_limits or {}
 
     @property
     def process_types(self) -> set[str]:
@@ -58,10 +62,13 @@ class AnomalyScorer:
     def has(self, process_type: str) -> bool:
         return process_type in self._models
 
-    def score_latest(self, process_type: str, series: np.ndarray) -> ScoreResult | None:
+    def score_latest(
+        self, process_type: str, equipment_id: str, series: np.ndarray
+    ) -> ScoreResult | None:
         """최근 센서 시계열 (T, C)로 마지막 윈도우 발령 여부 판정
 
         모델 미보유·윈도우 부족 시 None (스킵), EWMA 경로 단일 판정 (EXP-007 확정 config)
+        설비별 캘리브 한계가 있으면 우선, 없으면 공정 유형 한계 사용 (BE_ANOM01_CALIB01)
         """
         loaded = self._models.get(process_type)
         if loaded is None:
@@ -74,7 +81,8 @@ class AnomalyScorer:
         # 급격한 레짐 변화(모드 전이) 구간을 EWMA·발령에서 제외 (EXP-008)
         mask = transition_mask(raw, loaded.transition_threshold, loaded.transition_settle)
         accumulated = ewma_masked(np.minimum(raw, loaded.ewma_clip), loaded.ewma_alpha, mask)
-        normalized = accumulated / loaded.ewma_limit
+        limit = self._equipment_limits.get(equipment_id, loaded.ewma_limit)
+        normalized = accumulated / limit
         fired_series = sustained(normalized > 1.0, loaded.confirm_k) & ~mask
 
         latest_fired = bool(fired_series[-1])

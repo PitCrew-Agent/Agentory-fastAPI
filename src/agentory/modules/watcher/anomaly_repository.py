@@ -22,7 +22,11 @@ from agentory.modules.watcher.detector import (
     AnomalyScorer,
     LoadedModel,
 )
-from agentory.modules.watcher.models import EquipmentAnomalyModel, EquipmentAnomalyShadowEvent
+from agentory.modules.watcher.models import (
+    EquipmentAnomalyCalibration,
+    EquipmentAnomalyModel,
+    EquipmentAnomalyShadowEvent,
+)
 from anomaly.models.pca_mspc import PcaMspc
 
 
@@ -56,7 +60,7 @@ async def save_model(
 
 
 async def load_scorer(session: AsyncSession, settings: Settings) -> AnomalyScorer:
-    """저장된 전 모델을 적재해 스코어러 구성, EWMA 파라미터는 config에서 주입"""
+    """저장된 전 모델·설비별 캘리브 한계를 적재해 스코어러 구성"""
     rows = await session.scalars(select(EquipmentAnomalyModel))
     models: dict[str, LoadedModel] = {}
     for row in rows:
@@ -71,7 +75,32 @@ async def load_scorer(session: AsyncSession, settings: Settings) -> AnomalyScore
             transition_threshold=settings.anomaly_transition_threshold,
             transition_settle=settings.anomaly_transition_settle,
         )
-    return AnomalyScorer(models)
+    return AnomalyScorer(models, await load_equipment_limits(session))
+
+
+async def load_equipment_limits(session: AsyncSession) -> dict[str, float]:
+    """설비별 EWMA 한계 override 적재 (BE_ANOM01_CALIB01)"""
+    rows = await session.execute(
+        select(EquipmentAnomalyCalibration.equipment_id, EquipmentAnomalyCalibration.ewma_limit)
+    )
+    return {eid: limit for eid, limit in rows}
+
+
+async def save_calibration(
+    session: AsyncSession, *, equipment_id: str, ewma_limit: float, train_windows: int
+) -> None:
+    """설비별 캘리브 한계 upsert (BE_ANOM01_CALIB01)"""
+    values = {
+        "equipment_id": equipment_id,
+        "ewma_limit": ewma_limit,
+        "train_windows": train_windows,
+    }
+    stmt = pg_insert(EquipmentAnomalyCalibration).values(**values)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[EquipmentAnomalyCalibration.equipment_id],
+        set_={"ewma_limit": ewma_limit, "train_windows": train_windows},
+    )
+    await session.execute(stmt)
 
 
 async def list_equipment(session: AsyncSession) -> list[tuple[str, str]]:

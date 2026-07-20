@@ -33,7 +33,7 @@ async def score_once(settings: Settings) -> int:
             series = await repo.fetch_recent_series(
                 session, equipment_id, settings.anomaly_lookback_rows
             )
-            result = scorer.score_latest(process_type, series)
+            result = scorer.score_latest(process_type, equipment_id, series)
             if result is None:
                 continue
             is_active = equipment_id in active
