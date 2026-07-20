@@ -380,6 +380,68 @@ rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다
 대응합니다. 시뮬레이터가 변수별 확정 알람의 상태전이(발생·해제)를 이 테이블에 적재하며, 복합 코드
 (과거 ERR-402·ERR-901)는 변수 간 코드 전이를 유발하므로 사용하지 않고 항상 단일변수 코드로 발생시킵니다.
 
+### equipment_repairs (NEW_REPAIR01_HISTORY01)
+
+이 테이블은 설비 수리 이력을 담당합니다. 누가 언제 어떤 설비를 수리했는지 남겨 작업 현황 조회의
+원천이 되며, 재정비 에이전트(타 팀)와의 계약 지점이기도 합니다. 수리 시 시뮬레이터가 해당 설비를
+힐 윈도우 동안 정상으로 강제하는 동기화 구조는 [ADR-0007](adr/0007-equipment-repair.md)에 있습니다.
+
+| 컬럼 | 타입 | 제약 | 설명 |
+| --- | --- | --- | --- |
+| id | bigint | PK, identity always | 수리 이력 ID |
+| equipment_id | varchar(50) | FK, NN | equipment_masters 참조 |
+| repaired_by | bigint | FK, ON DELETE SET NULL | 수리 책임자, users 참조 |
+| repaired_at | timestamptz | NN, default now | 수리 시각 |
+| alarm_code_before | varchar(20) |  | 수리 직전 알람 코드 스냅샷 |
+| note | text |  | 수리 비고 |
+| created_at | timestamptz | NN, default now | 적재 시각 |
+
+`repaired_by`는 사용자 삭제 시 `SET NULL`로 참조만 해제하고 이력 행은 남깁니다. 수리 이력은 행위자가
+사라지더라도 설비 관점의 기록으로 보존되어야 하기 때문입니다. `alarm_code_before`를 스냅샷으로 남기는
+이유는 수리 직후 알람이 해제되어 원본에서 사후 조회가 불가능해지기 때문이며, 어떤 증상을 수리했는지
+추적하려면 시점 값을 고정해야 합니다.
+
+인덱스는 조회 축에 맞춰 세 가지를 둡니다. 설비별 이력은 `(equipment_id, repaired_at)`, 담당자별 조회는
+`repaired_by`, 설비를 지정하지 않은 전역 페이지 조회는 `(repaired_at, id)`로 대응합니다. 마지막
+인덱스는 동일 시각 수리가 여러 건일 때 정렬이 흔들리지 않도록 id를 결합해 row-value 커서 seek을
+지원합니다.
+
+### work_logs (NEW_LOOP01_WORKLOG01)
+
+이 테이블은 현장 점검·조치 작업 로그를 담당합니다. 알림에서 시작한 대응이 작업 로그로 이어지고
+완료 시 도메인 이력으로 적재되는 흐름은 [docs/worklog.md](worklog.md)에 있습니다.
+
+| 컬럼 | 타입 | 제약 | 설명 |
+| --- | --- | --- | --- |
+| id | bigint | PK, identity | 작업 로그 ID |
+| owner_sub | varchar(255) | NN | 작성자이자 소유자 식별자 (실제 저장 값은 email) |
+| work_type | varchar(20) | NN, CHECK | 정기점검/수리점검/예방점검/긴급수리/기타 |
+| worker_name | varchar(100) | NN | 진행자 표시명 |
+| source_notification_id | bigint | FK | 작업을 유발한 알림, notifications 참조 |
+| equipment_id | varchar(50) | FK | 대상 설비, equipment_masters 참조 |
+| alarm_code | varchar(20) |  | 대상 알람 코드 |
+| started_at | timestamptz | NN | 작업 시작 시각 |
+| ended_at | timestamptz |  | 종료 시각, 진행중이면 NULL |
+| plan | text | NN | 작업 계획, 작성 시 필수 |
+| completion | text |  | 작업 완료 내용, 완료 시 작성 |
+| completed_at | timestamptz |  | 완료 제출 시각 |
+| status | varchar(20) | NN, default 대기, CHECK | 대기/진행중/완료 |
+| deleted_at | timestamptz |  | soft delete 시각 |
+| created_at | timestamptz | NN, default now | 생성 시각 |
+
+계획(`plan`)과 완료(`completion`)를 분리한 것은 작성 시점이 다르기 때문입니다. 계획은 작성 시 필수인
+반면 완료 내용은 작업을 마친 뒤 채워지므로, 단일 항목으로 두면 계획과 실제 수행 결과를 구분할 수
+없습니다.
+
+삭제는 물리 삭제가 아니라 `deleted_at`을 채우는 soft delete입니다. 작업 로그가 완료 시 도메인 이력으로
+적재되므로 원본이 사라지면 이력의 근거를 잃기 때문입니다. 이에 맞춰 목록 조회 인덱스도
+`deleted_at IS NULL` 부분 인덱스(`ix_work_logs_active_started`)로 두어, 미삭제 항목만 시작 시각 역순으로
+조회하는 주 패턴에 대응합니다.
+
+`status`와 `work_type`은 CHECK 제약으로 허용값을 강제합니다. 두 값 모두 화면 필터와 완료 처리 분기에
+쓰이므로 오타가 통과하면 항목이 조용히 조회에서 누락됩니다. `owner_sub`는 컬럼명과 달리 실제로는
+email을 저장하며, 배경은 위 chat_session 절과 [ADR-0002](adr/0002-auth-session.md)에 있습니다.
+
 ### knowledge_collection (§8.3)
 
 이 테이블은 매뉴얼 문서를 청크 단위로 나눈 본문과 임베딩 벡터의 저장·검색을 담당합니다.
