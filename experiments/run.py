@@ -144,15 +144,68 @@ def _run_windowed(config: dict, make_model) -> dict[str, float]:
 
 
 def run_pca_mspc(config: dict) -> dict[str, float]:
-    """EXP-002~004 PCA MSPC (T²+SPE) 채점"""
+    """EXP-002~004 PCA MSPC (T²+SPE) 채점, statistic으로 기여 분해도 지원 (EXP-009)"""
     return _run_windowed(
         config,
         lambda: PcaMspc(
             config["n_components"],
             config["threshold_quantile"],
             config.get("cross_correlation", False),
+            config.get("statistic", "both"),
         ),
     )
+
+
+def _make_detector(config: dict):
+    """detector 키로 비교군 인스턴스 생성 (EXP-009 계열 비교)
+
+    전 검출기는 score()가 한계 정규화 값(1.0 초과=이상)을 반환하는 계약을 지켜
+    동일 EWMA·지속 K 후처리와 동일 지표로 비교 가능
+    """
+    kind = config["detector"]
+    quantile = config["threshold_quantile"]
+    xcorr = config.get("cross_correlation", True)
+    seed = config.get("seed", 0)
+    if kind == "var":
+        from anomaly.models.var_residual import VarResidual
+
+        return VarResidual(lag=config.get("var_lag", 2), quantile=quantile)
+    if kind == "kernel_pca":
+        from anomaly.models.kernel_pca import KernelPcaResidual
+
+        return KernelPcaResidual(
+            n_components=config.get("kpca_components", 12),
+            gamma=config.get("kpca_gamma"),
+            quantile=quantile,
+            cross_correlation=xcorr,
+            seed=seed,
+        )
+    if kind == "autoencoder":
+        from anomaly.models.autoencoder import AeResidual
+
+        return AeResidual(
+            hidden=config.get("ae_hidden", 64),
+            bottleneck=config.get("ae_bottleneck", 8),
+            epochs=config.get("ae_epochs", 200),
+            quantile=quantile,
+            cross_correlation=xcorr,
+            seed=seed,
+        )
+    if kind == "iforest":
+        from anomaly.models.iforest import IsolationForestDetector
+
+        return IsolationForestDetector(
+            n_estimators=config.get("iforest_trees", 200),
+            quantile=quantile,
+            cross_correlation=xcorr,
+            seed=seed,
+        )
+    raise ValueError(f"미지원 detector: {kind}")
+
+
+def run_detector(config: dict) -> dict[str, float]:
+    """EXP-009 비교군 채점, 파라미터·후처리는 PCA와 동일 고정"""
+    return _run_windowed(config, lambda: _make_detector(config))
 
 
 def run_ts2vec_knn(config: dict) -> dict[str, float]:
@@ -252,6 +305,7 @@ METHODS = {
     "pca_mspc_ablation": run_pca_mspc_ablation,
     "window_stride_sweep": run_window_stride_sweep,
     "ts2vec_knn": run_ts2vec_knn,
+    "detector": run_detector,
 }
 
 
