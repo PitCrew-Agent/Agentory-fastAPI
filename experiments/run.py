@@ -203,6 +203,40 @@ def _make_detector(config: dict):
     raise ValueError(f"미지원 detector: {kind}")
 
 
+class _MergedPaths:
+    """재구성(PCAX) + VAR 병합 검출기 (EXP-010, 서빙 통합과 동일 의미론)
+
+    두 경로를 각자 한계로 정규화한 뒤 최대값을 점수로 사용, 서빙의 OR 발령과 동치
+    """
+
+    def __init__(self, n_components, quantile, cross_correlation, var_lag):
+        from anomaly.models.var_residual import VarResidual
+
+        self._pca = PcaMspc(n_components, quantile, cross_correlation)
+        self._var = VarResidual(lag=var_lag, quantile=quantile)
+
+    def fit(self, windows):
+        self._pca.fit(windows)
+        self._var.fit(windows)
+        return self
+
+    def score(self, windows):
+        return np.maximum(self._pca.score(windows), self._var.score(windows))
+
+
+def run_merged_paths(config: dict) -> dict[str, float]:
+    """EXP-010 병합 경로 채점"""
+    return _run_windowed(
+        config,
+        lambda: _MergedPaths(
+            config["n_components"],
+            config["threshold_quantile"],
+            config.get("cross_correlation", True),
+            config.get("var_lag", 2),
+        ),
+    )
+
+
 def run_detector(config: dict) -> dict[str, float]:
     """EXP-009 비교군 채점, 파라미터·후처리는 PCA와 동일 고정"""
     return _run_windowed(config, lambda: _make_detector(config))
@@ -306,6 +340,7 @@ METHODS = {
     "window_stride_sweep": run_window_stride_sweep,
     "ts2vec_knn": run_ts2vec_knn,
     "detector": run_detector,
+    "merged_paths": run_merged_paths,
 }
 
 
