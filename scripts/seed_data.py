@@ -35,8 +35,8 @@ def _severity(alarm_code: str) -> str:
 
 # bay_zone별 3D 좌표·회전 (설비 문서 값 규칙), north는 정면·south는 180도 회전
 BAY_GEOMETRY = {
-    "north": {"z": 1.65, "rotation": 0.0},
-    "south": {"z": -1.65, "rotation": math.pi},
+    "north": {"z": 1.8, "rotation": 0.0},
+    "south": {"z": -1.8, "rotation": math.pi},
 }
 
 # 식각 공정 단일 운영이라 전 설비 동일, 프론트는 shape로 3D 모델 선택
@@ -55,30 +55,30 @@ LINES = [
 # "normal"은 양호, 드리프트·급성 시나리오는 주의·위험 재현 (현재 상태 모델은 양호/주의/위험 3단계)
 LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
     "A": [
-        (1, -4.80, "north", "normal"),
-        (2, -4.20, "south", "normal"),
-        (3, -2.60, "south", "pressure_drift_pm"),  # 주의(WRN-702)
-        (4, -1.00, "north", "normal"),
-        (5, 1.50, "north", "temp_acute_pressure_drift"),  # 위험(ERR-401)+주의(WRN-702) 동시
-        (6, 2.70, "south", "temperature_acute"),  # 위험(ERR-401)
-        (7, 4.45, "north", "normal"),
+        (1, -3.9, "north", "normal"),
+        (2, -3.9, "south", "normal"),
+        (3, -1.3, "south", "pressure_drift_pm"),  # 주의(WRN-702)
+        (4, -1.3, "north", "normal"),
+        (5, 1.3, "north", "temp_acute_pressure_drift"),  # 위험(ERR-401)+주의(WRN-702) 동시
+        (6, 1.3, "south", "temperature_acute"),  # 위험(ERR-401)
+        (7, 3.9, "north", "normal"),
     ],
     "B": [
-        (1, -4.70, "north", "normal"),
-        (2, -4.10, "south", "rf_power_drift_pm"),  # 주의(WRN-703)
-        (3, -2.70, "north", "pressure_acute"),  # 위험(ERR-301)
-        (4, -1.40, "south", "gas_flow_drift_pm"),  # 주의(WRN-704)
-        (5, 1.60, "south", "normal"),
-        (6, 2.80, "north", "rf_power_acute"),  # 위험(ERR-201)
-        (7, 4.40, "north", "normal"),
+        (1, -3.9, "north", "normal"),
+        (2, -3.9, "south", "rf_power_drift_pm"),  # 주의(WRN-703)
+        (3, -1.3, "north", "pressure_acute"),  # 위험(ERR-301)
+        (4, -1.3, "south", "gas_flow_drift_pm"),  # 주의(WRN-704)
+        (5, 1.3, "south", "normal"),
+        (6, 1.3, "north", "rf_power_acute"),  # 위험(ERR-201)
+        (7, 3.9, "north", "normal"),
     ],
     "C": [
-        (1, -4.60, "north", "normal"),
-        (2, -3.10, "north", "gas_flow_acute"),  # 주의(WRN-501)
-        (3, -1.80, "south", "temperature_drift_pm"),  # 주의(WRN-701)
-        (4, -0.25, "north", "variance_increase"),  # 주의(WRN-801)
-        (5, 2.30, "south", "rf_acute_gas_drift"),  # 위험(ERR-201)+주의(WRN-704) 동시
-        (6, 4.00, "south", "normal"),
+        (1, -2.6, "north", "normal"),
+        (2, 0.0, "north", "gas_flow_acute"),  # 주의(WRN-501)
+        (3, -2.6, "south", "temperature_drift_pm"),  # 주의(WRN-701)
+        (4, 2.6, "north", "variance_increase"),  # 주의(WRN-801)
+        (5, 0.0, "south", "rf_acute_gas_drift"),  # 위험(ERR-201)+주의(WRN-704) 동시
+        (6, 2.6, "south", "normal"),
     ],
 }
 
