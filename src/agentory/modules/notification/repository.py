@@ -7,13 +7,14 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select, text, tuple_, update
+from sqlalchemy import delete, false, func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentory.modules.admin.models import Line, UserLine
 from agentory.modules.notification.messages import build_notification_message
-from agentory.modules.notification.models import Notification
-from agentory.modules.telemetry.models import EquipmentAlarm
+from agentory.modules.notification.models import Notification, NotificationRead
+from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster
 from agentory.modules.telemetry.schemas import StatusLevel
 
 # 30분 버킷 경계 기준점(00분·30분 정렬용), date_bin origin으로 사용
@@ -27,37 +28,56 @@ def _severity(alarm_code: str) -> StatusLevel:
     return StatusLevel.CRITICAL if alarm_code.startswith("ERR") else StatusLevel.WARNING
 
 
-def _to_dict(row: Notification) -> dict[str, Any]:
+def _to_dict(row: Notification, *, is_read: bool = False) -> dict[str, Any]:
     # 알림 행을 응답·이벤트 공용 dict로 변환
     # message는 저장값 대신 코드에서 요청 로케일로 재빌드해 다국어 응답 (ko는 저장값과 동일)
+    # is_read는 알림 자체 속성이 아니라 조회 사용자 기준 판정값 (BE_NOTI01_SCOPE01)
     return {
         "id": row.id,
         "occurred_at": row.occurred_at,
         "equipment_id": row.equipment_id,
+        "line_name": row.line_name,
         "metric": row.metric,
         "alarm_code": row.alarm_code,
         "severity": _severity(row.alarm_code),
         "message": build_notification_message(row.equipment_id, row.alarm_code),
-        "is_read": row.is_read,
+        "is_read": is_read,
     }
+
+
+def _read_exists(user_id: int | None):
+    # 조회 사용자의 읽음 행 존재 조건, user_id 없으면 항상 미읽음 취급
+    if user_id is None:
+        return false()
+    return (
+        select(NotificationRead.id)
+        .where(
+            NotificationRead.notification_id == Notification.id,
+            NotificationRead.user_id == user_id,
+        )
+        .exists()
+    )
 
 
 async def sync_from_alarms(session: AsyncSession, since: datetime | None = None) -> int:
     # 설비+변수+알람+30분버킷별 첫 알람만 알림화, 버킷당 1건 유니크로 멱등, 신규 적재 건수 반환
     # since 지정 시 최근 창만 집계해 풀스캔 방지, 과거 버킷은 멱등 적재됨 (NEW_PROACT01_DETECT01)
     bucket = func.date_bin(_BUCKET_WIDTH, EquipmentAlarm.raised_at, _BUCKET_ORIGIN)
+    # 담당 라인 스코핑 기준값을 적재 시점에 해석, 마스터 미등록 설비는 outer join으로 NULL 유지
     grouped = select(
         EquipmentAlarm.equipment_id.label("equipment_id"),
+        EquipmentMaster.line_name.label("line_name"),
         EquipmentAlarm.metric.label("metric"),
         EquipmentAlarm.alarm_code.label("alarm_code"),
         bucket.label("bucket_start"),
         func.min(EquipmentAlarm.raised_at).label("occurred_at"),
         func.min(EquipmentAlarm.alarm_id).label("source_alarm_id"),
-    )
+    ).outerjoin(EquipmentMaster, EquipmentMaster.equipment_id == EquipmentAlarm.equipment_id)
     if since is not None:
         grouped = grouped.where(EquipmentAlarm.raised_at >= since)
     grouped = grouped.group_by(
         EquipmentAlarm.equipment_id,
+        EquipmentMaster.line_name,
         EquipmentAlarm.metric,
         EquipmentAlarm.alarm_code,
         bucket,
@@ -69,6 +89,7 @@ async def sync_from_alarms(session: AsyncSession, since: datetime | None = None)
         {
             "occurred_at": g.occurred_at,
             "equipment_id": g.equipment_id,
+            "line_name": g.line_name,
             "metric": g.metric,
             "alarm_code": g.alarm_code,
             "bucket_start": g.bucket_start,
@@ -88,54 +109,142 @@ async def sync_from_alarms(session: AsyncSession, since: datetime | None = None)
     return result.rowcount or 0
 
 
+async def assigned_line_names(session: AsyncSession, user_id: int) -> list[str]:
+    # 사용자 담당 라인 코드 목록, EquipmentMaster.line_name과 매칭되는 값 (BE_NOTI01_SCOPE01)
+    stmt = (
+        select(Line.code)
+        .join(UserLine, UserLine.line_id == Line.id)
+        .where(UserLine.user_id == user_id)
+    )
+    return list(await session.scalars(stmt))
+
+
+def _scope_to_lines(stmt, line_names: list[str] | None):
+    # 담당 라인 조건 적용, None이면 전체 허용(관리자), 빈 목록이면 결과 없음(라인 미배정)
+    if line_names is None:
+        return stmt
+    if not line_names:
+        return stmt.where(false())
+    return stmt.where(Notification.line_name.in_(line_names))
+
+
 async def fetch_notifications(
     session: AsyncSession,
     *,
     unread_only: bool = False,
     after_id: int | None = None,
+    line_names: list[str] | None = None,
+    user_id: int | None = None,
 ) -> list[dict[str, Any]]:
     # after_id 지정 시 그보다 큰 id 오름차순(SSE 증분용), 아니면 발생 역순(이력용)
-    stmt = select(Notification)
+    read_flag = _read_exists(user_id)
+    stmt = _scope_to_lines(select(Notification, read_flag.label("is_read")), line_names)
     if unread_only:
-        stmt = stmt.where(Notification.is_read.is_(False))
+        stmt = stmt.where(~read_flag)
     if after_id is not None:
         stmt = stmt.where(Notification.id > after_id).order_by(Notification.id)
     else:
         stmt = stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc())
-    rows = await session.scalars(stmt)
-    return [_to_dict(r) for r in rows]
+    rows = await session.execute(stmt)
+    return [_to_dict(row, is_read=is_read) for row, is_read in rows]
 
 
 async def fetch_notifications_page(
     session: AsyncSession,
     *,
     unread_only: bool = False,
-    before: tuple[datetime, int] | None = None,
+    offset: int = 0,
     limit: int,
+    line_names: list[str] | None = None,
+    user_id: int | None = None,
 ) -> list[dict[str, Any]]:
-    # 발생 역순(occurred_at, id) 키셋 페이지네이션, before 커서보다 과거 항목만
-    # 새 알림이 위에 쌓여도 경계가 밀리지 않도록 offset 대신 키셋 사용
-    stmt = select(Notification)
+    # 발생 역순(occurred_at, id) offset 페이지네이션
+    # 화면이 페이지 번호로 임의 이동하므로 커서 대신 offset 사용, 정렬키는 인덱스 그대로 활용
+    read_flag = _read_exists(user_id)
+    stmt = _scope_to_lines(select(Notification, read_flag.label("is_read")), line_names)
     if unread_only:
-        stmt = stmt.where(Notification.is_read.is_(False))
-    if before is not None:
-        # row-value 튜플 비교로 커서, OR 펼침 대비 sargable 해 인덱스 커서 위치로 직접 seek
-        # 깊은 페이지에서도 상수 시간, ix_notifications_occurred_at 그대로 활용
-        stmt = stmt.where(tuple_(Notification.occurred_at, Notification.id) < before)
-    stmt = stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc()).limit(limit)
-    rows = await session.scalars(stmt)
-    return [_to_dict(r) for r in rows]
+        stmt = stmt.where(~read_flag)
+    stmt = (
+        stmt.order_by(Notification.occurred_at.desc(), Notification.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = await session.execute(stmt)
+    return [_to_dict(row, is_read=is_read) for row, is_read in rows]
 
 
-async def mark_read(session: AsyncSession, notification_id: int) -> bool:
-    # 개별 읽음, 대상 없으면 False
-    stmt = update(Notification).where(Notification.id == notification_id).values(is_read=True)
+async def count_notifications(
+    session: AsyncSession,
+    *,
+    unread_only: bool = False,
+    line_names: list[str] | None = None,
+    user_id: int | None = None,
+) -> int:
+    # 조회 조건에 해당하는 전체 건수, 화면의 총 건수·페이지 수 표기용
+    read_flag = _read_exists(user_id)
+    stmt = _scope_to_lines(select(func.count()).select_from(Notification), line_names)
+    if unread_only:
+        stmt = stmt.where(~read_flag)
+    return int(await session.scalar(stmt) or 0)
+
+
+async def mark_read(
+    session: AsyncSession,
+    notification_id: int,
+    user_id: int,
+    *,
+    line_names: list[str] | None = None,
+) -> bool:
+    # 개별 읽음, 담당 라인 밖이거나 대상 없으면 False
+    target = _scope_to_lines(
+        select(Notification.id).where(Notification.id == notification_id), line_names
+    )
+    if await session.scalar(target) is None:
+        return False
+    # 이미 읽은 알림은 유니크 충돌로 무시, 재요청도 성공 취급
+    stmt = (
+        pg_insert(NotificationRead)
+        .values(notification_id=notification_id, user_id=user_id)
+        .on_conflict_do_nothing(constraint="uq_notification_reads_notification_user")
+    )
+    await session.execute(stmt)
+    return True
+
+
+async def mark_unread(
+    session: AsyncSession,
+    notification_id: int,
+    user_id: int,
+    *,
+    line_names: list[str] | None = None,
+) -> bool:
+    # 읽음 해제, 담당 라인 밖이거나 대상 없으면 False
+    target = _scope_to_lines(
+        select(Notification.id).where(Notification.id == notification_id), line_names
+    )
+    if await session.scalar(target) is None:
+        return False
+    await session.execute(
+        delete(NotificationRead).where(
+            NotificationRead.notification_id == notification_id,
+            NotificationRead.user_id == user_id,
+        )
+    )
+    return True
+
+
+async def mark_all_read(
+    session: AsyncSession, user_id: int, *, line_names: list[str] | None = None
+) -> int:
+    # 담당 라인 미읽음 전체 읽음 처리, 신규 읽음 건수 반환
+    unread = _scope_to_lines(select(Notification.id), line_names).where(~_read_exists(user_id))
+    ids = list(await session.scalars(unread))
+    if not ids:
+        return 0
+    stmt = (
+        pg_insert(NotificationRead)
+        .values([{"notification_id": nid, "user_id": user_id} for nid in ids])
+        .on_conflict_do_nothing(constraint="uq_notification_reads_notification_user")
+    )
     result = await session.execute(stmt)
-    return result.rowcount > 0
-
-
-async def mark_all_read(session: AsyncSession) -> int:
-    # 미읽음 전체 읽음 처리, 갱신 건수 반환
-    stmt = update(Notification).where(Notification.is_read.is_(False)).values(is_read=True)
-    result = await session.execute(stmt)
-    return result.rowcount
+    return result.rowcount or 0

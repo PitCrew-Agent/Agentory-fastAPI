@@ -1,10 +1,11 @@
-"""알림 키셋 페이지네이션 통합 테스트 (NEW_PROACT01_ALERT02)
+"""알림 페이지 번호 페이지네이션 통합 테스트 (NEW_PROACT01_ALERT02)
 
 실제 DB 필요, 미연결 시 스킵, flush만 하고 teardown rollback으로 미오염
-전역 데이터와 겹치지 않도록 2000년 창의 전용 알림을 삽입해 격리
+전역 데이터와 겹치지 않도록 2000년 창의 전용 라인 알림을 삽입해 격리
+offset 기반이라 단정이 흔들리지 않게 전용 라인으로 스코핑해 조회
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
@@ -12,10 +13,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from agentory.core.config import get_settings
+from agentory.modules.auth.models import User
 from agentory.modules.notification import repository, service
 from agentory.modules.notification.models import Notification
 
 EQP = "ZZZ-PAGE-01"
+LINE = "ZZZ-PAGE-LINE"  # 전용 라인으로 스코핑해 전역 데이터와 격리
 Y2000 = datetime(2000, 1, 1, 0, 0, tzinfo=UTC)  # 전역 데이터(2020+)와 격리된 창
 
 
@@ -36,62 +39,99 @@ async def session():
     await engine.dispose()
 
 
-async def _seed3(session):
-    # 시각 오름차순 n0 < n1 < n2 (같은 창), 미읽음
+async def _seed(session, count: int):
+    # 시각 오름차순으로 count건 생성, 마지막 항목이 가장 최신
     rows = []
-    for hour in range(3):
+    for index in range(count):
+        occurred_at = Y2000 + timedelta(minutes=index)
         n = Notification(
-            occurred_at=Y2000.replace(hour=hour),
+            occurred_at=occurred_at,
             equipment_id=EQP,
+            line_name=LINE,
             alarm_code="ERR-000",
             message="테스트 알림",
-            bucket_start=Y2000.replace(hour=hour),
+            bucket_start=occurred_at,
         )
         session.add(n)
         rows.append(n)
     await session.flush()
-    return rows  # rows[0] 가장 과거 .. rows[2] 최신
+    return rows  # rows[0] 가장 과거 .. rows[-1] 최신
 
 
-async def test_keyset_excludes_cursor_and_newer(session):
-    n0, n1, _n2 = await _seed3(session)
-    # before=(n1) 커서보다 과거만 → 내 알림 중 n0만
-    page = await repository.fetch_notifications_page(
-        session, before=(n1.occurred_at, n1.id), limit=100
-    )
-    mine = [r["id"] for r in page if r["equipment_id"] == EQP]
-    assert mine == [n0.id]
+async def _user(session, email: str):
+    user = User(email=email, name="페이지", role="field_engineer", status="active")
+    session.add(user)
+    await session.flush()
+    return user
+
+
+async def test_page_returns_requested_slice(session):
+    rows = await _seed(session, 25)
+    newest_first = [r.id for r in reversed(rows)]
+
+    first = await service.list_notifications(session, page=1, limit=10, line_names=[LINE])
+    assert [i.id for i in first.items] == newest_first[:10]
+    assert first.page == 1
+    assert first.total_items == 25
+    assert first.total_pages == 3
+    assert first.has_more is True
+
+
+async def test_jump_to_arbitrary_page(session):
+    rows = await _seed(session, 25)
+    newest_first = [r.id for r in reversed(rows)]
+
+    # 페이지 번호로 임의 이동, 커서 없이 3페이지 직접 조회
+    third = await service.list_notifications(session, page=3, limit=10, line_names=[LINE])
+    assert [i.id for i in third.items] == newest_first[20:25]
+    assert third.page == 3
+    assert third.has_more is False
+
+
+async def test_pages_cover_all_items_without_overlap(session):
+    rows = await _seed(session, 25)
+    collected: list[int] = []
+    for page_no in range(1, 4):
+        page = await service.list_notifications(session, page=page_no, limit=10, line_names=[LINE])
+        collected += [i.id for i in page.items]
+
+    assert collected == [r.id for r in reversed(rows)]
+    assert len(collected) == len(set(collected))
+
+
+async def test_page_beyond_last_clamps_to_last_page(session):
+    await _seed(session, 25)
+    page = await service.list_notifications(session, page=99, limit=10, line_names=[LINE])
+    # 빈 목록 대신 마지막 페이지 반환
+    assert page.page == 3
+    assert len(page.items) == 5
+
+
+async def test_empty_scope_returns_first_page(session):
+    page = await service.list_notifications(session, page=1, limit=10, line_names=[])
+    assert page.items == []
+    assert page.page == 1
+    assert page.total_items == 0
+    assert page.total_pages == 0
+    assert page.has_more is False
 
 
 async def test_limit_caps_page_size(session):
-    await _seed3(session)
-    # 내 창 위쪽 커서에서 limit=2면 최대 2건
-    cursor = (Y2000.replace(hour=5), 0)
-    page = await repository.fetch_notifications_page(session, before=cursor, limit=2)
-    assert len(page) <= 2
-
-
-async def test_walk_pages_via_next_cursor(session):
-    n0, n1, n2 = await _seed3(session)
-    # 최신 위쪽에서 시작해 next_cursor를 따라가며 내 알림 수집
-    cursor = service._encode_cursor(Y2000.replace(hour=5), 0)
-    collected: list[int] = []
-    for _ in range(5):  # 무한 방지 안전 상한
-        page = await service.list_notifications(session, before=cursor, limit=1)
-        collected += [i.id for i in page.items if i.equipment_id == EQP]
-        if not page.has_more:
-            break
-        cursor = page.next_cursor
-    # 발생 역순으로 중복 없이 전부 수집
-    assert collected == [n2.id, n1.id, n0.id]
+    await _seed(session, 25)
+    page = await service.list_notifications(session, page=1, limit=2, line_names=[LINE])
+    assert len(page.items) == 2
+    assert page.limit == 2
+    assert page.total_pages == 13  # 25건을 2건씩
 
 
 async def test_unread_only_filters(session):
-    n0, n1, n2 = await _seed3(session)
-    await repository.mark_read(session, n2.id)
-    cursor = (Y2000.replace(hour=5), 0)
-    page = await repository.fetch_notifications_page(
-        session, unread_only=True, before=cursor, limit=100
+    rows = await _seed(session, 3)
+    # 읽음은 사용자별 상태이므로 조회도 동일 user_id 기준 (BE_NOTI01_SCOPE01)
+    user = await _user(session, "noti-page@test.local")
+    await repository.mark_read(session, rows[2].id, user.id)
+
+    page = await service.list_notifications(
+        session, page=1, limit=10, line_names=[LINE], unread_only=True, user_id=user.id
     )
-    mine = {r["id"] for r in page if r["equipment_id"] == EQP}
-    assert mine == {n0.id, n1.id}  # 읽은 n2 제외
+    assert {i.id for i in page.items} == {rows[0].id, rows[1].id}  # 읽은 항목 제외
+    assert page.total_items == 2

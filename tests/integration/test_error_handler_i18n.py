@@ -102,9 +102,10 @@ async def test_telemetry_not_found_unified_across_modules(client):
     assert body["message"] == "Equipment not found: NOPE"
 
 
-async def test_notification_bad_cursor_unified_validation(client):
+async def test_bad_cursor_unified_validation(client):
     # 롤아웃 검증: 잘못된 커서(서비스 ValidationError)가 400 통일 포맷
-    r = await client.get(f"{API}/notifications", params={"before": "bad!!"})
+    # 알림은 페이지 번호 방식으로 전환되어, 커서를 유지하는 알람 이력으로 검증
+    r = await client.get(f"{API}/telemetry/equipment/EQP-A01/alarms", params={"before": "bad!!"})
     assert r.status_code == 400
     body = r.json()
     assert body["code"] == "VALIDATION_ERROR"

@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import delete
 
 from agentory.core.db import SessionLocal
-from agentory.modules.admin.models import EquipmentRepair
+from agentory.modules.admin.models import EquipmentRepair, Line, UserLine
 from agentory.modules.auth import models as _auth_models  # noqa: F401  users FK 대상 등록
 from agentory.modules.telemetry.models import (
     EquipmentAlarm,
@@ -95,6 +95,14 @@ LATE_START_TICK = 36  # 지연 시작 tick (필요 시 최신 구간만 이탈�
 LATE_START_SCENARIOS: set[str] = set()  # 지연 시작 대상 시나리오, 현재 없음
 # 마지막 tick이 기준일 근처가 되도록 시작 시각 앵커
 SERIES_BASE = datetime(2026, 7, 8, 5, 0, 0, tzinfo=UTC)
+
+
+def build_lines() -> list[Line]:
+    # 라인 마스터, code는 설비 line_name과 매칭되어 담당 라인 스코핑 기준이 됨 (BE_NOTI01_SCOPE01)
+    return [
+        Line(code=line_name, name=line_name, display_order=order, status="active")
+        for order, (_code, line_name, _dept, _owner) in enumerate(LINES, start=1)
+    ]
 
 
 def build_masters() -> list[EquipmentMaster]:
@@ -256,6 +264,7 @@ async def seed() -> None:
             telemetry.extend(rows)
             alarms.extend(alarm_rows)
 
+    lines = build_lines()
     repairs = build_repairs()
 
     async with SessionLocal() as session:
@@ -264,6 +273,10 @@ async def seed() -> None:
         await session.execute(delete(EquipmentTelemetry))
         await session.execute(delete(EquipmentRepair))
         await session.execute(delete(EquipmentMaster))
+        # 라인 마스터 재적재, 배정(user_lines)은 라인 FK라 함께 비우고 운영 화면에서 재배정
+        await session.execute(delete(UserLine))
+        await session.execute(delete(Line))
+        session.add_all(lines)
         session.add_all(masters)
         await session.flush()  # 마스터 선적재로 자식(telemetry·alarms·repairs) FK 보장
         session.add_all(telemetry)
@@ -272,9 +285,10 @@ async def seed() -> None:
         await session.commit()
 
     print(
-        f"[seed] 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건, "
+        f"[seed] 라인 {len(lines)}건, 설비 {len(masters)}건, 텔레메트리 {len(telemetry)}건, "
         f"알람 이벤트 {len(alarms)}건, 수리 이력 {len(repairs)}건 적재 완료"
     )
+    print("[seed] 담당 라인 배정은 비어 있음, 운영 화면에서 사용자별 라인을 배정해야 알림이 표시됨")
 
 
 if __name__ == "__main__":

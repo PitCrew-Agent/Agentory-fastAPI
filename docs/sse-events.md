@@ -55,16 +55,20 @@ GET /api/v1/notifications/stream?after_id=<마지막으로 받은 알림 id>    
 
 `after_id` 이후 id의 알림만 오름차순으로 방출하며, 커넥션 유지 중 서버가 주기(약 3초)로 신규 알림을 감지해 밀어줍니다.
 
+서버가 로그인 사용자의 담당 라인으로 스코핑해 방출하므로, 프론트는 별도로 라인을 필터링하지 않고 수신한 이벤트를 그대로 사용합니다 (BE_NOTI01_SCOPE01). 담당 라인이 배정되지 않은 사용자는 아무 이벤트도 받지 않으며, `admin` 역할은 전 라인을 수신합니다.
+
 | type | 페이로드 | 용도 |
 | --- | --- | --- |
-| `notification` | `{id, occurred_at, equipment_id, metric, alarm_code, severity, message, is_read}` | 신규 알림 1건 (NEW_PROACT01_ALERT01) |
+| `notification` | `{id, occurred_at, equipment_id, line_name, metric, alarm_code, severity, message, is_read}` | 신규 알림 1건 (NEW_PROACT01_ALERT01) |
 
 - `occurred_at`: 알림 발생 시각 (ISO 8601)
 - `id`: 알림 식별자, 다음 재연결 시 `after_id`로 사용
+- `line_name`: 설비 소속 라인, 설비 마스터에 없는 설비는 `null`
 - `metric`: 알람이 발생한 센서 변수 키(예: `temperature`), 변수 특정 불가 시 `null`
 - `severity`: 알람 심각도 `주의`·`위험`, `alarm_code` 접두(`ERR`=위험·그 외=주의) 기준 서버 판정값입니다. 프론트는 코드로 재추론하지 말고 이 값을 그대로 사용합니다
+- `is_read`: 조회 사용자 기준 읽음 여부입니다. 읽음 상태는 사용자마다 별도로 보관하므로, 같은 알림이라도 사용자에 따라 값이 다릅니다
 
 ```
 event: notification
-data: {"type":"notification","id":42,"occurred_at":"2026-07-06T10:02:00+09:00","equipment_id":"EQP-003","metric":"temperature","alarm_code":"ERR-402","severity":"위험","message":"EQP-003 냉각 이상 (온도 상승·압력 하강)","is_read":false}
+data: {"type":"notification","id":42,"occurred_at":"2026-07-06T10:02:00+09:00","equipment_id":"EQP-003","line_name":"A라인","metric":"temperature","alarm_code":"ERR-402","severity":"위험","message":"EQP-003 냉각 이상 (온도 상승·압력 하강)","is_read":false}
 ```
