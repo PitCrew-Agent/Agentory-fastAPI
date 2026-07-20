@@ -15,7 +15,10 @@ cp .env.example .env   # API 키 등 채우기
 docker compose up -d db
 uv run alembic upgrade head
 
-# 4. 실행 (각각 별도 터미널)
+# 4. RAG 매뉴얼 적재 (파서·청커·임베더 변경 시 재적재)
+uv run python scripts/ingest_manuals.py
+
+# 5. 실행 (각각 별도 터미널)
 uv run agentory-api      # FastAPI  :8000  (Swagger: http://localhost:8000/docs)
 uv run mcp-realtime      # MCP 서버 :8101
 uv run mcp-knowledge     # MCP 서버 :8102
@@ -28,6 +31,8 @@ uv run ruff check . && uv run ruff format --check .
 # pre-commit 훅 설치 (최초 1회)
 uv run pre-commit install
 ```
+
+파서·청커·임베더 또는 임베딩 차원을 바꾸면 기존 벡터와 비호환이라 검색이 깨지므로, `uv run python scripts/ingest_manuals.py`로 knowledge_collection을 재적재해야 합니다 적재는 doc_id 기준 멱등이라 반복 실행해도 안전합니다
 
 ## 구조
 
