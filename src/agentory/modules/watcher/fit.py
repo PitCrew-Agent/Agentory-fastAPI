@@ -22,6 +22,7 @@ from agentory.modules.watcher import anomaly_repository as repo
 from agentory.modules.watcher.detector import VARS
 from agentory.modules.watcher.models import EquipmentAnomalyModel
 from anomaly.models.pca_mspc import PcaMspc
+from anomaly.models.var_residual import VarResidual
 from anomaly.scoring import ewma
 from anomaly.windowing import sliding_windows
 
@@ -137,6 +138,8 @@ async def fit_in_session(
             continue
         model = PcaMspc(0.9, 0.999, cross_correlation=True).fit(train)
         ewma_limit = _limit_from_parts([w for _, w in per_equipment], model, settings)
+        # VAR 보완 경로 적합, 실패해도 재구성 경로는 유지 (BE_ANOM01_VAR01)
+        var_state, var_limit = _fit_var(train, per_equipment, settings)
         await repo.save_model(
             session,
             process_type=ptype,
@@ -146,6 +149,8 @@ async def fit_in_session(
             ewma_limit=ewma_limit,
             state=model.to_state(),
             train_rows=int(train.shape[0]),
+            var_state=var_state,
+            var_ewma_limit=var_limit,
         )
         # 설비별 캘리브 한계, 개체 정상 분포로 산출 (BE_ANOM01_CALIB01)
         for eid, w in per_equipment:
@@ -193,6 +198,23 @@ def _limit_from_parts(parts: list[np.ndarray], model: PcaMspc, settings: Setting
     """
     pooled = np.concatenate([_steady_scores(w, model, settings) for w in parts])
     return max(float(np.quantile(pooled, 0.999)), 1e-12)
+
+
+def _fit_var(
+    train: np.ndarray, per_equipment: list[tuple[str, np.ndarray]], settings: Settings
+) -> tuple[dict | None, float | None]:
+    """VAR 보완 경로 적합·한계 산출 (BE_ANOM01_VAR01)
+
+    한계는 재구성 경로와 동일하게 설비별 EWMA 후 결합한 분위수로 캘리브
+    적합 실패(특이 행렬 등)는 삼켜 None 반환, 재구성 경로 단독으로 동작
+    """
+    try:
+        var_model = VarResidual(lag=settings.anomaly_var_lag, quantile=0.999).fit(train)
+        limit = _limit_from_parts([w for _, w in per_equipment], var_model, settings)
+        return var_model.to_state(), limit
+    except (np.linalg.LinAlgError, ValueError) as exc:
+        log.warning("[anomaly-fit] VAR 적합 실패, 재구성 경로만 사용: %s", exc)
+        return None, None
 
 
 def _clamped_equipment_limit(

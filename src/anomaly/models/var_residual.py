@@ -53,6 +53,28 @@ class VarResidual:
         residual = self._residuals(windows)  # (N, W-lag, C)
         return np.abs(residual).mean(axis=1).argmax(axis=1)
 
+    def to_state(self) -> dict:
+        """적합 파라미터를 JSON 직렬화 가능한 dict로 추출 (RDS 저장용)"""
+        if self._limit is None:
+            raise RuntimeError("fit 이전 to_state 호출 불가")
+        return {
+            "lag": self.lag,
+            "quantile": self.quantile,
+            "ridge": self.ridge,
+            "coef": self._coef.tolist(),
+            "precision": self._precision.tolist(),
+            "limit": self._limit,
+        }
+
+    @classmethod
+    def from_state(cls, state: dict) -> "VarResidual":
+        """to_state 산출물로 적합된 인스턴스 복원 (재학습 없이 서빙 로드)"""
+        model = cls(lag=state["lag"], quantile=state["quantile"], ridge=state["ridge"])
+        model._coef = np.asarray(state["coef"])
+        model._precision = np.asarray(state["precision"])
+        model._limit = state["limit"]
+        return model
+
     def _design_target(self, windows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         # 전 윈도우의 (lag 시점 묶음 → 다음 시점) 쌍을 쌓아 설계행렬 구성
         lagged, target = [], []
