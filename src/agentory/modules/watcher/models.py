@@ -35,6 +35,9 @@ class EquipmentAnomalyModel(Base):
     confirm_k: Mapped[int] = mapped_column(Integer, nullable=False)  # 지속 확인 윈도우 수
     ewma_limit: Mapped[float | None] = mapped_column(nullable=True)  # EWMA 한계 (재캘리브레이션)
     state: Mapped[dict] = mapped_column(JSONB, nullable=False)  # PcaMspc.to_state()
+    # VAR 보완 경로 파라미터 (BE_ANOM01_VAR01), NULL이면 VAR 경로 미사용
+    var_state: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    var_ewma_limit: Mapped[float | None] = mapped_column(nullable=True)  # VAR 경로 EWMA 한계
     train_rows: Mapped[int] = mapped_column(Integer, nullable=False)  # 적합 표본 수
     fitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
