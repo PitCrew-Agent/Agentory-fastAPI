@@ -17,7 +17,11 @@ from agentory.modules.agent.prompts.suggest import (
     SUGGEST_CONTEXT_PROMPT,
     SUGGEST_SYSTEM_PROMPT,
 )
-from agentory.modules.agent.retention import format_available_window, within_available_window
+from agentory.modules.agent.retention import (
+    format_data_window,
+    get_data_window,
+    within_data_window,
+)
 from agentory.modules.agent.supervisor.state import AgentState
 
 log = logging.getLogger(__name__)
@@ -55,8 +59,9 @@ def make_suggest_node(llm: BaseChatModel) -> Callable[[AgentState], Awaitable[di
         entities = state.get("entities") or {}
         known = _known_identifiers(entities)
         context_prompt = SUGGEST_CONTEXT_PROMPT.format(known_context=format_entities(entities))
-        # 실제 조회 가능한 최근 구간을 주입해 불가능한 기간 제안 억제
-        system_prompt = SUGGEST_SYSTEM_PROMPT.format(available_window=format_available_window())
+        # 실제 적재된 데이터 보유 범위를 주입해 범위 밖 기간 제안 억제
+        window = await get_data_window()
+        system_prompt = SUGGEST_SYSTEM_PROMPT.format(available_window=format_data_window(window))
         try:
             result = await structured_llm.ainvoke(
                 [
@@ -68,7 +73,9 @@ def make_suggest_node(llm: BaseChatModel) -> Callable[[AgentState], Awaitable[di
             # 확인 범위 밖 식별자·조회 불가 기간을 지어낸 질문은 후처리에서 하드 차단
             questions = [q.strip() for q in result.questions if q.strip()]
             questions = [
-                q for q in questions if _within_known_scope(q, known) and within_available_window(q)
+                q
+                for q in questions
+                if _within_known_scope(q, known) and within_data_window(q, window)
             ][:MAX_SUGGESTIONS]
         except Exception as exc:
             # 생성 실패 시 빈 목록으로 격리 (칩만 미표시)

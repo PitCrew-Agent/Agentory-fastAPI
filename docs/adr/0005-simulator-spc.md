@@ -58,5 +58,6 @@ PM 드리프트는 하드리밋 회랑 소진 시 포화되지만, err402·다�
   정확도를 보증하지 않습니다.
 - `FAULT_OVERSHOOT`·`VARIANCE_MULT`는 물리 근거보다 데모 알람 확정 안정성 기준으로 튜닝한
   경험값입니다(VARIANCE_MULT는 최신 tick 판정 전환 후 2.5→3.5로 상향).
-- `sensor_log_max_rows`(500) 최근 편향으로 장기 추세 질의에서 오래된 구간이 잘릴 수 있으며,
-  이는 [ADR-0003](0003-agent-runtime-budget.md)의 컨텍스트 방어 결정과 연동됩니다.
+- `sensor_log_max_rows`(500)를 넘는 기간 질의는 구간 집계로 전환되어 요청 기간 전체를 포괄하며,
+  이는 [ADR-0003](0003-agent-runtime-budget.md)의 컨텍스트 방어 결정과 연동됩니다. 집계 구간에서는
+  개별 tick 파형 대신 구간 평균·최소·최대로 관찰됩니다.
