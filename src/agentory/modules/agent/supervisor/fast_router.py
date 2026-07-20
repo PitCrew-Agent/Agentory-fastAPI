@@ -27,6 +27,16 @@ _SMALLTALK_SIGNAL = re.compile(
     r"잘\s*있어|또\s*봐|^ㅎㅇ$|^hi$|^hello$|^hey$|^thanks$|^thank\s*you$|^bye$)",
     re.IGNORECASE,
 )
+# 후속 턴 참조 신호, 지시대명사·시점 참조로 앞 맥락의 데이터를 다시 요구하는 표현
+# 진단 키워드가 문장에 없어도 데이터 수집이 필요하므로 바이패스 금지 (AI_AGENT01_REACT01)
+_FOLLOWUP_REFERENCE = re.compile(
+    r"((그|이|저)\s*(거|것|건|걸|값|때|부분|내용|결과)|아까|방금|조금\s*전|직전|이전|"
+    r"앞서|어제|그저께|지난|다시|나머지|같은\s*거|(그\s*)?다음\s*(거|것|건|걸|번|단계))",
+)
+# 요청절 신호, 잡담 표현 뒤에 실제 요청이 이어지는 접두부 잡담 패턴 판별용
+_REQUEST_CLAUSE = re.compile(
+    r"(보여|알려|뽑아|그려|찾아|정리|비교|분석|확인|조회|출력|어떻게\s*됐|해줘|해주세요)",
+)
 
 
 def classify_intent(query: str) -> str:
@@ -36,7 +46,14 @@ def classify_intent(query: str) -> str:
         return DIAGNOSTIC
     if _DIAGNOSTIC_SIGNAL.search(text):
         return DIAGNOSTIC
-    if _SMALLTALK_SIGNAL.search(text):
+    # 후속 턴 참조가 있으면 인사 표현이 섞여 있어도 데이터 수집 경로 유지
+    if _FOLLOWUP_REFERENCE.search(text):
+        return DIAGNOSTIC
+    smalltalk = _SMALLTALK_SIGNAL.search(text)
+    if smalltalk:
+        # 잡담이 접두부에 그치고 뒤에 요청절이 이어지면 순수 잡담이 아니므로 diagnostic 유지
+        if _REQUEST_CLAUSE.search(text[smalltalk.end() :]):
+            return DIAGNOSTIC
         return DIRECT
     return DIAGNOSTIC
 
