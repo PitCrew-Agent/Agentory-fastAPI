@@ -28,6 +28,7 @@ from agentory.modules.watcher.models import (
     EquipmentAnomalyShadowEvent,
 )
 from anomaly.models.pca_mspc import PcaMspc
+from anomaly.models.var_residual import VarResidual
 
 
 async def save_model(
@@ -40,8 +41,13 @@ async def save_model(
     ewma_limit: float,
     state: dict,
     train_rows: int,
+    var_state: dict | None = None,
+    var_ewma_limit: float | None = None,
 ) -> None:
-    """공정 유형별 모델 upsert, 재적합 시 갱신 (drift 재캘리브레이션 대비)"""
+    """공정 유형별 모델 upsert, 재적합 시 갱신 (drift 재캘리브레이션 대비)
+
+    var_state는 VAR 보완 경로 파라미터, None이면 해당 경로 미사용 (BE_ANOM01_VAR01)
+    """
     values = {
         "process_type": process_type,
         "window": window,
@@ -50,6 +56,8 @@ async def save_model(
         "ewma_limit": ewma_limit,
         "state": state,
         "train_rows": train_rows,
+        "var_state": var_state,
+        "var_ewma_limit": var_ewma_limit,
     }
     stmt = pg_insert(EquipmentAnomalyModel).values(**values)
     stmt = stmt.on_conflict_do_update(
@@ -74,6 +82,13 @@ async def load_scorer(session: AsyncSession, settings: Settings) -> AnomalyScore
             ewma_limit=row.ewma_limit if row.ewma_limit is not None else 1.0,
             transition_threshold=settings.anomaly_transition_threshold,
             transition_settle=settings.anomaly_transition_settle,
+            # VAR 보완 경로, 저장된 파라미터가 있고 플래그가 켜졌을 때만 활성
+            var_model=(
+                VarResidual.from_state(row.var_state)
+                if settings.anomaly_var_enabled and row.var_state
+                else None
+            ),
+            var_ewma_limit=row.var_ewma_limit,
         )
     return AnomalyScorer(models, await load_equipment_limits(session))
 
