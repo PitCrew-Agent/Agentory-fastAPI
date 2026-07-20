@@ -22,6 +22,7 @@ from agentory.common.events import AgentName
 from agentory.core.config import get_settings
 from agentory.modules.agent.context import extract_entities, format_entities, merge_entities
 from agentory.modules.agent.prompts.orchestrator import PLANNER_SYSTEM_PROMPT
+from agentory.modules.agent.retention import format_data_window, get_data_window
 from agentory.modules.agent.supervisor.state import AgentState
 
 log = logging.getLogger(__name__)
@@ -72,9 +73,11 @@ def make_planner_node(llm: BaseChatModel, tools: list[BaseTool], rounds_max: int
             msg.name = PLANNER
             return {"messages": [msg], "step_count": step + 1}
 
+        # 실제 적재 범위를 주입해 보유하지 않은 기간을 조회하지 않도록 유도 (BE_MCP02_TELEMETRY03)
         system = PLANNER_SYSTEM_PROMPT.format(
             now=datetime.now(UTC).isoformat(timespec="seconds"),
             entities=format_entities(state.get("entities", {})),
+            data_window=format_data_window(await get_data_window()),
         )
         response = await llm_with_tools.ainvoke([SystemMessage(content=system), *state["messages"]])
         response.name = PLANNER
