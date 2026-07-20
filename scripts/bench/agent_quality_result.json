@@ -1,9 +1,14 @@
 {
+  "rate_in_usd_per_1m": 0.25,
+  "rate_out_usd_per_1m": 2.0,
+  "reps": 3,
   "rows": [
     {
       "label": "data",
-      "latency": 71.58970037498511,
-      "calls": 7,
+      "latency": 25.49301920900325,
+      "calls": 6,
+      "in_tok": 6839,
+      "out_tok": 1516,
       "steps": 2,
       "routing_ok": true,
       "keyword_ok": true,
@@ -14,12 +19,34 @@
         "get_equipment_metadata",
         "get_sensor_logs"
       ],
-      "rep": 0
+      "rep": 0,
+      "config": "supervisor_before"
     },
     {
       "label": "data",
-      "latency": 52.0068583751563,
+      "latency": 57.614411417001975,
+      "calls": 12,
+      "in_tok": 20795,
+      "out_tok": 3160,
+      "steps": 4,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata",
+        "get_sensor_logs"
+      ],
+      "rep": 1,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "data",
+      "latency": 30.59495437499936,
       "calls": 7,
+      "in_tok": 8001,
+      "out_tok": 1648,
       "steps": 2,
       "routing_ok": true,
       "keyword_ok": true,
@@ -30,26 +57,15 @@
         "get_equipment_metadata",
         "get_sensor_logs"
       ],
-      "rep": 1
+      "rep": 2,
+      "config": "supervisor_before"
     },
     {
       "label": "knowledge",
-      "latency": 55.16852708416991,
-      "calls": 5,
-      "steps": 2,
-      "routing_ok": true,
-      "keyword_ok": true,
-      "citation_ok": true,
-      "passed": true,
-      "tools": [
-        "search_manuals"
-      ],
-      "rep": 0
-    },
-    {
-      "label": "knowledge",
-      "latency": 87.00980604090728,
-      "calls": 10,
+      "latency": 96.80602004100001,
+      "calls": 11,
+      "in_tok": 56679,
+      "out_tok": 5310,
       "steps": 3,
       "routing_ok": true,
       "keyword_ok": true,
@@ -58,29 +74,51 @@
       "tools": [
         "get_alarm_history",
         "get_equipment_metadata",
-        "get_sensor_logs",
         "search_manuals"
       ],
-      "rep": 1
+      "rep": 0,
+      "config": "supervisor_before"
     },
     {
-      "label": "maintenance",
-      "latency": 27.743560625007376,
+      "label": "knowledge",
+      "latency": 57.204670667000755,
       "calls": 5,
+      "in_tok": 16034,
+      "out_tok": 3125,
       "steps": 2,
       "routing_ok": true,
       "keyword_ok": true,
       "citation_ok": true,
       "passed": true,
       "tools": [
-        "get_repair_history"
+        "search_manuals"
       ],
-      "rep": 0
+      "rep": 1,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "knowledge",
+      "latency": 57.244988292000926,
+      "calls": 5,
+      "in_tok": 16358,
+      "out_tok": 3187,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "search_manuals"
+      ],
+      "rep": 2,
+      "config": "supervisor_before"
     },
     {
       "label": "maintenance",
-      "latency": 42.31892037508078,
+      "latency": 54.45960291600204,
       "calls": 8,
+      "in_tok": 11883,
+      "out_tok": 2121,
       "steps": 3,
       "routing_ok": true,
       "keyword_ok": true,
@@ -90,71 +128,413 @@
         "get_maintenance_summary",
         "get_repair_history"
       ],
-      "rep": 1
+      "rep": 0,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "maintenance",
+      "latency": 82.02480500000092,
+      "calls": 14,
+      "in_tok": 26697,
+      "out_tok": 4019,
+      "steps": 6,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 1,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "maintenance",
+      "latency": 51.92134441700182,
+      "calls": 8,
+      "in_tok": 12211,
+      "out_tok": 2567,
+      "steps": 3,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 2,
+      "config": "supervisor_before"
     },
     {
       "label": "chitchat",
-      "latency": 3.3970329998992383,
-      "calls": 2,
-      "steps": 1,
+      "latency": 4.99604654200084,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 218,
+      "steps": 0,
       "routing_ok": true,
       "keyword_ok": true,
       "citation_ok": true,
       "passed": true,
       "tools": [],
-      "rep": 0
+      "rep": 0,
+      "config": "supervisor_before"
     },
     {
       "label": "chitchat",
-      "latency": 3.7716401249635965,
-      "calls": 2,
-      "steps": 1,
+      "latency": 3.5554635410007904,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 154,
+      "steps": 0,
       "routing_ok": true,
       "keyword_ok": true,
       "citation_ok": true,
       "passed": true,
       "tools": [],
-      "rep": 1
+      "rep": 1,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "chitchat",
+      "latency": 4.270547250001982,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 159,
+      "steps": 0,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 2,
+      "config": "supervisor_before"
+    },
+    {
+      "label": "data",
+      "latency": 21.6858714159971,
+      "calls": 3,
+      "in_tok": 4747,
+      "out_tok": 1041,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata"
+      ],
+      "rep": 0,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "data",
+      "latency": 29.29186829199898,
+      "calls": 3,
+      "in_tok": 8284,
+      "out_tok": 1397,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_sensor_logs"
+      ],
+      "rep": 1,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "data",
+      "latency": 27.828505916000722,
+      "calls": 3,
+      "in_tok": 4789,
+      "out_tok": 1332,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_alarm_history",
+        "get_equipment_metadata"
+      ],
+      "rep": 2,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "knowledge",
+      "latency": 31.163524708001205,
+      "calls": 3,
+      "in_tok": 9507,
+      "out_tok": 1270,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "search_manuals"
+      ],
+      "rep": 0,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "knowledge",
+      "latency": 38.269244957999035,
+      "calls": 3,
+      "in_tok": 10746,
+      "out_tok": 2021,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "search_manuals"
+      ],
+      "rep": 1,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "knowledge",
+      "latency": 36.214524916998926,
+      "calls": 3,
+      "in_tok": 10512,
+      "out_tok": 1794,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "search_manuals"
+      ],
+      "rep": 2,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "maintenance",
+      "latency": 21.458575958997244,
+      "calls": 3,
+      "in_tok": 5361,
+      "out_tok": 1111,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 0,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "maintenance",
+      "latency": 22.64421816599861,
+      "calls": 3,
+      "in_tok": 5415,
+      "out_tok": 1008,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 1,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "maintenance",
+      "latency": 21.92373329199836,
+      "calls": 3,
+      "in_tok": 5381,
+      "out_tok": 947,
+      "steps": 2,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [
+        "get_maintenance_summary",
+        "get_repair_history"
+      ],
+      "rep": 2,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "chitchat",
+      "latency": 3.663668917000905,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 143,
+      "steps": 0,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 0,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "chitchat",
+      "latency": 3.4977437500019732,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 159,
+      "steps": 0,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 1,
+      "config": "orchestrator_after"
+    },
+    {
+      "label": "chitchat",
+      "latency": 4.188117917001364,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 149,
+      "steps": 0,
+      "routing_ok": true,
+      "keyword_ok": true,
+      "citation_ok": true,
+      "passed": true,
+      "tools": [],
+      "rep": 2,
+      "config": "orchestrator_after"
     }
   ],
   "summary": [
     {
+      "config": "supervisor_before",
       "case": "data",
-      "n": 2,
-      "p50_s": 61.8,
-      "mean_calls": 7,
-      "mean_steps": 2,
+      "n": 3,
+      "p50_s": 30.6,
+      "mean_calls": 8.3,
+      "mean_steps": 2.7,
+      "mean_in_tok": 11878,
+      "mean_out_tok": 2108,
+      "mean_cost_usd": 0.00719,
       "pass_rate": 1.0
     },
     {
+      "config": "supervisor_before",
       "case": "knowledge",
-      "n": 2,
-      "p50_s": 71.1,
-      "mean_calls": 7.5,
-      "mean_steps": 2.5,
+      "n": 3,
+      "p50_s": 57.2,
+      "mean_calls": 7,
+      "mean_steps": 2.3,
+      "mean_in_tok": 29690,
+      "mean_out_tok": 3874,
+      "mean_cost_usd": 0.01517,
       "pass_rate": 1.0
     },
     {
+      "config": "supervisor_before",
       "case": "maintenance",
-      "n": 2,
-      "p50_s": 35.0,
-      "mean_calls": 6.5,
-      "mean_steps": 2.5,
+      "n": 3,
+      "p50_s": 54.5,
+      "mean_calls": 10,
+      "mean_steps": 4,
+      "mean_in_tok": 16930,
+      "mean_out_tok": 2902,
+      "mean_cost_usd": 0.01004,
       "pass_rate": 1.0
     },
     {
+      "config": "supervisor_before",
       "case": "chitchat",
-      "n": 2,
-      "p50_s": 3.6,
-      "mean_calls": 2,
-      "mean_steps": 1,
+      "n": 3,
+      "p50_s": 4.3,
+      "mean_calls": 1,
+      "mean_steps": 0,
+      "mean_in_tok": 348,
+      "mean_out_tok": 177,
+      "mean_cost_usd": 0.00044,
+      "pass_rate": 1.0
+    },
+    {
+      "config": "orchestrator_after",
+      "case": "data",
+      "n": 3,
+      "p50_s": 27.8,
+      "mean_calls": 3,
+      "mean_steps": 2,
+      "mean_in_tok": 5940,
+      "mean_out_tok": 1257,
+      "mean_cost_usd": 0.004,
+      "pass_rate": 1.0
+    },
+    {
+      "config": "orchestrator_after",
+      "case": "knowledge",
+      "n": 3,
+      "p50_s": 36.2,
+      "mean_calls": 3,
+      "mean_steps": 2,
+      "mean_in_tok": 10255,
+      "mean_out_tok": 1695,
+      "mean_cost_usd": 0.00595,
+      "pass_rate": 1.0
+    },
+    {
+      "config": "orchestrator_after",
+      "case": "maintenance",
+      "n": 3,
+      "p50_s": 21.9,
+      "mean_calls": 3,
+      "mean_steps": 2,
+      "mean_in_tok": 5386,
+      "mean_out_tok": 1022,
+      "mean_cost_usd": 0.00339,
+      "pass_rate": 1.0
+    },
+    {
+      "config": "orchestrator_after",
+      "case": "chitchat",
+      "n": 3,
+      "p50_s": 3.7,
+      "mean_calls": 1,
+      "mean_steps": 0,
+      "mean_in_tok": 348,
+      "mean_out_tok": 150,
+      "mean_cost_usd": 0.00039,
       "pass_rate": 1.0
     }
   ],
-  "overall": {
-    "overall_pass_rate": 1.0,
-    "routing_ok_rate": 1.0,
-    "keyword_ok_rate": 1.0,
-    "median_latency_s": 47.2
-  }
+  "overall": [
+    {
+      "config": "supervisor_before",
+      "n": 12,
+      "overall_pass_rate": 1.0,
+      "routing_ok_rate": 1.0,
+      "keyword_ok_rate": 1.0,
+      "citation_ok_rate": 1.0,
+      "median_latency_s": 53.2,
+      "mean_cost_usd": 0.00821
+    },
+    {
+      "config": "orchestrator_after",
+      "n": 12,
+      "overall_pass_rate": 1.0,
+      "routing_ok_rate": 1.0,
+      "keyword_ok_rate": 1.0,
+      "citation_ok_rate": 1.0,
+      "median_latency_s": 22.3,
+      "mean_cost_usd": 0.00343
+    }
+  ]
 }

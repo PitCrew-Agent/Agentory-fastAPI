@@ -1,0 +1,289 @@
+{
+  "tool_latency": 0.3,
+  "reps": 3,
+  "rate_in_usd_per_1m": 0.25,
+  "rate_out_usd_per_1m": 2.0,
+  "classification": {
+    "n": 18,
+    "accuracy": 1.0,
+    "direct_recall": 1.0,
+    "diagnostic_recall": 1.0,
+    "fatal_misroute": 0,
+    "misroutes": []
+  },
+  "rows": [
+    {
+      "latency": 5.598739332999685,
+      "calls": 2,
+      "in_tok": 1792,
+      "out_tok": 291,
+      "config": "fast_router_off",
+      "query": "smalltalk_greeting",
+      "rep": 0
+    },
+    {
+      "latency": 4.097054958001536,
+      "calls": 2,
+      "in_tok": 1773,
+      "out_tok": 206,
+      "config": "fast_router_off",
+      "query": "smalltalk_greeting",
+      "rep": 1
+    },
+    {
+      "latency": 4.068721332998393,
+      "calls": 2,
+      "in_tok": 1757,
+      "out_tok": 249,
+      "config": "fast_router_off",
+      "query": "smalltalk_greeting",
+      "rep": 2
+    },
+    {
+      "latency": 4.164566082999954,
+      "calls": 2,
+      "in_tok": 1758,
+      "out_tok": 176,
+      "config": "fast_router_off",
+      "query": "smalltalk_thanks",
+      "rep": 0
+    },
+    {
+      "latency": 4.277259374997811,
+      "calls": 2,
+      "in_tok": 1754,
+      "out_tok": 240,
+      "config": "fast_router_off",
+      "query": "smalltalk_thanks",
+      "rep": 1
+    },
+    {
+      "latency": 3.047379332998389,
+      "calls": 2,
+      "in_tok": 1754,
+      "out_tok": 111,
+      "config": "fast_router_off",
+      "query": "smalltalk_thanks",
+      "rep": 2
+    },
+    {
+      "latency": 22.539845541999966,
+      "calls": 3,
+      "in_tok": 4954,
+      "out_tok": 2381,
+      "config": "fast_router_off",
+      "query": "diag_guard",
+      "rep": 0
+    },
+    {
+      "latency": 29.43967958400026,
+      "calls": 4,
+      "in_tok": 7134,
+      "out_tok": 3034,
+      "config": "fast_router_off",
+      "query": "diag_guard",
+      "rep": 1
+    },
+    {
+      "latency": 28.4502618339975,
+      "calls": 4,
+      "in_tok": 7105,
+      "out_tok": 2803,
+      "config": "fast_router_off",
+      "query": "diag_guard",
+      "rep": 2
+    },
+    {
+      "latency": 3.23467679100213,
+      "calls": 1,
+      "in_tok": 347,
+      "out_tok": 212,
+      "config": "fast_router_on",
+      "query": "smalltalk_greeting",
+      "rep": 0
+    },
+    {
+      "latency": 2.8774796670004434,
+      "calls": 1,
+      "in_tok": 347,
+      "out_tok": 159,
+      "config": "fast_router_on",
+      "query": "smalltalk_greeting",
+      "rep": 1
+    },
+    {
+      "latency": 2.8642977500021516,
+      "calls": 1,
+      "in_tok": 347,
+      "out_tok": 208,
+      "config": "fast_router_on",
+      "query": "smalltalk_greeting",
+      "rep": 2
+    },
+    {
+      "latency": 2.9964081250000163,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 206,
+      "config": "fast_router_on",
+      "query": "smalltalk_thanks",
+      "rep": 0
+    },
+    {
+      "latency": 1.9229688330015051,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 94,
+      "config": "fast_router_on",
+      "query": "smalltalk_thanks",
+      "rep": 1
+    },
+    {
+      "latency": 1.9045134999978472,
+      "calls": 1,
+      "in_tok": 348,
+      "out_tok": 90,
+      "config": "fast_router_on",
+      "query": "smalltalk_thanks",
+      "rep": 2
+    },
+    {
+      "latency": 35.44802625000011,
+      "calls": 4,
+      "in_tok": 7086,
+      "out_tok": 3141,
+      "config": "fast_router_on",
+      "query": "diag_guard",
+      "rep": 0
+    },
+    {
+      "latency": 26.920448417000443,
+      "calls": 4,
+      "in_tok": 6494,
+      "out_tok": 2279,
+      "config": "fast_router_on",
+      "query": "diag_guard",
+      "rep": 1
+    },
+    {
+      "latency": 21.93923395800084,
+      "calls": 4,
+      "in_tok": 5444,
+      "out_tok": 1495,
+      "config": "fast_router_on",
+      "query": "diag_guard",
+      "rep": 2
+    }
+  ],
+  "summary": [
+    {
+      "config": "fast_router_off",
+      "n": 9,
+      "mean_s": 11.74,
+      "p50_s": 4.28,
+      "min_s": 3.05,
+      "max_s": 29.44,
+      "mean_calls": 2.6,
+      "mean_in_tok": 3309,
+      "mean_out_tok": 1055,
+      "mean_cost_usd": 0.00294
+    },
+    {
+      "config": "fast_router_on",
+      "n": 9,
+      "mean_s": 11.12,
+      "p50_s": 3.0,
+      "min_s": 1.9,
+      "max_s": 35.45,
+      "mean_calls": 2,
+      "mean_in_tok": 2345,
+      "mean_out_tok": 876,
+      "mean_cost_usd": 0.00234
+    }
+  ],
+  "per_query": [
+    {
+      "config": "fast_router_off",
+      "n": 3,
+      "mean_s": 4.59,
+      "p50_s": 4.1,
+      "min_s": 4.07,
+      "max_s": 5.6,
+      "mean_calls": 2,
+      "mean_in_tok": 1774,
+      "mean_out_tok": 249,
+      "mean_cost_usd": 0.00094,
+      "query": "smalltalk_greeting"
+    },
+    {
+      "config": "fast_router_off",
+      "n": 3,
+      "mean_s": 3.83,
+      "p50_s": 4.16,
+      "min_s": 3.05,
+      "max_s": 4.28,
+      "mean_calls": 2,
+      "mean_in_tok": 1755,
+      "mean_out_tok": 176,
+      "mean_cost_usd": 0.00079,
+      "query": "smalltalk_thanks"
+    },
+    {
+      "config": "fast_router_off",
+      "n": 3,
+      "mean_s": 26.81,
+      "p50_s": 28.45,
+      "min_s": 22.54,
+      "max_s": 29.44,
+      "mean_calls": 3.7,
+      "mean_in_tok": 6398,
+      "mean_out_tok": 2739,
+      "mean_cost_usd": 0.00708,
+      "query": "diag_guard"
+    },
+    {
+      "config": "fast_router_on",
+      "n": 3,
+      "mean_s": 2.99,
+      "p50_s": 2.88,
+      "min_s": 2.86,
+      "max_s": 3.23,
+      "mean_calls": 1,
+      "mean_in_tok": 347,
+      "mean_out_tok": 193,
+      "mean_cost_usd": 0.00047,
+      "query": "smalltalk_greeting"
+    },
+    {
+      "config": "fast_router_on",
+      "n": 3,
+      "mean_s": 2.27,
+      "p50_s": 1.92,
+      "min_s": 1.9,
+      "max_s": 3.0,
+      "mean_calls": 1,
+      "mean_in_tok": 348,
+      "mean_out_tok": 130,
+      "mean_cost_usd": 0.00035,
+      "query": "smalltalk_thanks"
+    },
+    {
+      "config": "fast_router_on",
+      "n": 3,
+      "mean_s": 28.1,
+      "p50_s": 26.92,
+      "min_s": 21.94,
+      "max_s": 35.45,
+      "mean_calls": 4,
+      "mean_in_tok": 6341,
+      "mean_out_tok": 2305,
+      "mean_cost_usd": 0.0062,
+      "query": "diag_guard"
+    }
+  ],
+  "smalltalk_delta": {
+    "latency_reduction_pct": 37.4,
+    "calls_reduction_pct": 50.0,
+    "in_tok_reduction_pct": 80.3
+  }
+}

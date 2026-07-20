@@ -107,14 +107,26 @@ Starlette가 요청 헤더를 echo하는 동작에 근거해 `allow_headers=["*"
 - MCP realtime 서버는 REST와 동일한 `telemetry/repository.py`를 공유해 LLM 도구와 트윈 REST가
   같은 조회 로직을 씁니다(계약 중복 없음).
 - 남은 리스크로 기록합니다.
-  - 주기 실행 이상 감지 잡(`watcher/detector.py`)은 아직 `TODO(주희정)` 미구현이며, 현재
-    이상 감지는 시뮬레이터 알람 코드에 의존합니다(실제 추세 감지 없음).
+  - 주기 실행 이상 감지 잡(`watcher/detector.py`)은 본 ADR 작성 시점에 `TODO(주희정)` 미구현
+    상태였고, 이상 감지가 시뮬레이터 알람 코드에만 의존해 실제 추세 감지가 없었습니다. 이후
+    PCA MSPC 기반 스코어러를 도입해 해소했습니다(BE_ANOM01_SERVE01, `watcher/anomaly_worker.py`).
+    임계 규칙을 대체하지 않고 레이어로 얹는 구조이며, 결정 근거와 실험 수치는
+    [docs/experiments/decisions.md](../experiments/decisions.md)·[docs/anomaly-serving.md](../anomaly-serving.md)에
+    있습니다. 기본값은 `anomaly_detection_enabled=false`·`anomaly_shadow_mode=true`라 관찰
+    단계이며, 실발령(WRN-901) 전환은 섀도우 비교 후로 남아 있습니다.
   - 래치 코드(`fetch_latched_alarm`·`clear-alarm` API·`alarm_cleared_at`)가 판정 경로에서
     빠졌으나 스캐폴딩으로 잔존합니다. `clear-alarm`은 실동작 API로 남아 혼란 소지가 있어
     폐기·보존 방침을 후속 정리 대상으로 둡니다.
-  - 클라이언트마다 3초 폴링 + 매 반복 telemetry 전체 스캔이라 커넥션 증가 시 DB 부하가
-    커집니다. 단일 동기화 소스(워처)로 이관 시 스트림은 순수 조회만 하도록 재설계할 여지가
-    있습니다.
+  - 당초에는 클라이언트마다 3초 폴링 + 매 반복 telemetry 전체 스캔이라 커넥션이 늘수록 DB
+    부하가 커졌고, 단일 동기화 소스(워처)로의 이관을 재설계 여지로만 적어두었습니다. 실제로
+    커넥션 풀 고갈이 발생해 이관을 실행했습니다(NEW_PROACT01_DETECT01).
+    동기화는 `watcher/sync_worker.py`가 `notification_sync_interval_seconds`(기본 5초) 주기로
+    단독 수행하고, 스트림·목록 조회는 순수 조회만 합니다. 조회 창은 최근 2시간으로 제한해
+    풀스캔을 없앴으며(버킷 유니크로 멱등성 유지), 풀은 `pool_size=10`·`max_overflow=10`·
+    `pool_timeout=10`·`pool_pre_ping`으로 고정했습니다.
+  - 워처가 단일 동기화 소스가 되면서, 워처가 죽으면 알림 생성이 전면 중단됩니다. 개별 주기
+    예외는 삼키고 다음 주기에 재시도하지만 루프 자체의 사망은 감시하지 않으며, 알림 지연은
+    조회 창(2시간) 안에서만 자동 복구됩니다.
   - 상태를 최신 tick 기준으로 되돌리면서, 순간 정상 tick이 들어오면 경보가 사라질 수 있는
     래치의 안전성은 포기했습니다.
   - `allow_headers=["*"]` + credentials 조합의 안전성은 Starlette echo 동작에 의존하며,

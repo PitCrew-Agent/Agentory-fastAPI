@@ -1,8 +1,8 @@
 # ADR-0003: 에이전트 실행 예산·컨텍스트 방어 (가드레일)
 
-- 상태: 승인 (2026-07-09)
+- 상태: 승인 (2026-07-09), 일부 결정은 [ADR-0009](0009-agent-hybrid-orchestration.md) 전환으로 적용 범위 변경 (2026-07-20)
 - 결정자: 주희정
-- 관련: [ADR-0001](0001-architecture.md), [docs/agent/architecture.md](../agent/architecture.md), feature/52-context-overflow-fix(#53), feature/66-chatbot-perf(#67), feature/56-suggest-scope-filter(#57), feature/130-supervisor-finish-discipline(#131)
+- 관련: [ADR-0001](0001-architecture.md), [ADR-0009](0009-agent-hybrid-orchestration.md), [docs/agent/architecture.md](../agent/architecture.md), feature/52-context-overflow-fix(#53), feature/66-chatbot-perf(#67), feature/56-suggest-scope-filter(#57), feature/130-supervisor-finish-discipline(#131)
 
 ## 배경
 
@@ -10,6 +10,24 @@
 정리되어 있습니다. 본 ADR은 그 구조를 실제 운영 가능한 품질·지연·비용으로 만들기 위해
 구현 도중 추가한 **런타임 가드레일 결정**을 별도로 기록합니다. 이 결정들은 대부분 통합 이후
 발견된 실패(컨텍스트 초과·응답 지연·근거 없는 추천)에 대한 대응으로 도입되었습니다.
+
+### 적용 범위 (ADR-0009 전환 이후)
+
+본 ADR이 전제한 Supervisor + 워커 ReAct는 [ADR-0009](0009-agent-hybrid-orchestration.md)에서
+Planner + 병렬 Fetch로 교체되었고 기본 경로가 바뀌었습니다. 아래 결정들은 그 전환 이후에도
+그대로 유효합니다.
+
+- 저장소단·워커단 컨텍스트 상한(`sensor_log_max_rows`·`agent_tool_observation_max_chars`)
+- 역할별 모델·reasoning_effort 이원화
+- 전역 반복 예산(`agent_max_steps`), 오케스트레이터 경로에서는 Planner 라운드를 셉니다
+
+반면 **Supervisor 종료 규칙(결정 3)과 워커 위임 예산 계산(결정 5)은 레거시 경로 전용**입니다.
+오케스트레이터 경로에는 Supervisor 노드 자체가 없고, 라운드 예산은 `agent_fetch_rounds_max`가
+담당합니다. 레거시 경로는 `agent_orchestrator_enabled=false`로 남아 있으므로 이 결정들을
+폐기하지 않고 적용 범위만 한정해 보존합니다.
+
+아래 "품질·속도 실측"(2026-07-14)은 레거시 경로 구성에서 측정한 값입니다. 두 경로를 같은 기준으로
+비교한 최신 측정은 ADR-0009 3-2절에 있습니다.
 
 ## 결정
 
@@ -76,7 +94,7 @@ maintenance)으로 늘면서 이 문제가 실제 진단을 잘라먹었기 때�
 했습니다. 단 심층 질의 지연은 예산이 아니라 실제 작업량(워커별 ReAct + finalizer 순차 호출)에서
 오므로, 완주는 보장되나 지연 절감은 조건부 grounding·꼬리 병렬화 등 별도 최적화 과제입니다.
 
-### 답변 품질·속도 실측 (현재 구성)
+### 답변 품질·속도 실측 (레거시 경로 구성, 2026-07-14)
 
 워커 3종·`max_steps=6`·워커 턴 예산 제외 구성의 답변 품질과 속도를 실측했습니다. 하네스는
 `scripts/bench/agent_quality_bench.py`(원자료 `agent_quality_result.json`)이며, 질의당 지연·LLM
