@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from alembic import op
 from pgvector.sqlalchemy import Vector
 
-revision: str = "0026_knowledge_embedding_768"
-down_revision: str | Sequence[str] | None = "0025_anomaly_shadow_events"
+revision: str = "0029_knowledge_embedding_768"
+down_revision: str | Sequence[str] | None = "0028_notification_read_state"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
