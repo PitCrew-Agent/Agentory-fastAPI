@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from agentory.core.config import get_settings
+from agentory.modules.auth.models import User
 from agentory.modules.notification import repository
 from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster
 
@@ -124,15 +125,84 @@ async def test_sync_dedup_keys_on_metric(seeded_session):
 
 
 async def test_mark_read_individual_and_all(seeded_session):
+    # 읽음은 사용자별 상태이므로 조회·갱신 모두 user_id 기준 (BE_NOTI01_SCOPE01)
+    user = User(email="noti-repo@test.local", name="테스터", role="field_engineer", status="active")
+    seeded_session.add(user)
+    await seeded_session.flush()
     await repository.sync_from_alarms(seeded_session)
-    mine = _mine(await repository.fetch_notifications(seeded_session, unread_only=True))
+    mine = _mine(
+        await repository.fetch_notifications(seeded_session, unread_only=True, user_id=user.id)
+    )
     assert len(mine) == 2
     # 개별 읽음 성공, 미존재는 False
-    assert await repository.mark_read(seeded_session, mine[0]["id"]) is True
-    assert await repository.mark_read(seeded_session, -1) is False
+    assert await repository.mark_read(seeded_session, mine[0]["id"], user.id) is True
+    assert await repository.mark_read(seeded_session, -1, user.id) is False
     # 일괄 읽음 후 내 설비 미읽음 0
-    await repository.mark_all_read(seeded_session)
-    assert _mine(await repository.fetch_notifications(seeded_session, unread_only=True)) == []
+    await repository.mark_all_read(seeded_session, user.id)
+    assert (
+        _mine(
+            await repository.fetch_notifications(seeded_session, unread_only=True, user_id=user.id)
+        )
+        == []
+    )
+
+
+async def test_read_state_is_per_user(seeded_session):
+    # 한 사용자가 읽어도 다른 사용자에게는 미읽음 유지 (BE_NOTI01_SCOPE01)
+    reader = User(
+        email="noti-reader@test.local", name="읽음", role="field_engineer", status="active"
+    )
+    other = User(email="noti-other@test.local", name="타인", role="field_engineer", status="active")
+    seeded_session.add_all([reader, other])
+    await seeded_session.flush()
+    await repository.sync_from_alarms(seeded_session)
+    await repository.mark_all_read(seeded_session, reader.id)
+
+    assert (
+        _mine(
+            await repository.fetch_notifications(
+                seeded_session, unread_only=True, user_id=reader.id
+            )
+        )
+        == []
+    )
+    assert (
+        len(
+            _mine(
+                await repository.fetch_notifications(
+                    seeded_session, unread_only=True, user_id=other.id
+                )
+            )
+        )
+        == 2
+    )
+
+
+async def test_mark_unread_restores_unread_state(seeded_session):
+    # 읽음 해제는 읽음 행 삭제, 다시 미읽음으로 복귀
+    user = User(email="noti-toggle@test.local", name="토글", role="field_engineer", status="active")
+    seeded_session.add(user)
+    await seeded_session.flush()
+    await repository.sync_from_alarms(seeded_session)
+    target = _mine(await repository.fetch_notifications(seeded_session, user_id=user.id))[0]
+
+    await repository.mark_read(seeded_session, target["id"], user.id)
+    unread_ids = {
+        r["id"]
+        for r in _mine(
+            await repository.fetch_notifications(seeded_session, unread_only=True, user_id=user.id)
+        )
+    }
+    assert target["id"] not in unread_ids
+
+    assert await repository.mark_unread(seeded_session, target["id"], user.id) is True
+    unread_ids = {
+        r["id"]
+        for r in _mine(
+            await repository.fetch_notifications(seeded_session, unread_only=True, user_id=user.id)
+        )
+    }
+    assert target["id"] in unread_ids
 
 
 async def test_fetch_after_id_ascending(seeded_session):

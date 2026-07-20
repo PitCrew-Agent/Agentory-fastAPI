@@ -65,6 +65,7 @@ NOTIFICATION_PAYLOAD = {
     "id": 42,
     "occurred_at": "2026-07-06T10:02:00+09:00",
     "equipment_id": "EQP-003",
+    "line_name": "A라인",
     "metric": "temperature",
     "alarm_code": "ERR-402",
     "severity": "위험",
@@ -77,6 +78,7 @@ def test_notification_event_parses():
     event = notification_event_adapter.validate_python(NOTIFICATION_PAYLOAD)
     assert event.type == "notification"
     assert event.id == 42
+    assert event.line_name == "A라인"
     assert event.metric == "temperature"
     assert event.alarm_code == "ERR-402"
     assert event.severity == "위험"
@@ -86,6 +88,12 @@ def test_notification_event_allows_null_metric():
     # 변수 특정 불가(레거시·watcher) 시 metric은 null 허용
     event = notification_event_adapter.validate_python({**NOTIFICATION_PAYLOAD, "metric": None})
     assert event.metric is None
+
+
+def test_notification_event_allows_null_line_name():
+    # 설비 마스터 미등록 설비는 line_name null 허용 (BE_NOTI01_SCOPE01)
+    event = notification_event_adapter.validate_python({**NOTIFICATION_PAYLOAD, "line_name": None})
+    assert event.line_name is None
 
 
 def test_notification_event_requires_fields():

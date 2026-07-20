@@ -6,6 +6,7 @@ SSE 이벤트 스키마는 agentory.common.events.NotificationEvent가 단일 �
 """
 
 import asyncio
+from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from agentory.common.events import NotificationEvent
 from agentory.common.exceptions import NotFoundError
 from agentory.common.response import ApiResponse
 from agentory.core.db import SessionLocal, get_session
+from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.notification import repository, service
 from agentory.modules.notification.schemas import NotificationPage, ReadAllResponse
 
@@ -27,35 +29,42 @@ STREAM_POLL_SECONDS = 3.0
 @router.get(
     "",
     response_model=ApiResponse[NotificationPage],
-    summary="알림 목록 조회 (커서 페이지네이션)",
-    responses={400: {"description": "before 커서 형식이 잘못됨"}},
+    summary="알림 목록 조회 (페이지 번호 페이지네이션)",
 )
 async def list_notifications(
     unread_only: bool = Query(default=False, examples=[False]),
-    before: str | None = Query(
-        default=None,
-        description="이전 페이지 마지막 항목 커서, 첫 페이지는 생략",
-        examples=["MjAyNi0wNy0xMFQxNTo0MzoyNSswOTowMHwxMDI0"],
-    ),
+    page: int = Query(default=1, ge=1, description="조회할 페이지 번호 (1부터)", examples=[1]),
     limit: int = Query(
         default=service.DEFAULT_PAGE_SIZE, ge=1, le=service.MAX_PAGE_SIZE, examples=[10]
     ),
     session: AsyncSession = Depends(get_session),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> ApiResponse[NotificationPage]:
-    """설비 알람 알림 목록, 발생 역순 커서 페이지네이션(기본 10개)"""
-    # 잘못된 커서는 서비스가 ValidationError raise, 전역 핸들러가 400 통일 응답
-    page = await service.list_notifications(
-        session, unread_only=unread_only, before=before, limit=limit
+    """담당 라인 알림 목록, 발생 역순 페이지 번호 페이지네이션(기본 10개)"""
+    line_names = await service.scope_line_names(session, user)
+    result = await service.list_notifications(
+        session,
+        unread_only=unread_only,
+        page=page,
+        limit=limit,
+        line_names=line_names,
+        user_id=user["user_id"],
     )
-    return ApiResponse.ok(page)
+    return ApiResponse.ok(result)
 
 
 @router.post(
     "/read-all", response_model=ApiResponse[ReadAllResponse], summary="알림 일괄 읽음 처리"
 )
-async def read_all(session: AsyncSession = Depends(get_session)) -> ApiResponse[ReadAllResponse]:
-    """미읽음 알림 일괄 읽음 처리"""
-    return ApiResponse.ok(await service.mark_all_read(session))
+async def read_all(
+    session: AsyncSession = Depends(get_session),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> ApiResponse[ReadAllResponse]:
+    """담당 라인 미읽음 알림 일괄 읽음 처리"""
+    line_names = await service.scope_line_names(session, user)
+    return ApiResponse.ok(
+        await service.mark_all_read(session, user["user_id"], line_names=line_names)
+    )
 
 
 @router.patch(
@@ -67,9 +76,33 @@ async def read_all(session: AsyncSession = Depends(get_session)) -> ApiResponse[
 async def read_one(
     notification_id: int = Path(examples=[1024]),
     session: AsyncSession = Depends(get_session),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> ApiResponse[None]:
-    """알림 개별 읽음 처리"""
-    if not await service.mark_read(session, notification_id):
+    """알림 개별 읽음 처리, 담당 라인 밖 알림은 404"""
+    line_names = await service.scope_line_names(session, user)
+    if not await service.mark_read(
+        session, notification_id, user["user_id"], line_names=line_names
+    ):
+        raise NotFoundError("error.notification.not_found", params={"id": notification_id})
+    return ApiResponse.ok()
+
+
+@router.delete(
+    "/{notification_id}/read",
+    response_model=ApiResponse[None],
+    summary="알림 개별 읽음 해제",
+    responses={404: {"description": "해당 알림이 존재하지 않음"}},
+)
+async def unread_one(
+    notification_id: int = Path(examples=[1024]),
+    session: AsyncSession = Depends(get_session),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> ApiResponse[None]:
+    """알림 개별 읽음 해제, 담당 라인 밖 알림은 404"""
+    line_names = await service.scope_line_names(session, user)
+    if not await service.mark_unread(
+        session, notification_id, user["user_id"], line_names=line_names
+    ):
         raise NotFoundError("error.notification.not_found", params={"id": notification_id})
     return ApiResponse.ok()
 
@@ -86,21 +119,28 @@ async def read_one(
 )
 async def stream(
     after_id: int = Query(default=0, description="이 id 이후 신규 알림만 수신", examples=[0]),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> EventSourceResponse:
-    """신규 알림 실시간 SSE 스트림 (event=notification)"""
+    """담당 라인 신규 알림 실시간 SSE 스트림 (event=notification)"""
+    # 담당 라인은 접속 시점에 1회 확정, 스트림 수명 동안 DB 커넥션을 잡지 않도록 단기 세션 사용
+    async with SessionLocal() as scope_session:
+        line_names = await service.scope_line_names(scope_session, user)
 
     async def event_generator():
         last_id = after_id
         while True:
             # 알람 동기화는 백그라운드 워처 전담, 스트림은 신규 알림 조회만 (NEW_PROACT01_DETECT01)
             async with SessionLocal() as session:
-                new = await repository.fetch_notifications(session, after_id=last_id)
+                new = await repository.fetch_notifications(
+                    session, after_id=last_id, line_names=line_names, user_id=user["user_id"]
+                )
             for row in new:
                 last_id = row["id"]
                 event = NotificationEvent(
                     id=row["id"],
                     occurred_at=row["occurred_at"].isoformat(),
                     equipment_id=row["equipment_id"],
+                    line_name=row["line_name"],
                     metric=row["metric"],
                     alarm_code=row["alarm_code"],
                     severity=row["severity"],
