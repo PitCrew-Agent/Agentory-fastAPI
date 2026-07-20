@@ -97,7 +97,7 @@ async def test_scorer_fires_on_anomalous_tail_and_flows_to_notification(session)
     scorer = await repo.load_scorer(session, get_settings())
     assert scorer.has(PTYPE)
     fetched = await repo.fetch_recent_series(session, EQP, 300)
-    result = scorer.score_latest(PTYPE, fetched)
+    result = scorer.score_latest(PTYPE, EQP, fetched)
     assert result is not None and result.fired is True
     assert result.channel == VARS[0]
 
@@ -127,7 +127,7 @@ async def test_shadow_sink_records_journal_without_alarm(session):
     await _insert_series(session, series)
 
     scorer = await repo.load_scorer(session, get_settings())
-    result = scorer.score_latest(PTYPE, await repo.fetch_recent_series(session, EQP, 300))
+    result = scorer.score_latest(PTYPE, EQP, await repo.fetch_recent_series(session, EQP, 300))
     assert result is not None and result.fired is True
 
     # 섀도우 싱크: 관찰 저널에 기록, EquipmentAlarm 미기록
@@ -153,7 +153,7 @@ async def test_normal_series_does_not_fire(session):
     await _seed_model_and_master(session)
     await _insert_series(session, _coupled(np.random.default_rng(3), 300))
     scorer = await repo.load_scorer(session, get_settings())
-    result = scorer.score_latest(PTYPE, await repo.fetch_recent_series(session, EQP, 300))
+    result = scorer.score_latest(PTYPE, EQP, await repo.fetch_recent_series(session, EQP, 300))
     assert result is not None and result.fired is False
     # 미발령이므로 활성 알람 없음
     alarms = await session.scalar(
