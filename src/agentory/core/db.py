@@ -17,10 +17,13 @@ class Base(DeclarativeBase):
 
 
 # 커넥션 풀 튜닝, 고갈 시 빠른 실패·유휴 커넥션 사전 검증 (NEW_PROACT01_DETECT01)
+# 상한 30(20+10) 산정 근거: 요청 1건이 감사 로그 적재·본조회로 커넥션 2개 사용,
+# 대시보드 폴링 초당 6.5건 기준 상한 20으로는 고갈, RDS db.t4g.micro max_connections
+# 약 112개 대비 타 서비스(simulator·knowledge·maintenance·realtime) 몫 남기고 상향 (DEV_DATABASE)
 engine = create_async_engine(
     get_settings().database_url,
     echo=False,
-    pool_size=10,
+    pool_size=20,
     max_overflow=10,
     pool_timeout=10,
     pool_pre_ping=True,
