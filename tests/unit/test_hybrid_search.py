@@ -37,6 +37,8 @@ def test_whitespace_keeps_particle():
 
 def test_kiwi_preserves_alarm_code():
     # 정규식 선분리로 코드 원형 보존, 조사는 형태소 분석에서 제거
+    # kiwipiepy는 기본 의존성이 아니라 미설치 환경에서는 건너뜀 (AI_RAG02_HYBRID01)
+    pytest.importorskip("kiwipiepy", reason="HYBRID_TOKENIZER=kiwi 채택 시에만 필요")
     tokens = tokenize("ERR-402는 온도가 상승", "kiwi")
     assert "err-402" in tokens
     assert "온도" in tokens
@@ -55,12 +57,13 @@ def test_unknown_tokenizer_raises():
 
 # ---------------------------------------------------------------- BM25 색인
 def test_bm25_ranks_exact_code_first():
+    # 랭킹 검증이 목적이라 기본 토크나이저(whitespace)로 확인, kiwi 의존 없음
     chunks = [
         _chunk(1, "WRN-701 온도 드리프트 대응 절차"),
         _chunk(2, "ERR-402 냉각 계통 고장 발생 조건"),
         _chunk(3, "설비 일반 점검 주기 안내"),
     ]
-    results = Bm25Index(chunks, "kiwi").search("ERR-402 발생 조건", top_k=2)
+    results = Bm25Index(chunks, "whitespace").search("ERR-402 발생 조건", top_k=2)
     assert results[0]["chunk_id"] == 2
     assert len(results) == 2
 
