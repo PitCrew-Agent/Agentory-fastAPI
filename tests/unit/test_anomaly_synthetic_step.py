@@ -79,6 +79,17 @@ def test_messy_normal_inflates_marginal_variance():
     assert messy.std() > clean.std()  # messy가 더 지저분
 
 
+def test_messy_scale_monotonically_increases_variance():
+    # 강도 스윕 축, messy_scale이 클수록 마진 변동이 커짐 (견고성 경계 실험 전제)
+    def pressure_std(scale):
+        rows = generate_stepped_rows(
+            "EQP-T", "normal", WAFER_TICKS * 8, 0, seed=3, messy=True, messy_scale=scale
+        )
+        return _col([r for r in rows if r["step"] == "main_etch"], "pressure").std()
+
+    assert pressure_std(0.5) < pressure_std(2.0) < pressure_std(4.0)
+
+
 def test_nonlinear_and_weak_break_variants_run():
     # 비선형 결합·약한 붕괴 옵션이 유효 시나리오로 생성
     nl = generate_stepped_rows("EQP-T", "normal", WAFER_TICKS, 0, seed=6, nonlinear=True)
