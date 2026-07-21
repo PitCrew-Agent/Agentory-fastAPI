@@ -24,12 +24,14 @@ RECIPE_STEPS: list[tuple[str, int, dict[str, float]]] = [
 TRANSITION_TICKS = 12  # 스텝 경계 선형 전이 길이
 WAFER_TICKS = sum(dur for _, dur, _ in RECIPE_STEPS)  # 웨이퍼 1장 = 320 tick
 
-SCENARIOS = ("normal", "corr_break_main", "step_delay")
+SCENARIOS = ("normal", "corr_break_main", "corr_break_weak", "step_delay")
 # 시나리오 → (이벤트 kind, 대상 변수), normal은 미등록
 EVENT_KINDS: dict[str, tuple[str, tuple[str, ...]]] = {
     "corr_break_main": ("corr_break", ("gas_flow", "pressure")),
+    "corr_break_weak": ("corr_break", ("gas_flow", "pressure")),
     "step_delay": ("step_timing", ("rf_power",)),
 }
+WEAK_COUPLING = 0.4  # corr_break_weak 잔여 결합 비율 (약한 붕괴, 검출 난도 상승)
 
 OSC_PERIOD = 20
 HISTORY_LEN = 8
@@ -59,11 +61,17 @@ def _step_at(tick_in_wafer: int, delay: int = 0) -> tuple[str, dict[str, float]]
 
 
 def generate_stepped_rows(
-    equipment_id: str, scenario: str, n_ticks: int, onset_tick: int, seed: int
+    equipment_id: str,
+    scenario: str,
+    n_ticks: int,
+    onset_tick: int,
+    seed: int,
+    nonlinear: bool = False,
 ) -> list[dict]:
     """스텝 구조 세그먼트 1개 생성, 스텝 라벨 포함 행 반환
 
     잠재 편차(sigma 단위)는 synthetic.py와 동일 결합, 중심만 스텝별로 이동
+    nonlinear 시 가스→압력 결합을 포화 비선형(tanh)으로, 선형 모델의 한계 검증용
     """
     if scenario not in SCENARIOS:
         raise ValueError(f"미등록 스텝 시나리오: {scenario}")
@@ -84,11 +92,16 @@ def generate_stepped_rows(
 
         gas = 0.8 * dev["gas_flow"] + rng.gauss(0, 0.6)
         rf = 0.6 * dev["rf_power"] + rng.gauss(0, 0.8)
-        # 상관 붕괴: main etch 구간에서만 가스→압력 결합 소실 (임계 안쪽)
-        if scenario == "corr_break_main" and active and step == "main_etch":
+        # 정상 가스→압력 결합, nonlinear면 포화(tanh) 비선형
+        gas_effect = 1.4 * math.tanh(gas_prev) if nonlinear else 0.7 * gas_prev
+        # 상관 붕괴: main etch 구간에서만 가스→압력 결합 소실(전체) 또는 약화(부분)
+        break_main = active and step == "main_etch"
+        if scenario == "corr_break_main" and break_main:
             pressure = 0.3 * rf_lag[-1] + rng.gauss(0, 0.86)
+        elif scenario == "corr_break_weak" and break_main:
+            pressure = WEAK_COUPLING * gas_effect + 0.3 * rf_lag[-1] + rng.gauss(0, 0.72)
         else:
-            pressure = 0.7 * gas_prev + 0.3 * rf_lag[-1] + rng.gauss(0, 0.5)
+            pressure = gas_effect + 0.3 * rf_lag[-1] + rng.gauss(0, 0.5)
         temperature = 0.7 * dev["temperature"] + 0.4 * rf_lag[0] + rng.gauss(0, 0.35)
 
         gas_prev = dev["gas_flow"]
