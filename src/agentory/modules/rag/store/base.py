@@ -20,3 +20,10 @@ class VectorStore(Protocol):
     async def upsert(self, chunks: list[dict[str, Any]]) -> int:
         """청크 적재, 반환: 적재 건수"""
         ...
+
+    async def fetch_all(self) -> list[dict[str, Any]]:
+        """전체 청크 조회, 반환: [{chunk_id, doc_id, content}]
+
+        어휘 색인 구축용, 벡터는 제외해 전송량 절감 (AI_RAG02_HYBRID01)
+        """
+        ...
