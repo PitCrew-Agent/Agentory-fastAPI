@@ -3,8 +3,10 @@
 3D 트윈 뷰 배치를 그대로 재현하도록 A·B·C 3개 식각 라인의 설비 배치를 마스터에 심고,
 시뮬레이터 생성기(simulator.generate_reading)로 설비별 정상·이상 텔레메트리 시계열을 생성
 전 설비 식각 챔버(shape=etch, process_type=Etching), 위치·회전은 bay_zone에서 파생
-재실행 시 기존 텔레메트리·마스터를 비우고 다시 적재 (개발용 시드)
+재실행 시 데모 데이터(텔레메트리·알람·수리 이력)를 비우고 다시 적재하며, 설비 마스터는 삭제 대신
+equipment_id 기준 UPSERT로 정의만 갱신해 학습성 이상감지 데이터(calibration·shadow)를 보존 (#219)
 
+실행 전 시뮬레이터 서비스를 중지해야 텔레메트리 삭제와 재적재 사이 신규 유입이 없습니다
 실행: uv run python scripts/seed_data.py
 """
 
@@ -15,6 +17,7 @@ from collections import deque
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from agentory.core.db import SessionLocal
 from agentory.modules.admin.models import EquipmentRepair, Line, UserLine
@@ -263,6 +266,46 @@ def build_repairs() -> list[EquipmentRepair]:
     return repairs
 
 
+# UPSERT 갱신 대상 컬럼, PK(equipment_id)와 학습성 컬럼(alarm_cleared_at 등)은 제외해 기존 상태 보존
+_MASTER_UPSERT_COLUMNS = (
+    "line_name",
+    "process_type",
+    "location",
+    "manager_dept",
+    "manager_name",
+    "last_inspection_at",
+    "display_order",
+    "shape",
+    "bay_zone",
+    "position_x",
+    "position_y",
+    "position_z",
+    "rotation_y",
+)
+
+
+async def _upsert_masters(session, masters: list[EquipmentMaster]) -> None:
+    """설비 마스터를 equipment_id 기준 UPSERT, 삭제 없이 정의 컬럼만 갱신 (#219)
+
+    삭제-재적재 대신 on_conflict_do_update로 마스터를 유지해 자식 FK(work_logs·이상감지)를 보존
+    시드에서 빠진 구 설비는 남지만 데모 구성상 설비 집합은 고정이라 별도 정리 불필요
+    """
+    values = [
+        {
+            "equipment_id": m.equipment_id,
+            **{col: getattr(m, col) for col in _MASTER_UPSERT_COLUMNS},
+        }
+        for m in masters
+    ]
+    statement = pg_insert(EquipmentMaster).values(values)
+    updated = {col: getattr(statement.excluded, col) for col in _MASTER_UPSERT_COLUMNS}
+    statement = statement.on_conflict_do_update(
+        index_elements=["equipment_id"],
+        set_=updated,
+    )
+    await session.execute(statement)
+
+
 async def seed() -> None:
     masters = build_masters()
 
@@ -279,17 +322,17 @@ async def seed() -> None:
     repairs = build_repairs()
 
     async with SessionLocal() as session:
-        # 개발용 시드라 기존 데이터 비우고 재적재, FK 때문에 자식 테이블 먼저 삭제
+        # 데모 데이터(telemetry·alarms·repairs) 비우고 재적재, FK 때문에 자식 먼저 삭제
         await session.execute(delete(EquipmentAlarm))
         await session.execute(delete(EquipmentTelemetry))
         await session.execute(delete(EquipmentRepair))
-        await session.execute(delete(EquipmentMaster))
+        # 설비 마스터는 삭제 대신 UPSERT, work_logs·이상감지 자식 FK 보존 (#219)
+        await _upsert_masters(session, masters)
         # 라인 마스터 재적재, 배정(user_lines)은 라인 FK라 함께 비우고 아래에서 재시드
         await session.execute(delete(UserLine))
         await session.execute(delete(Line))
         session.add_all(lines)
-        session.add_all(masters)
-        await session.flush()  # 마스터 선적재로 자식(telemetry·alarms·repairs) FK 보장
+        await session.flush()  # 라인·마스터 확정 후 자식(telemetry·alarms·repairs) FK 보장
         session.add_all(telemetry)
         session.add_all(alarms)
         session.add_all(repairs)
