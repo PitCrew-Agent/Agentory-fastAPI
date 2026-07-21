@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     reranker_top_n: int = 10  # 재정렬 후보 풀, top_n 검색 후 상위 top_k 반환
     reranker_timeout_seconds: float = 10.0  # 초과 시 벡터 검색 결과로 폴백
 
+    # 하이브리드 검색, Dense와 BM25 어휘 후보를 convex 융합 (AI_RAG02_HYBRID01)
+    # rag_v5 129문항에서 convex+minilm이 dense+minilm 대비 recall@3 +2.4%p, 되돌림 시 false
+    # 켜면 어휘 색인이 프로세스 메모리에 상주 (155청크 기준 수십 ms)
+    hybrid_enabled: bool = True
+    hybrid_alpha: float = 0.5  # dense 비중, 1.0이면 dense 단독과 동일
+    # whitespace=어절, kiwi=형태소(kiwipiepy 필요), bigram=문자 2-gram
+    # 2026-07-21 실험에서 리랭커 병용 시 whitespace 우세, alpha 스윕 후 재검토 대상
+    hybrid_tokenizer: str = "whitespace"
+
     @model_validator(mode="after")
     def _check_embedding_dim(self) -> "Settings":
         # provider별 기대 차원과 embedding_dim 불일치 시 기동 즉시 차단 (조용한 dim 불일치 방지)

@@ -15,6 +15,8 @@ from mcp.server.fastmcp import FastMCP
 from agentory.core.config import get_settings
 from agentory.core.db import engine
 from agentory.modules.rag.embedding import get_embedder
+from agentory.modules.rag.fusion import convex_fuse
+from agentory.modules.rag.lexical import get_index as get_lexical_index
 from agentory.modules.rag.prefetch import prefetch_models
 from agentory.modules.rag.rerank import get_reranker
 from agentory.modules.rag.store.pgvector import PgVectorStore, verify_embedding_dim
@@ -51,6 +53,25 @@ def _get_search_deps():
 def _above_threshold(results: list[dict[str, Any]], threshold: float) -> list[dict[str, Any]]:
     # 임계값 이상만 유지, 전부 미달이면 빈 목록(관련 문서 없음)
     return [item for item in results if item["score"] >= threshold]
+
+
+async def _fuse_lexical(
+    query: str, dense: list[dict[str, Any]], pool_k: int
+) -> list[dict[str, Any]]:
+    """어휘 후보를 검색해 dense 후보와 convex 융합 (AI_RAG02_HYBRID01)
+
+    실패해도 검색이 죽지 않도록 dense 결과로 폴백
+    임계값은 융합 전 dense에만 적용되므로 코사인 기준 의미가 유지됨
+    """
+    settings = get_settings()
+    try:
+        _, store, _ = _get_search_deps()
+        index = await get_lexical_index(store, settings.hybrid_tokenizer)
+        sparse = index.search(query, top_k=pool_k)
+        return convex_fuse(dense, sparse, alpha=settings.hybrid_alpha, top_k=pool_k)
+    except Exception:
+        log.exception("어휘 검색·융합 실패, Dense 결과 사용")
+        return dense
 
 
 def _expand_alarm_code_count_query(query: str, top_k: int | None) -> tuple[str, int | None]:
@@ -101,6 +122,8 @@ async def search_manuals(
     results = await store.search(embedding, top_k=pool_k, equipment_type=equipment_type)
     # 코사인 임계값 필터를 먼저 적용(리랭크 점수는 척도가 달라 임계 기준이 아님), 이후 재정렬
     results = _above_threshold(results, threshold=settings.rag_search_min_score)
+    if settings.hybrid_enabled:
+        results = await _fuse_lexical(query, results, pool_k)
     results = _matching_alarm_codes(query, results)
     if reranker and results:
         try:
