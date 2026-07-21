@@ -3,6 +3,9 @@
 CrossEncoder 실제 로드 없이 fake 모델로 재정렬 로직·팩토리 디스패치 검증
 """
 
+import asyncio
+import time
+
 import pytest
 
 from agentory.modules.rag.rerank import _DEFAULT_MODELS, get_reranker
@@ -17,6 +20,19 @@ class _FakeCE:
     def predict(self, pairs):
         assert len(pairs) == len(self._scores)
         return self._scores
+
+
+class _SlowFakeCE:
+    def __init__(self) -> None:
+        self.active = 0
+        self.max_active = 0
+
+    def predict(self, pairs):
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        time.sleep(0.02)
+        self.active -= 1
+        return [0.5] * len(pairs)
 
 
 class _Settings:
@@ -60,10 +76,32 @@ async def test_rerank_top_k_larger_than_docs(monkeypatch):
     assert [d["doc_id"] for d in out] == ["A", "C", "B"]  # 전체 반환, 정렬만
 
 
+async def test_rerank_serializes_concurrent_predictions(monkeypatch):
+    model = _SlowFakeCE()
+    monkeypatch.setattr(
+        "agentory.modules.rag.rerank.cross_encoder._get_model",
+        lambda name: model,
+    )
+    reranker = CrossEncoderReranker("fake")
+
+    await asyncio.gather(
+        reranker.rerank("q1", _docs(), top_k=2),
+        reranker.rerank("q2", _docs(), top_k=2),
+    )
+
+    assert model.max_active == 1
+
+
 # ------------------------------------------------------------------ 팩토리 디스패치
 def test_get_reranker_none(monkeypatch):
     monkeypatch.setattr("agentory.modules.rag.rerank.get_settings", lambda: _Settings("none"))
     assert get_reranker() is None
+
+
+def test_settings_defaults_to_cpu_reranker():
+    from agentory.core.config import Settings
+
+    assert Settings(_env_file=None).reranker_provider == "minilm"
 
 
 def test_get_reranker_bge_default_model(monkeypatch):

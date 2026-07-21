@@ -27,6 +27,7 @@ mcp = FastMCP("agentory-knowledge", host="0.0.0.0", port=8102)
 MAX_TOP_K = 20
 _COUNT_QUERY_TOP_K = 6
 _ALARM_CODE_COUNT_QUERY = re.compile(r"알람\s*코드.*(몇\s*개|개수|갯수|수량|목록)")
+_EXPLICIT_ALARM_CODE = re.compile(r"\b(?:ERR|WRN)-\d{3}\b", re.IGNORECASE)
 
 # 임베더·스토어·리랭커는 검색마다 재생성하지 않고 프로세스 단위로 재사용(초기화 비용 절감)
 _embedder = None
@@ -60,6 +61,17 @@ def _expand_alarm_code_count_query(query: str, top_k: int | None) -> tuple[str, 
     return search_query, resolved_top_k
 
 
+def _matching_alarm_codes(query: str, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    codes = {code.upper() for code in _EXPLICIT_ALARM_CODE.findall(query)}
+    if not codes:
+        return results
+    return [
+        item
+        for item in results
+        if any(code in str(item.get("content", "")).upper() for code in codes)
+    ]
+
+
 @mcp.tool()
 async def search_manuals(
     query: str,
@@ -89,9 +101,17 @@ async def search_manuals(
     results = await store.search(embedding, top_k=pool_k, equipment_type=equipment_type)
     # 코사인 임계값 필터를 먼저 적용(리랭크 점수는 척도가 달라 임계 기준이 아님), 이후 재정렬
     results = _above_threshold(results, threshold=settings.rag_search_min_score)
+    results = _matching_alarm_codes(query, results)
     if reranker and results:
         try:
-            results = await reranker.rerank(query, results, top_k=resolved_top_k)
+            async with asyncio.timeout(settings.reranker_timeout_seconds):
+                results = await reranker.rerank(query, results, top_k=resolved_top_k)
+        except TimeoutError:
+            log.warning(
+                "리랭커 제한 시간 %.1f초 초과, 벡터 검색 결과 사용",
+                settings.reranker_timeout_seconds,
+            )
+            results = results[:resolved_top_k]
         except Exception:
             log.exception("리랭커 실패, 벡터 검색 결과 사용")
             results = results[:resolved_top_k]
@@ -112,6 +132,17 @@ async def search_similar_cases(
     """
     # TODO(김건): case_collection 적재 후 구현하고 @mcp.tool() 재등록
     raise NotImplementedError
+
+
+async def _warm_search_models() -> None:
+    embedder, _, reranker = _get_search_deps()
+    await embedder.embed_query("설비 장애 대응 매뉴얼 검색 준비")
+    if reranker is not None:
+        await reranker.rerank(
+            "설비 장애 대응 매뉴얼 검색 준비",
+            [{"doc_id": "warmup", "content": "설비 장애 대응 매뉴얼", "score": 1.0}],
+            top_k=1,
+        )
 
 
 async def _verify_and_release_pool() -> None:
@@ -148,6 +179,10 @@ def _startup() -> None:
             log.error("가중치 프리페치 실패: HF HTTP %s, 첫 질의 시 재시도", status)
         else:
             log.warning("가중치 프리페치 실패(연결 등): %s, 첫 질의 시 재시도", exc)
+    try:
+        asyncio.run(_warm_search_models())
+    except Exception as exc:
+        log.warning("검색 모델 워밍업 실패: %s, 첫 질의 시 재시도", exc)
 
 
 def run() -> None:
