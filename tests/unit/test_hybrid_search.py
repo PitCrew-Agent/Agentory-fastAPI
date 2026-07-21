@@ -61,11 +61,28 @@ def test_bm25_ranks_exact_code_first():
     chunks = [
         _chunk(1, "WRN-701 온도 드리프트 대응 절차"),
         _chunk(2, "ERR-402 냉각 계통 고장 발생 조건"),
-        _chunk(3, "설비 일반 점검 주기 안내"),
+        _chunk(3, "설비 일반 점검 발생 주기 안내"),
     ]
     results = Bm25Index(chunks, "whitespace").search("ERR-402 발생 조건", top_k=2)
-    assert results[0]["chunk_id"] == 2
-    assert len(results) == 2
+    assert [item["chunk_id"] for item in results] == [2, 3]
+
+
+def test_bm25_excludes_zero_score_candidate():
+    # 질의 토큰이 하나도 없는 청크는 top_k 여유가 있어도 후보에서 제외
+    # 코퍼스가 2건이면 df=1에서 IDF가 0이라 변별이 사라지므로 3건으로 구성
+    chunks = [
+        _chunk(1, "ERR-402 냉각 계통 고장"),
+        _chunk(2, "설비 일반 점검 주기 안내"),
+        _chunk(3, "소모품 교체 이력 조회"),
+    ]
+    results = Bm25Index(chunks, "whitespace").search("ERR-402", top_k=5)
+    assert [item["chunk_id"] for item in results] == [1]
+
+
+def test_bm25_all_zero_returns_empty():
+    # 전 후보 0점이면 어휘 신호 없음, 정규화로 만점이 되기 전에 제거
+    chunks = [_chunk(1, "설비 일반 점검 주기"), _chunk(2, "소모품 교체 이력")]
+    assert Bm25Index(chunks, "whitespace").search("ERR-420 대응", top_k=5) == []
 
 
 def test_bm25_empty_corpus_returns_empty():
@@ -127,8 +144,14 @@ def test_convex_empty_sparse_returns_dense():
 
 
 def test_convex_empty_dense_returns_sparse():
+    # 코사인 미달이어도 어휘 매칭이 실재하면 근거로 인정, 알람코드 정확 일치 회수 목적
     sparse = [_scored(1, 9.0)]
     assert convex_fuse([], sparse, alpha=0.5, top_k=3) == sparse
+
+
+def test_convex_empty_both_returns_empty():
+    # 양쪽 유효성 필터를 모두 통과하지 못하면 검색 실패가 아니라 근거 없음
+    assert convex_fuse([], [], alpha=0.5, top_k=3) == []
 
 
 def test_convex_score_replaced_by_fused_value():
