@@ -42,3 +42,12 @@ def test_all_simulator_codes_have_message():
     # 실제 알람 코드 전부 메시지 보유 (ko·en 모두)
     assert SIMULATOR_CODES <= set(ALARM_MESSAGES["ko"])
     assert SIMULATOR_CODES <= set(ALARM_MESSAGES["en"])
+
+
+def test_anomaly_code_wrn901_has_dedicated_message():
+    # 이상 감지 워처 발령 코드 WRN-901은 폴백이 아닌 전용 문구 (은퇴 코드 ERR-901에서 이관)
+    ko = build_notification_message("EQP-007", "WRN-901")
+    assert "상관 붕괴" in ko
+    assert "알람 발생" not in ko  # _UNKNOWN 폴백 아님
+    en = build_notification_message("EQP-007", "WRN-901", locale="en")
+    assert "correlation breakdown" in en

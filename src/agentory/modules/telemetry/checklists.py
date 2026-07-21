@@ -27,7 +27,8 @@ CHECKLIST_TEMPLATES: dict[str, dict[str, list[str]]] = {
         "ERR-402": ["라인 정지 없이 압력 밸브 상태 확인", "냉각수 유량·온도 점검"],
         # 변동성 증가
         "WRN-801": ["센서 신호 노이즈·접점 확인", "주변 진동·간섭원 점검"],
-        # 다변량 관계 붕괴
+        # 다변량 관계 붕괴 (WRN-901은 이상 감지 발령, 기여 채널은 발령 시 동적 기록)
+        "WRN-901": ["기여 센서와 연관 채널 간 상관 관계 점검", "공정 레시피 파라미터 확인"],
         "ERR-901": ["RF 파워·온도 상관 점검", "공정 레시피 파라미터 확인"],
     },
     "en": {
@@ -47,6 +48,10 @@ CHECKLIST_TEMPLATES: dict[str, dict[str, list[str]]] = {
             "Inspect coolant flow/temperature",
         ],
         "WRN-801": ["Check sensor signal noise/contacts", "Inspect nearby vibration/interference"],
+        "WRN-901": [
+            "Check correlation between the contributing sensor and related channels",
+            "Verify process recipe parameters",
+        ],
         "ERR-901": ["Check RF power/temperature correlation", "Verify process recipe parameters"],
     },
 }
@@ -76,7 +81,9 @@ ALARM_METRICS: dict[str, list[str]] = {
     "WRN-704": ["gas_flow"],
     "ERR-402": ["temperature", "pressure"],
     "ERR-901": ["rf_power", "temperature"],
+    # 변동성·다변량 이상은 특정 정적 변수 미지정 (WRN-901 기여 채널은 발령 시 metric에 동적 기록)
     "WRN-801": [],
+    "WRN-901": [],
 }
 
 
