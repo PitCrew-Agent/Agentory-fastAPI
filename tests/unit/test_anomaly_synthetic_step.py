@@ -67,6 +67,16 @@ def test_corr_break_weakens_gas_pressure_coupling_in_main_etch():
     assert active < normal - 0.2  # 이상은 결합이 뚜렷이 약화
 
 
+def test_nonlinear_and_weak_break_variants_run():
+    # 비선형 결합·약한 붕괴 옵션이 유효 시나리오로 생성
+    nl = generate_stepped_rows("EQP-T", "normal", WAFER_TICKS, 0, seed=6, nonlinear=True)
+    weak = generate_stepped_rows(
+        "EQP-T", "corr_break_weak", WAFER_TICKS * 4, WAFER_TICKS * 2, seed=6
+    )
+    assert len(nl) == WAFER_TICKS
+    assert {r["step"] for r in weak} == set(STEP_NAMES)
+
+
 def test_deterministic_and_unknown_scenario():
     a = generate_stepped_rows("EQP-T", "normal", 200, 0, seed=5)
     b = generate_stepped_rows("EQP-T", "normal", 200, 0, seed=5)
