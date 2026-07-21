@@ -28,6 +28,7 @@
 | EXP-008 | 전이/정착 억제로 모드 전이 오탐 제거 | 오탐 -79%·recall 유지, 레시피 신호 불요 (완료) |
 | EXP-009 | 검출기 계열 비교 (UMAP·VAR·KPCA·AE·IF·T²/SPE) | PCA 유지 타당, VAR 상관붕괴 4.5배 빠름 (완료) |
 | EXP-011 | 레시피 스텝 인지 vs 통짜 | 스텝 인지가 main etch 상관붕괴 0.00→1.00 회수 (완료) |
+| EXP-012 | 마스킹 조건부 복원 vs PCA·VAR | 상관붕괴 분리 4.2배·기여도 1.00, recall 포화로 채택 보류 (완료) |
 
 확정 아키텍처는 EXP-006-ewma-final.md, 서빙 파라미터는 EXP-007-realtime-tuning.md 결론
 참고 바랍니다.
