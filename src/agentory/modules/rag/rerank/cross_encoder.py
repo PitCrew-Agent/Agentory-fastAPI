@@ -6,6 +6,7 @@ CPU 추론, 모델명별 1회 로드 후 재사용, 동기 predict를 asyncio.to
 """
 
 import asyncio
+from threading import RLock
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -16,16 +17,18 @@ _MAX_LENGTH = 512
 
 # 모델명별 CrossEncoder 캐시, 임포트·가중치 로드가 무거워 최초 사용 시 1회 생성
 _models: dict[str, "CrossEncoder"] = {}
+_inference_lock = RLock()
 
 
 def _get_model(name: str) -> "CrossEncoder":
     """모델명 기준 CrossEncoder 지연 로드 후 재사용"""
-    model = _models.get(name)
-    if model is None:
-        from sentence_transformers import CrossEncoder
+    with _inference_lock:
+        model = _models.get(name)
+        if model is None:
+            from sentence_transformers import CrossEncoder
 
-        model = CrossEncoder(name, device="cpu", max_length=_MAX_LENGTH)
-        _models[name] = model
+            model = CrossEncoder(name, device="cpu", max_length=_MAX_LENGTH)
+            _models[name] = model
     return model
 
 
@@ -37,8 +40,10 @@ class CrossEncoderReranker:
 
     def _score(self, query: str, contents: list[str]) -> list[float]:
         """(query, 문서) 쌍 관련도 점수 (동기, 스레드에서 호출)"""
-        model = _get_model(self._model_name)
-        scores = model.predict([(query, content) for content in contents])
+        # 취소된 요청의 백그라운드 추론까지 포함한 모델별 동시 실행 차단
+        with _inference_lock:
+            model = _get_model(self._model_name)
+            scores = model.predict([(query, content) for content in contents])
         return [float(score) for score in scores]
 
     async def rerank(

@@ -13,7 +13,15 @@ from agentory.modules.rag.embedding.e5 import _DEFAULT_MODEL as E5_DEFAULT
 from agentory.modules.rag.rerank import _DEFAULT_MODELS as RERANK_MODELS
 
 # PyTorch 로더가 안 쓰는 다른 프레임워크 가중치 형식은 제외해 다운로드·용량 절감
-_IGNORE = ["*.onnx", "*.h5", "*.msgpack", "*.tflite"]
+_IGNORE = [
+    "onnx/*",
+    "openvino/*",
+    "*.onnx",
+    "*.h5",
+    "*.msgpack",
+    "*.tflite",
+]
+_SAFETENSORS_MODELS = {E5_DEFAULT, *RERANK_MODELS.values()}
 
 
 def target_models() -> list[str]:
@@ -36,6 +44,9 @@ def prefetch_models() -> list[str]:
     for name in target_models():
         if os.path.isdir(name):
             continue
-        snapshot_download(repo_id=name, ignore_patterns=_IGNORE)
+        ignore_patterns = [*_IGNORE]
+        if name in _SAFETENSORS_MODELS:
+            ignore_patterns.append("pytorch_model.bin")
+        snapshot_download(repo_id=name, ignore_patterns=ignore_patterns)
         fetched.append(name)
     return fetched

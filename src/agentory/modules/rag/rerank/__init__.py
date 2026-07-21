@@ -16,7 +16,7 @@ _DEFAULT_MODELS = {
 
 def get_reranker() -> Reranker | None:
     """settings.reranker_provider 기반 리랭커 반환, none이면 None(재정렬 미적용)"""
-    provider = (get_settings().reranker_provider or "bge").lower()
+    provider = (get_settings().reranker_provider or "minilm").lower()
     if provider == "none":
         return None
     if provider in _DEFAULT_MODELS:

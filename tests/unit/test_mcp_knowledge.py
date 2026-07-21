@@ -3,6 +3,8 @@
 DB·임베딩 없이 임계값 필터와 파라미터 검증, 설정 반영을 확인
 """
 
+import asyncio
+
 import pytest
 
 from agentory.core.config import Settings
@@ -11,7 +13,7 @@ from mcp_knowledge.server import MAX_TOP_K, _above_threshold, mcp, search_manual
 
 
 def _result(doc_id: str, score: float) -> dict:
-    return {"doc_id": doc_id, "content": "본문", "score": score}
+    return {"doc_id": doc_id, "content": "ERR-402 본문", "score": score}
 
 
 class _FakeEmbedder:
@@ -50,6 +52,12 @@ class _FakeReranker:
 class _FailingReranker:
     async def rerank(self, query, documents, top_k):
         raise RuntimeError("모델 로드 실패")
+
+
+class _SlowReranker:
+    async def rerank(self, query, documents, top_k):
+        await asyncio.sleep(1)
+        return documents[:top_k]
 
 
 def _patch_pipeline(
@@ -126,6 +134,25 @@ async def test_stub_tool_not_exposed():
     assert "search_similar_cases" not in names
 
 
+async def test_warm_search_models_loads_embedder_and_reranker(monkeypatch):
+    embedder = _FakeEmbedder()
+    reranker = _FakeReranker()
+    monkeypatch.setattr(
+        server,
+        "_get_search_deps",
+        lambda: (embedder, _FakeStore([]), reranker),
+    )
+
+    await server._warm_search_models()
+
+    assert embedder.query == "설비 장애 대응 매뉴얼 검색 준비"
+    assert reranker.called_with == {
+        "query": "설비 장애 대응 매뉴얼 검색 준비",
+        "n_docs": 1,
+        "top_k": 1,
+    }
+
+
 async def test_search_manuals_uses_settings_defaults(monkeypatch):
     # top_k 미지정 시 설정 top_k 사용, min_score 미달 결과 제외
     store = _FakeStore([_result("MAN-ETC-042", 0.9), _result("MAN-ETC-043", 0.4)])
@@ -182,9 +209,52 @@ async def test_search_manuals_uses_vector_results_when_reranker_fails(monkeypatc
     assert results == docs
 
 
+async def test_search_manuals_uses_vector_results_when_reranker_times_out(monkeypatch):
+    docs = [_result("MAN-SOP-001", 0.9), _result("MAN-SOP-002", 0.8)]
+    store = _FakeStore(docs)
+    settings = Settings(
+        _env_file=None,
+        rag_search_top_k=2,
+        rag_search_min_score=0.0,
+        reranker_timeout_seconds=0.01,
+    )
+    _patch_pipeline(monkeypatch, store, settings, reranker=_SlowReranker())
+
+    results = await search_manuals(query="ERR-402 조치")
+
+    assert results == docs
+
+
 async def test_search_manuals_all_below_threshold_returns_empty(monkeypatch):
     # 전부 임계값 미달이면 빈 배열 (관련 문서 없음, 환각 방지)
     store = _FakeStore([_result("MAN-ETC-042", 0.1)])
     settings = Settings(_env_file=None, rag_search_min_score=0.2)
     _patch_pipeline(monkeypatch, store, settings)
     assert await search_manuals(query="ERR-999 조치") == []
+
+
+async def test_search_manuals_rejects_semantic_match_for_unknown_alarm_code(monkeypatch):
+    store = _FakeStore(
+        [
+            {"doc_id": "MAN-SOP-001", "content": "ERR-402 냉각 조치", "score": 0.9},
+            {"doc_id": "MAN-TM-8600", "content": "ERR-201 RF 조치", "score": 0.8},
+        ]
+    )
+    settings = Settings(_env_file=None, rag_search_min_score=0.0)
+    _patch_pipeline(monkeypatch, store, settings)
+
+    assert await search_manuals(query="ERR-999 원인과 조치") == []
+
+
+async def test_search_manuals_keeps_only_matching_alarm_code(monkeypatch):
+    matching = {"doc_id": "MAN-SOP-001", "content": "ERR-402 냉각 조치", "score": 0.9}
+    store = _FakeStore(
+        [
+            matching,
+            {"doc_id": "MAN-TM-8600", "content": "ERR-201 RF 조치", "score": 0.8},
+        ]
+    )
+    settings = Settings(_env_file=None, rag_search_min_score=0.0)
+    _patch_pipeline(monkeypatch, store, settings)
+
+    assert await search_manuals(query="ERR-402 원인과 조치") == [matching]

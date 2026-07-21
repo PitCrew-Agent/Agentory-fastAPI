@@ -83,6 +83,8 @@ def _normalize_manual_results(raw: Any) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             return []
     if isinstance(raw, dict):
+        if raw.get("doc_id") and raw.get("content"):
+            return [raw]
         raw = raw.get("results") or raw.get("result") or raw.get("data") or []
     if not isinstance(raw, list):
         return []
@@ -141,14 +143,21 @@ def _manual_query(context: dict[str, Any], deviations: list[SensorDeviation]) ->
 
 
 def _citations(manuals: list[dict[str, Any]]) -> list[ManualCitation]:
-    return [
-        ManualCitation(
-            doc_id=str(item["doc_id"]),
-            score=float(item["score"]) if item.get("score") is not None else None,
-            excerpt=str(item["content"]).strip()[:240],
+    citations = []
+    seen_doc_ids = set()
+    for item in manuals:
+        doc_id = str(item["doc_id"])
+        if doc_id in seen_doc_ids:
+            continue
+        seen_doc_ids.add(doc_id)
+        citations.append(
+            ManualCitation(
+                doc_id=doc_id,
+                score=float(item["score"]) if item.get("score") is not None else None,
+                excerpt=str(item["content"]).strip()[:240],
+            )
         )
-        for item in manuals
-    ]
+    return citations
 
 
 async def _generate_plan(

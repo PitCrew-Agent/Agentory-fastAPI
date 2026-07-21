@@ -64,6 +64,32 @@ class _FakeModel:
         return _StructuredModel()
 
 
+def test_normalize_manual_results_accepts_mcp_text_blocks():
+    raw = [
+        {
+            "type": "text",
+            "text": '{"doc_id":"MAN-SOP-001","content":"ERR-402 냉각 조치","score":0.9}',
+        }
+    ]
+
+    assert service._normalize_manual_results(raw) == [
+        {"doc_id": "MAN-SOP-001", "content": "ERR-402 냉각 조치", "score": 0.9}
+    ]
+
+
+def test_citations_deduplicate_document_ids():
+    citations = service._citations(
+        [
+            {"doc_id": "MAN-SOP-001", "content": "첫 청크", "score": 0.9},
+            {"doc_id": "MAN-SOP-001", "content": "두 번째 청크", "score": 0.8},
+            {"doc_id": "MAN-GDL-001", "content": "가이드", "score": 0.7},
+        ]
+    )
+
+    assert [item.doc_id for item in citations] == ["MAN-SOP-001", "MAN-GDL-001"]
+    assert citations[0].excerpt == "첫 청크"
+
+
 @pytest.mark.asyncio
 async def test_create_plan_returns_work_log_draft(monkeypatch):
     async def fake_context(session, notification_id):

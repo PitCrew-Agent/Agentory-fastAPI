@@ -69,11 +69,12 @@ class Settings(BaseSettings):
     rag_search_min_score: float = 0.2  # 유사도 임계값, 미달 결과 제외로 환각 방지
 
     # 리랭커, provider로 어댑터 선택 (교체 가능 지점 ③) (AI_RAG02_RERANK01)
-    # bge=고품질 기본, minilm=경량, none=미적용
-    # 주의: CPU에서 bge(568M)는 질의당 수 초 지연, GPU 아니면 minilm/none 고려
-    reranker_provider: str = "bge"
+    # bge=고품질, minilm=CPU 기본, none=미적용
+    # 주의: CPU에서 bge(568M)는 과도한 지연과 메모리 사용 가능
+    reranker_provider: str = "minilm"
     reranker_model: str = ""  # 비우면 provider별 기본 모델 사용
     reranker_top_n: int = 10  # 재정렬 후보 풀, top_n 검색 후 상위 top_k 반환
+    reranker_timeout_seconds: float = 10.0  # 초과 시 벡터 검색 결과로 폴백
 
     @model_validator(mode="after")
     def _check_embedding_dim(self) -> "Settings":
