@@ -65,6 +65,15 @@ def test_checklist_unknown_code_has_common_only():
     assert build_checklist_items("WRN-999") == COMMON_ITEMS["ko"]
 
 
+def test_checklist_anomaly_wrn901_has_correlation_guide():
+    # 이상 감지 발령 코드 WRN-901은 상관 점검 조치 보유 (공통 항목만 아님)
+    ko = build_checklist_items("WRN-901")
+    assert "기여 센서와 연관 채널 간 상관 관계 점검" in ko
+    assert len(ko) > len(COMMON_ITEMS["ko"])  # 특화 항목 존재
+    en = build_checklist_items("WRN-901", locale="en")
+    assert any("correlation" in item for item in en)
+
+
 def test_all_known_codes_have_nonempty_template():
     # 등록 코드 전부 특화 항목 보유 (ko·en 모두)
     for locale, table in CHECKLIST_TEMPLATES.items():
@@ -82,6 +91,7 @@ def test_all_known_codes_have_nonempty_template():
         ("ERR-402", ["temperature", "pressure"]),
         ("ERR-901", ["rf_power", "temperature"]),
         ("WRN-801", []),  # 변동성은 특정 변수 미지정
+        ("WRN-901", []),  # 다변량 이상은 기여 채널 동적 기록, 정적 변수 미지정
         ("XYZ-000", []),  # 미등록 코드
     ],
 )
