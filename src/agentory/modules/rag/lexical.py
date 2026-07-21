@@ -35,10 +35,18 @@ class ChunkSource(Protocol):
 
 
 def _get_kiwi():
-    """Kiwi 지연 로드 후 재사용, 가중치 로드가 무거워 최초 사용 시 1회 생성"""
+    """Kiwi 지연 로드 후 재사용, 가중치 로드가 무거워 최초 사용 시 1회 생성
+
+    kiwipiepy는 기본 의존성이 아님, 모델 105MB라 kiwi 토크나이저 채택 시에만 설치
+    """
     global _kiwi
     if _kiwi is None:
-        from kiwipiepy import Kiwi
+        try:
+            from kiwipiepy import Kiwi
+        except ImportError as exc:
+            raise RuntimeError(
+                "HYBRID_TOKENIZER=kiwi에는 kiwipiepy 설치 필요, uv add kiwipiepy"
+            ) from exc
 
         _kiwi = Kiwi()
     return _kiwi
