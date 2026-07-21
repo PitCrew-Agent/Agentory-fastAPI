@@ -47,6 +47,21 @@ class PgVectorStore:
             await session.commit()
         return len(chunks)
 
+    async def fetch_all(self) -> list[dict[str, Any]]:
+        """전체 청크 조회, 반환: [{chunk_id, doc_id, content}]
+
+        어휘 색인 구축용이라 embedding 컬럼은 조회하지 않음 (AI_RAG02_HYBRID01)
+        """
+        stmt = select(
+            KnowledgeChunk.chunk_id, KnowledgeChunk.doc_id, KnowledgeChunk.content
+        ).order_by(KnowledgeChunk.chunk_id)
+        async with self._session_factory() as session:
+            rows = await session.execute(stmt)
+            return [
+                {"chunk_id": chunk_id, "doc_id": doc_id, "content": content}
+                for chunk_id, doc_id, content in rows
+            ]
+
     async def purge_except(self, keep_doc_ids: set[str]) -> int:
         """매니페스트에 없는 doc_id 청크 제거, 반환: 삭제 건수
 
@@ -94,8 +109,14 @@ class PgVectorStore:
         stmt = stmt.order_by(distance).limit(top_k)
         async with self._session_factory() as session:
             rows = await session.execute(stmt)
+            # chunk_id는 어휘 후보와 융합할 때 청크 식별 키로 사용 (AI_RAG02_HYBRID01)
             return [
-                {"doc_id": chunk.doc_id, "content": chunk.content, "score": 1.0 - distance_value}
+                {
+                    "chunk_id": chunk.chunk_id,
+                    "doc_id": chunk.doc_id,
+                    "content": chunk.content,
+                    "score": 1.0 - distance_value,
+                }
                 for chunk, distance_value in rows
             ]
 

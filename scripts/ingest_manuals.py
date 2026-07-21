@@ -13,6 +13,7 @@ from pathlib import Path
 
 from agentory.modules.rag.embedding import get_embedder
 from agentory.modules.rag.ingest import ingest_document
+from agentory.modules.rag.lexical import reset_index as reset_lexical_index
 from agentory.modules.rag.prefetch import prefetch_models
 from agentory.modules.rag.store.pgvector import PgVectorStore, verify_embedding_dim
 
@@ -74,6 +75,9 @@ async def main() -> None:
     if removed:
         print(f"매니페스트 밖 구 문서 {removed} chunks 제거")
     print(f"총 {total} chunks 적재")
+    # 어휘 색인은 청크 본문 기준이라 재적재 시 무효화 필요 (AI_RAG02_HYBRID01)
+    # 별도 프로세스로 뜬 mcp-knowledge 서버는 재기동해야 새 색인을 사용
+    reset_lexical_index()
     # 적재 직후 DB 벡터 컬럼 차원과 설정 정합성 확인 (B)
     await verify_embedding_dim()
     print("임베딩 차원 정합성 확인 완료")
