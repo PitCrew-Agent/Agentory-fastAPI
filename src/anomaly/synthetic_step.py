@@ -68,6 +68,7 @@ def generate_stepped_rows(
     seed: int,
     nonlinear: bool = False,
     messy: bool = False,
+    messy_scale: float = 1.0,
 ) -> list[dict]:
     """스텝 구조 세그먼트 1개 생성, 스텝 라벨 포함 행 반환
 
@@ -75,6 +76,7 @@ def generate_stepped_rows(
     nonlinear 시 가스→압력 결합을 포화 비선형(tanh)으로, 선형 모델의 한계 검증용
     messy 시 웨이퍼별 양성 드라이버 오프셋(런투런 변동)+드문 양성 급변(센서 글리치)
     추가, 결합을 통해 전파되므로 관계는 유지되고 마진 중심만 흔들림(실측 정상 지저분함 모사)
+    messy_scale로 지저분함 강도 조절(견고성 경계 스윕용, 1.0이 EXP-013 기준)
     """
     if scenario not in SCENARIOS:
         raise ValueError(f"미등록 스텝 시나리오: {scenario}")
@@ -86,7 +88,7 @@ def generate_stepped_rows(
     def _driver_offset(wafer: int) -> tuple[float, float]:
         # 웨이퍼별 양성 gas·rf 드라이버 오프셋(런투런), 결합 통해 압력·온도로 전파
         r = random.Random(f"{seed}:{equipment_id}:mode:{wafer}")
-        return r.gauss(0, 1.0), r.gauss(0, 1.0)
+        return r.gauss(0, messy_scale), r.gauss(0, messy_scale)
 
     dev = dict.fromkeys(VARS, 0.0)
     rf_lag = deque([0.0, 0.0], maxlen=2)
@@ -122,6 +124,7 @@ def generate_stepped_rows(
             spec = specs[var]
             values[var] = spec.mu0 * mult[var] + dev[var] * spec.sigma
         # 양성 급변(센서 글리치), 1틱 출력에만 가산돼 결합 미전파, 지속 K 규칙으로 걸러짐
+        # 크기 고정(강도 스윕은 드라이버 오프셋 축만, 글리치 확대 시 T² 허위 발령 유발)
         if messy and rng.random() < 0.01:
             gvar = rng.choice(VARS)
             values[gvar] += rng.gauss(0, 2.5) * specs[gvar].sigma
