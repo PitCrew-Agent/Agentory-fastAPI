@@ -67,11 +67,14 @@ def generate_stepped_rows(
     onset_tick: int,
     seed: int,
     nonlinear: bool = False,
+    messy: bool = False,
 ) -> list[dict]:
     """스텝 구조 세그먼트 1개 생성, 스텝 라벨 포함 행 반환
 
     잠재 편차(sigma 단위)는 synthetic.py와 동일 결합, 중심만 스텝별로 이동
     nonlinear 시 가스→압력 결합을 포화 비선형(tanh)으로, 선형 모델의 한계 검증용
+    messy 시 웨이퍼별 양성 드라이버 오프셋(런투런 변동)+드문 양성 급변(센서 글리치)
+    추가, 결합을 통해 전파되므로 관계는 유지되고 마진 중심만 흔들림(실측 정상 지저분함 모사)
     """
     if scenario not in SCENARIOS:
         raise ValueError(f"미등록 스텝 시나리오: {scenario}")
@@ -79,6 +82,11 @@ def generate_stepped_rows(
     profile = get_profile("Etching")
     specs = {var: getattr(profile, var) for var in VARS}
     history: deque = deque(maxlen=HISTORY_LEN)
+
+    def _driver_offset(wafer: int) -> tuple[float, float]:
+        # 웨이퍼별 양성 gas·rf 드라이버 오프셋(런투런), 결합 통해 압력·온도로 전파
+        r = random.Random(f"{seed}:{equipment_id}:mode:{wafer}")
+        return r.gauss(0, 1.0), r.gauss(0, 1.0)
 
     dev = dict.fromkeys(VARS, 0.0)
     rf_lag = deque([0.0, 0.0], maxlen=2)
@@ -90,8 +98,9 @@ def generate_stepped_rows(
         delay = STEP_DELAY_TICKS if (scenario == "step_delay" and active) else 0
         step, mult = _step_at(tick, delay)
 
-        gas = 0.8 * dev["gas_flow"] + rng.gauss(0, 0.6)
-        rf = 0.6 * dev["rf_power"] + rng.gauss(0, 0.8)
+        mode_gas, mode_rf = _driver_offset(tick // WAFER_TICKS) if messy else (0.0, 0.0)
+        gas = 0.8 * dev["gas_flow"] + rng.gauss(0, 0.6) + mode_gas
+        rf = 0.6 * dev["rf_power"] + rng.gauss(0, 0.8) + mode_rf
         # 정상 가스→압력 결합, nonlinear면 포화(tanh) 비선형
         gas_effect = 1.4 * math.tanh(gas_prev) if nonlinear else 0.7 * gas_prev
         # 상관 붕괴: main etch 구간에서만 가스→압력 결합 소실(전체) 또는 약화(부분)
@@ -112,6 +121,10 @@ def generate_stepped_rows(
         for var in VARS:
             spec = specs[var]
             values[var] = spec.mu0 * mult[var] + dev[var] * spec.sigma
+        # 양성 급변(센서 글리치), 1틱 출력에만 가산돼 결합 미전파, 지속 K 규칙으로 걸러짐
+        if messy and rng.random() < 0.01:
+            gvar = rng.choice(VARS)
+            values[gvar] += rng.gauss(0, 2.5) * specs[gvar].sigma
         # osc_propagation 대신 스텝 전용 시나리오만 사용, 진동은 v2에서 검증됨
         _ = math, OSC_PERIOD  # 예약 상수 참조 유지
 

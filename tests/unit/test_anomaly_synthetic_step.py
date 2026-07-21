@@ -67,6 +67,18 @@ def test_corr_break_weakens_gas_pressure_coupling_in_main_etch():
     assert active < normal - 0.2  # 이상은 결합이 뚜렷이 약화
 
 
+def test_messy_normal_inflates_marginal_variance():
+    # 지저분한 정상은 양성 마진 변동으로 표준편차가 커짐, 결합(관계)은 유지
+    def main_pressure(messy):
+        rows = generate_stepped_rows("EQP-T", "normal", WAFER_TICKS * 8, 0, seed=3, messy=messy)
+        rows = [r for r in rows if r["step"] == "main_etch"]
+        return _col(rows, "pressure")
+
+    clean = main_pressure(False)
+    messy = main_pressure(True)
+    assert messy.std() > clean.std()  # messy가 더 지저분
+
+
 def test_nonlinear_and_weak_break_variants_run():
     # 비선형 결합·약한 붕괴 옵션이 유효 시나리오로 생성
     nl = generate_stepped_rows("EQP-T", "normal", WAFER_TICKS, 0, seed=6, nonlinear=True)
