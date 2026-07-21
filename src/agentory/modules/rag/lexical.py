@@ -106,12 +106,16 @@ class Bm25Index:
         """어휘 점수 상위 top_k, 반환: [{chunk_id, doc_id, content, score}]
 
         점수는 BM25 원점수이며 코사인과 척도가 달라 융합 전 정규화 필요
+        0점 후보는 제외, 질의 토큰 미일치 또는 IDF 0 이하 흔한 토큰만 일치한 경우라
+        어휘 신호로 볼 수 없음 (Dense 코사인 임계값에 대응하는 어휘 유효성 기준)
+        제외하지 않으면 전 후보 0점일 때 min-max가 전부 1.0이 되어 무관한 청크가
+        만점 근거로 올라감
         """
         if self._bm25 is None or top_k <= 0:
             return []
         scores = self._bm25.get_scores(tokenize(query, self._tokenizer))
         order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-        return [{**self._chunks[i], "score": float(scores[i])} for i in order]
+        return [{**self._chunks[i], "score": float(scores[i])} for i in order if scores[i] > 0.0]
 
 
 async def get_index(source: ChunkSource, tokenizer: str) -> Bm25Index:

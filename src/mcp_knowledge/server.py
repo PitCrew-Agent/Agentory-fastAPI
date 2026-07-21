@@ -61,14 +61,18 @@ async def _fuse_lexical(
     """어휘 후보를 검색해 dense 후보와 convex 융합 (AI_RAG02_HYBRID01)
 
     실패해도 검색이 죽지 않도록 dense 결과로 폴백
-    임계값은 융합 전 dense에만 적용되므로 코사인 기준 의미가 유지됨
+    유효성 기준은 원점수 단계에서 각각 적용, dense는 코사인 임계값 sparse는 BM25 0점 제외
+    양쪽 모두 통과 후보가 없으면 빈 결과, 검색 실패가 아니라 근거 없음을 뜻함
     """
     settings = get_settings()
     try:
         _, store, _ = _get_search_deps()
         index = await get_lexical_index(store, settings.hybrid_tokenizer)
         sparse = index.search(query, top_k=pool_k)
-        return convex_fuse(dense, sparse, alpha=settings.hybrid_alpha, top_k=pool_k)
+        fused = convex_fuse(dense, sparse, alpha=settings.hybrid_alpha, top_k=pool_k)
+        # 근거 없음과 필터 전량 탈락을 사후 구분하기 위한 관측값
+        log.info("하이브리드 융합: dense=%d 어휘=%d 결과=%d", len(dense), len(sparse), len(fused))
+        return fused
     except Exception:
         log.exception("어휘 검색·융합 실패, Dense 결과 사용")
         return dense
