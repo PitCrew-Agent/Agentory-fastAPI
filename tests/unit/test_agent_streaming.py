@@ -13,6 +13,10 @@ from agentory.modules.agent.streaming import (
     stream_agent_events,
 )
 from agentory.modules.agent.supervisor.finalizer import _collect_citations
+from agentory.modules.agent.supervisor.table_format import (
+    StreamingTableNormalizer,
+    normalize_markdown_tables,
+)
 
 
 def test_supervisor_update_maps_to_thought():
@@ -127,6 +131,43 @@ async def test_recursion_limit_emits_dedicated_code():
     assert events[0].type == "error"
     assert events[0].code == "RECURSION_LIMIT"
     assert events[-1].type == "done"
+
+
+def test_normalize_fixes_short_separator_row():
+    # ||-- 처럼 열 수가 안 맞는 구분자 행을 헤더 기준으로 |:---|:---| 통일
+    text = "요약\n| 항목 | 값 |\n||--\n| 평균 | 42.0 |\n"
+    out = normalize_markdown_tables(text)
+    assert out == "요약\n| 항목 | 값 |\n|:---|:---|\n| 평균 | 42.0 |\n"
+
+
+def test_normalize_unifies_varied_separator_forms():
+    # |--|-- 형식도 동일한 표준 구분자로 통일하고 셀 여백 정돈
+    text = "| 항목 | 값 | 단위 |\n|--|--|--\n|평균|42.0|mTorr|\n"
+    out = normalize_markdown_tables(text)
+    assert out == "| 항목 | 값 | 단위 |\n|:---|:---|:---|\n| 평균 | 42.0 | mTorr |\n"
+
+
+def test_normalize_leaves_prose_untouched():
+    # 표가 없는 산문은 그대로 통과
+    text = "EQP-A04 압력이 41~43 mTorr로 관찰됩니다\n원인은 APC 응답 점검이 필요합니다\n"
+    assert normalize_markdown_tables(text) == text
+
+
+def test_normalize_candidate_header_without_separator_is_prose():
+    # 파이프가 있어도 다음 줄이 구분자가 아니면 표가 아니므로 원문 보존
+    text = "| 이건 표 아님\n일반 문장\n"
+    assert normalize_markdown_tables(text) == text
+
+
+def test_streaming_normalizer_matches_whole_text_across_arbitrary_chunks():
+    # 토큰이 아무 지점에서 쪼개져 들어와도 전체 정규화 결과와 동일해야 함
+    text = "결론\n| 항목 | 값 |\n||--\n| 평균 | 42.0 |\n후속 조치 필요\n"
+    expected = normalize_markdown_tables(text)
+    for size in (1, 2, 3, 5, 7):
+        n = StreamingTableNormalizer()
+        out = "".join(n.feed(text[i : i + size]) for i in range(0, len(text), size))
+        out += n.flush()
+        assert out == expected, f"chunk size {size}"
 
 
 def test_collect_citations_from_observations():
