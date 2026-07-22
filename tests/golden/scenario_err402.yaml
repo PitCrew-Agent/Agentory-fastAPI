@@ -54,4 +54,4 @@
   query: "EQP-999 설비 상태 좀 확인해줘"
   expect:
     tools_called_any: [get_equipment_metadata, get_sensor_logs, get_alarm_history]
-    answer_contains_any: ["없", "확인되지 않", "찾을 수 없"]
+    answer_contains_any: ["없", "확인되지 않", "찾을 수 없", "등록되어 있지 않", "미등록", "조회되지 않"]

@@ -80,31 +80,33 @@ class DataWindow:
         return (self.last - self.first).total_seconds() / 86400
 
 
-_cache: tuple[DataWindow, float] | None = None
+# 설비별(None=전역) 보유 범위 캐시, TTL 동안 재집계 억제
+_cache: dict[str | None, tuple[DataWindow, float]] = {}
 
 
-async def get_data_window(*, refresh: bool = False) -> DataWindow:
+async def get_data_window(equipment_id: str | None = None, *, refresh: bool = False) -> DataWindow:
     # 적재된 텔레메트리의 최초·최근 시각, TTL 동안 캐시해 추천 생성마다 집계하지 않음
+    # equipment_id 지정 시 해당 설비만 집계, 미지정은 전역
+    # (equipment_id, timestamp) 복합 인덱스로 설비별 조회 대응
     # 조회 실패는 답변 생성을 막지 않고 미상(known=False)으로 격리, 기간 검증만 건너뜀
-    global _cache
     now = time.monotonic()
-    if not refresh and _cache is not None and _cache[1] > now:
-        return _cache[0]
+    cached = _cache.get(equipment_id)
+    if not refresh and cached is not None and cached[1] > now:
+        return cached[0]
     try:
+        stmt = select(
+            func.min(EquipmentTelemetry.timestamp),
+            func.max(EquipmentTelemetry.timestamp),
+        )
+        if equipment_id is not None:
+            stmt = stmt.where(EquipmentTelemetry.equipment_id == equipment_id)
         async with SessionLocal() as session:
-            row = (
-                await session.execute(
-                    select(
-                        func.min(EquipmentTelemetry.timestamp),
-                        func.max(EquipmentTelemetry.timestamp),
-                    )
-                )
-            ).one()
+            row = (await session.execute(stmt)).one()
         window = DataWindow(first=row[0], last=row[1])
     except Exception as exc:
         log.warning("[retention] 보유 범위 조회 실패, 기간 검증 생략: %s", exc)
         window = DataWindow(first=None, last=None, known=False)
-    _cache = (window, now + _CACHE_TTL_SECONDS)
+    _cache[equipment_id] = (window, now + _CACHE_TTL_SECONDS)
     return window
 
 

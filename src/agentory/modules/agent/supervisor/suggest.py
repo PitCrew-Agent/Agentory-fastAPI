@@ -5,6 +5,7 @@
 """
 
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -27,6 +28,13 @@ from agentory.modules.agent.supervisor.state import AgentState
 log = logging.getLogger(__name__)
 
 MAX_SUGGESTIONS = 3
+
+# 이 시스템이 수행 못 하는 실행형 요청(연락·통보·조치 요청·알림 발송 등) 감지 패턴
+# 도구가 읽기 전용 진단뿐이라 이런 행동을 시키는 추천은 눌러도 답변 불가, 하드 차단
+_UNACTIONABLE_PATTERN = re.compile(
+    r"연락|연결|통보|호출|전화|이메일|메일|문자|발송|보내|접수|예약"
+    r"|조치\s*요청|조치해|처리\s*요청|처리해|요청해|티켓"
+)
 
 
 class Suggestions(BaseModel):
@@ -51,6 +59,11 @@ def _within_known_scope(question: str, known: set[str]) -> bool:
     return mentioned <= known
 
 
+def _within_capability(question: str) -> bool:
+    # 시스템이 못 하는 실행형 요청(연락·조치 요청·알림 등)이면 False, 능력 밖 추천 제외
+    return _UNACTIONABLE_PATTERN.search(question) is None
+
+
 def make_suggest_node(llm: BaseChatModel) -> Callable[[AgentState], Awaitable[dict[str, Any]]]:
     structured_llm = llm.with_structured_output(Suggestions)
 
@@ -58,10 +71,14 @@ def make_suggest_node(llm: BaseChatModel) -> Callable[[AgentState], Awaitable[di
         # 대화 전체 + 실제 확인된 컨텍스트를 근거로 후속 질문 생성
         entities = state.get("entities") or {}
         known = _known_identifiers(entities)
+        equipment_ids = entities.get("equipment_ids") or []
+        primary_equipment = equipment_ids[0] if equipment_ids else None
         context_prompt = SUGGEST_CONTEXT_PROMPT.format(known_context=format_entities(entities))
-        # 실제 적재된 데이터 보유 범위를 주입해 범위 밖 기간 제안 억제
-        window = await get_data_window()
-        system_prompt = SUGGEST_SYSTEM_PROMPT.format(available_window=format_data_window(window))
+        # 방금 다룬 설비의 실제 보유 구간을 주입해 데이터 없는 기간 제안 억제(설비 미특정 시 전역)
+        primary_window = await get_data_window(primary_equipment)
+        system_prompt = SUGGEST_SYSTEM_PROMPT.format(
+            available_window=format_data_window(primary_window)
+        )
         try:
             result = await structured_llm.ainvoke(
                 [
@@ -70,13 +87,21 @@ def make_suggest_node(llm: BaseChatModel) -> Callable[[AgentState], Awaitable[di
                     *state["messages"],
                 ]
             )
-            # 확인 범위 밖 식별자·조회 불가 기간을 지어낸 질문은 후처리에서 하드 차단
-            questions = [q.strip() for q in result.questions if q.strip()]
-            questions = [
-                q
-                for q in questions
-                if _within_known_scope(q, known) and within_data_window(q, window)
-            ][:MAX_SUGGESTIONS]
+            # 확인 범위 밖 식별자·능력 밖 실행 요청·조회 불가 기간을 지어낸 질문은 하드 차단
+            questions: list[str] = []
+            for candidate in (q.strip() for q in result.questions if q.strip()):
+                if not _within_known_scope(candidate, known):
+                    continue
+                if not _within_capability(candidate):
+                    continue
+                # 질문이 특정 설비를 지목하면 그 설비 보유 구간, 아니면 주 설비 기준으로 기간 검증
+                mentioned = EQUIPMENT_PATTERN.findall(candidate)
+                window = await get_data_window(mentioned[0]) if mentioned else primary_window
+                if not within_data_window(candidate, window):
+                    continue
+                questions.append(candidate)
+                if len(questions) >= MAX_SUGGESTIONS:
+                    break
         except Exception as exc:
             # 생성 실패 시 빈 목록으로 격리 (칩만 미표시)
             log.warning("[suggest] 추천 질문 생성 실패: %s", exc)
