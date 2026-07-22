@@ -25,6 +25,7 @@ from agentory.common.events import (
 from agentory.modules.agent.supervisor.finalizer import make_finalizer_node  # noqa: F401
 from agentory.modules.agent.supervisor.graph import FINALIZER, GROUNDING, SUGGEST
 from agentory.modules.agent.supervisor.orchestrator import FETCH, PLANNER
+from agentory.modules.agent.supervisor.table_format import StreamingTableNormalizer
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +125,8 @@ async def stream_agent_events(
     citations: list[dict] = []
     grounded: bool | None = None
     suggested: list[str] = []
+    # Finalizer 답변 토큰의 표 형식을 완성 줄 단위로 정규화(||-- vs |--|-- 불일치 고정)
+    normalizer = StreamingTableNormalizer()
 
     # 그래프 실행 중 예외는 error 이벤트로 전달 후 done으로 마감 (계약: error → done)
     try:
@@ -132,7 +135,9 @@ async def stream_agent_events(
         ):
             if mode == "messages":
                 for event in map_messages_chunk(chunk):
-                    yield event
+                    delta = normalizer.feed(event.delta)
+                    if delta:
+                        yield AnswerEvent(delta=delta)
                 continue
             # updates 모드: 종료 노드 산출물 수집 + 이벤트 방출
             for node, update in chunk.items():
@@ -144,6 +149,10 @@ async def stream_agent_events(
                     suggested = update.get("suggested_questions", suggested)
             for event in map_updates_chunk(chunk, next(counter), tool_agent_map):
                 yield event
+        # 정규화기에 남은 잔여 텍스트(마지막 줄·보류 헤더) 방출
+        tail = normalizer.flush()
+        if tail:
+            yield AnswerEvent(delta=tail)
     except GraphRecursionError:
         log.warning("[stream] 재귀 상한(%s) 초과", config)
         yield ErrorEvent(code="RECURSION_LIMIT", message=_RECURSION_MESSAGE)
