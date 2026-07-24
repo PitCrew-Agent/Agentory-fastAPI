@@ -34,11 +34,15 @@
 ## ERD
 
 현재 스키마 기준 관계도입니다. `knowledge_collection`은 벡터 검색 전용 컬렉션이므로
-다른 테이블과 외래 키 관계를 맺지 않습니다.
+다른 테이블과 외래 키 관계를 맺지 않습니다. `equipment_alarms`와 `notifications`를 잇는
+점선은 외래 키 제약이 없는 논리적 참조를 뜻하며, `notifications.source_alarm_id`가 버킷의 첫
+알람을 가리키되 워처 선제 알림에서는 NULL이 되는 관계입니다.
 
 ```mermaid
 erDiagram
     equipment_masters ||--o{ equipment_telemetries : "1:N 센서 로그"
+    equipment_masters ||--o{ equipment_alarms : "1:N 변수별 알람"
+    equipment_alarms ||..o{ notifications : "1:N 알림 소스"
     chat_session ||--o{ chat_message : "1:N 발화 이력"
     equipment_masters ||--o| equipment_anomaly_calibrations : "1:1 설비별 한계"
     equipment_masters ||--o{ equipment_anomaly_shadow_events : "1:N 섀도우 관찰"
@@ -71,6 +75,15 @@ erDiagram
         decimal rf_power
         decimal gas_flow
         varchar alarm_code
+    }
+    equipment_alarms {
+        bigint alarm_id PK
+        varchar equipment_id FK
+        varchar metric
+        varchar alarm_code
+        varchar severity
+        timestamptz raised_at
+        timestamptz cleared_at
     }
     knowledge_collection {
         bigint chunk_id PK
