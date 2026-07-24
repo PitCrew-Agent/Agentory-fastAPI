@@ -28,11 +28,7 @@ def upgrade() -> None:
         sa.Column("bucket_hour", sa.DateTime(timezone=True), nullable=True),
     )
     # 2) 기존 행 백필: 발생 시각의 정시 절단
-    op.execute(
-        sa.text(
-            "UPDATE notifications SET bucket_hour = date_trunc('hour', occurred_at)"
-        )
-    )
+    op.execute(sa.text("UPDATE notifications SET bucket_hour = date_trunc('hour', occurred_at)"))
     # 3) 기존 중복 정리: 버킷별 가장 이른 1건만 남기고 삭제
     op.execute(
         sa.text(
@@ -62,10 +58,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "uq_notifications_equip_alarm_bucket", "notifications", type_="unique"
-    )
-    op.create_unique_constraint(
-        "uq_notifications_source_log", "notifications", ["source_log_id"]
-    )
+    op.drop_constraint("uq_notifications_equip_alarm_bucket", "notifications", type_="unique")
+    op.create_unique_constraint("uq_notifications_source_log", "notifications", ["source_log_id"])
     op.drop_column("notifications", "bucket_hour")

@@ -32,9 +32,7 @@ def upgrade() -> None:
             "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.CheckConstraint("role IN ('admin', 'field_engineer')", name="ck_users_role"),
-        sa.CheckConstraint(
-            "status IN ('active', 'inactive', 'suspended')", name="ck_users_status"
-        ),
+        sa.CheckConstraint("status IN ('active', 'inactive', 'suspended')", name="ck_users_status"),
     )
 
     op.create_table(
