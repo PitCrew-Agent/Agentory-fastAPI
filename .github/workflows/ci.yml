@@ -28,11 +28,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # alembic도 실행되는 코드라 검사 대상 포함, pre-commit 훅 적용 범위와 일치
       - name: Ruff lint
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests alembic
 
       - name: Ruff format check
-        run: uv run ruff format --check src tests
+        run: uv run ruff format --check src tests alembic
 
   test:
     name: Test (unit·contracts)
