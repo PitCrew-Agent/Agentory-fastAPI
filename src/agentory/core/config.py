@@ -5,6 +5,7 @@
 """
 
 from functools import lru_cache
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,6 +24,9 @@ class Settings(BaseSettings):
 
     # Database (PostgreSQL + pgvector)
     database_url: str = "postgresql+asyncpg://agentory:agentory@localhost:5432/agentory"
+    # RDS 관리형 마스터 비번 로테이션 대응 (DEV_DATABASE), 값이 있으면 database_url의
+    # 비밀번호 부분만 이 값으로 교체, ECS는 rds! 시크릿의 password 키를 직접 주입
+    db_password: str = ""
 
     # LLM (OpenAI), 역할별 모델 선택: 비우면 llm_model 사용
     openai_api_key: str = ""
@@ -169,9 +173,23 @@ class Settings(BaseSettings):
     auth_cookie_domain: str = ""
 
 
+def _with_password(url: str, password: str) -> str:
+    # DB URL의 비밀번호만 교체, 호스트·유저·DB명은 기존 URL 유지 (DEV_DATABASE)
+    parts = urlsplit(url)
+    if not parts.hostname or not parts.username:
+        return url
+    netloc = f"{quote(parts.username, safe='')}:{quote(password, safe='')}@{parts.hostname}"
+    if parts.port:
+        netloc += f":{parts.port}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    # DB_PASSWORD가 주입되면 우선 적용, 로테이션 후 재배포만으로 새 비번 반영 (DEV_DATABASE)
+    if settings.db_password:
+        settings.database_url = _with_password(settings.database_url, settings.db_password)
     # Azure AD 편의: AZURE_AD_* 만 채워도 동작하도록 OIDC_* 로 유도 (BE_AUTH01_OAUTH01)
     if not settings.oidc_issuer_url and settings.azure_ad_tenant_id:
         settings.oidc_issuer_url = (
