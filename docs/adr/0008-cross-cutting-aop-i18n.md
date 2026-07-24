@@ -1,8 +1,8 @@
 # ADR-0008: 횡단 관심사 표준화 (예외·i18n·ApiResponse·액세스 로그)
 
-- 상태: 승인 (2026-07-13)
+- 상태: 승인 (2026-07-13), 감사 로그 격리 추가 (2026-07-24)
 - 결정자: 주희정
-- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [docs/api-response.md](../api-response.md), feature/97(#98), feature/99(#100), feature/101(#102), feature/103(#104), feature/105(#106)
+- 관련: [ADR-0001](0001-architecture.md), [ADR-0004](0004-realtime-sse.md), [docs/api-response.md](../api-response.md), [docs/database.md](../database.md), feature/97(#98), feature/99(#100), feature/101(#102), feature/103(#104), feature/105(#106)
 
 ## 배경
 
@@ -51,6 +51,33 @@ http_status·메시지로 직렬화합니다.
 - 로그 포맷에 request_id 주입(`RequestIdFilter`)해 한 요청의 로그를 동일 id로 묶음
 - 쿼리스트링은 토큰 노출 우려로 로그에서 제외
 
+### 5. 감사 로그 적재 best-effort 격리 (2026-07-24 추가)
+
+감사 로그 DB 적재 실패를 요청 처리와 분리합니다. `write_audit_event`의 `AuditLog` INSERT를
+try/except로 감싸 실패 시 경고 로그와 `request.state.audit_db_error`만 남기고 요청은 계속
+진행합니다. Redis 캐시 적재가 이미 같은 방식이었으므로 두 경로의 실패 처리를 맞춥니다.
+
+계기는 2026-07-23 RDS 관리형 마스터 비밀번호 로테이션입니다. `DATABASE_URL`의 비밀번호가
+옛 값으로 남아 DB 접속이 전부 실패했는데, 감사 로그 적재가 인증 미들웨어 경로에 있어
+DB와 무관한 요청까지 함께 죽었습니다. 영향 범위 실측은 다음과 같습니다.
+
+| 경로 | 사고 중 | 격리 후 기대값 | 비고 |
+| --- | --- | --- | --- |
+| `/api/v1/auth/login` | 500 | 200 | DB 불필요, IdP 인가 URL 발급만 수행 |
+| `/api/v1/auth/login/redirect` | 500 | 307 | 위와 동일 |
+| `/api/v1/auth/password-reset` | 500 | 200 | DB 불필요 |
+| `/api/v1/auth/me` | 500 | 401 | 세션은 Redis 조회, 담당 라인만 DB |
+| 존재하지 않는 `/api/v1/*` 경로 | 500 | 404 | 미들웨어가 라우팅 전에 실패 |
+| `/health` | 200 | 200 | PUBLIC_PATHS라 감사 로그 미적재 |
+
+DB 장애 지속 시간은 약 18시간(2026-07-23 16:10 로테이션 ~ 2026-07-24 11:53 복구)이었고,
+그동안 dev API의 `/api/v1/*` 전 경로가 500이었습니다. 격리 후에는 DB가 필요한 엔드포인트만
+실패하고 인증 흐름은 유지되므로, 같은 장애가 재발해도 로그인 자체는 가능합니다.
+
+트레이드오프로 DB 장애 구간의 감사 로그는 유실됩니다. 감사 로그가 인증·인가 판단의 근거가
+아니라 사후 추적용이고, Redis 캐시 경로가 남아 있어 단기 조회는 가능하므로 가용성을 우선했습니다.
+유실 사실은 `audit log db write failed` 경고로 남겨 모니터링에서 포착할 수 있게 했습니다.
+
 ## 대안 검토
 
 | 대안 | 기각 사유 |
@@ -60,6 +87,9 @@ http_status·메시지로 직렬화합니다.
 | 성공 응답을 body 재작성 미들웨어로 래핑 | SSE·스트림 body 파싱 충돌, OpenAPI 드리프트 |
 | enum 라벨(상태·작업유형) 백엔드 번역 | 저장 canonical 유지가 옳음, 표시 변환은 프론트 담당 |
 | i18n을 Babel gettext로 | 메시지 규모(~50)에 과함, 빌드 스텝 부담 |
+| 감사 로그를 PUBLIC_PATHS에서만 끄기 | 사고 재현 시 인증 필요 경로는 그대로 전면 500, 근본 해결 아님 |
+| 감사 로그 DB 적재를 백그라운드 태스크로 이관 | 실패 격리는 되나 유실이 조용해짐, 경고 로그 확보가 우선이라 보류 |
+| 감사 로그 DB 적재 자체를 제거하고 Redis만 사용 | Redis TTL 만료 후 추적 불가, 감사 요건상 영속 저장 필요 |
 
 ## 결과 / 미해결
 

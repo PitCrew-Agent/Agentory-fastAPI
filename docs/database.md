@@ -608,6 +608,29 @@ uv run alembic upgrade head      # 스키마 생성 (pgvector 확장 포함)
 uv run python scripts/seed_data.py   # §8 샘플 데이터 적재 (멱등)
 ```
 
+## 접속 자격 증명 (dev·prod)
+
+RDS 인스턴스 `agentory-postgres-dev`는 RDS 관리형 마스터 비밀번호를 사용하며, 7일 주기로
+자동 로테이션됩니다. 로테이션이 일어나도 애플리케이션이 계속 접속할 수 있도록 비밀번호는
+RDS가 관리하는 시크릿에서 직접 주입합니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 비밀번호 원본 | Secrets Manager `rds!db-...` (RDS 관리형, 7일 로테이션) |
+| 주입 환경 변수 | `DB_PASSWORD` (ECS 태스크 정의 `secrets`, JSON `password` 키 지정) |
+| 접속 URL | `DATABASE_URL` (호스트·유저·DB명 용도, 비밀번호는 무시됨) |
+| 조합 위치 | `core/config.py` `get_settings()` |
+
+`DB_PASSWORD`에 값이 있으면 `get_settings()`가 `DATABASE_URL`의 비밀번호 부분만 이 값으로
+교체합니다. 따라서 로테이션 이후에는 시크릿을 손댈 필요 없이 ECS 서비스를 재배포하면 새
+비밀번호가 반영됩니다. 로컬 개발에서는 `DB_PASSWORD`를 비워 두고 `DATABASE_URL` 하나만
+사용하시면 됩니다.
+
+2026-07-23 로테이션 당시 이 구조가 없어 `DATABASE_URL`의 비밀번호가 옛 값으로 남았고,
+약 18시간 동안 dev API 전 경로가 500을 반환했습니다. 당시 감사 로그 적재가 DB 실패를
+그대로 전파하는 구조여서 로그인 인가 URL 발급까지 함께 중단되었으므로, 감사 로그 적재는
+best-effort로 격리했습니다(자세한 내용은 [ADR-0008](adr/0008-cross-cutting-aop-i18n.md) 참고).
+
 ## 마이그레이션 규약
 
 스키마 변경 시 다음 규약을 따릅니다.

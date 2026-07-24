@@ -3,6 +3,7 @@
 Keycloak(IdP) 연동, 구현 후 main.py create_app()에서 미들웨어/의존성으로 등록
 """
 
+import logging
 from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
@@ -18,6 +19,8 @@ from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.modules.auth.models import AuditLog, SSOAccount, User
 from agentory.modules.auth.redis_store import cache_audit_log, get_auth_session
+
+log = logging.getLogger(__name__)
 
 PUBLIC_PATHS = {
     "/health",
@@ -261,22 +264,29 @@ async def write_audit_event(
     }
 
     if settings.audit_log_db_enabled:
-        async with SessionLocal() as session:
-            audit_log = AuditLog(
-                user_id=event["user_id"],
-                action=event["action"],
-                method=event["method"],
-                path=event["path"],
-                status_code=event["status_code"],
-                ip_address=event["ip_address"],
-                user_agent=event["user_agent"],
-                success=event["success"],
-                error_message=event["error_message"],
-            )
-            session.add(audit_log)
-            await session.flush()
-            event["id"] = audit_log.id
-            await session.commit()
+        # 감사 로그 적재는 best-effort, DB 장애가 전 요청 500으로 번지지 않도록 격리
+        # (2026-07-23 RDS 비번 로테이션 때 API 전면 중단 재발 방지, DEV_DATABASE)
+        try:
+            async with SessionLocal() as session:
+                audit_log = AuditLog(
+                    user_id=event["user_id"],
+                    action=event["action"],
+                    method=event["method"],
+                    path=event["path"],
+                    status_code=event["status_code"],
+                    ip_address=event["ip_address"],
+                    user_agent=event["user_agent"],
+                    success=event["success"],
+                    error_message=event["error_message"],
+                )
+                session.add(audit_log)
+                await session.flush()
+                event["id"] = audit_log.id
+                await session.commit()
+        except Exception as exc:
+            # 유실 사실은 경고 로그로 남겨 모니터링에서 포착 가능하게 유지
+            log.warning("audit log db write failed: %s", exc)
+            request.state.audit_db_error = str(exc)
 
     try:
         await cache_audit_log(event)
