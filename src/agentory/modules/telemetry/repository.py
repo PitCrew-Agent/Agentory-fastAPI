@@ -210,29 +210,27 @@ async def fetch_alarm_history(
     alarm_code: str | None = None,
 ) -> list[dict[str, Any]]:
     # 알람 이력 집계 (BE_MCP02_TELEMETRY02 / NEW_ALARM01_HISTORY02)
-    # 알람 코드별 발생 횟수·최초/최근 시각 집계, 다발 순 정렬 (NULL 알람 제외)
+    # 알람 코드별 발령 횟수·최초/최근 발령 시각 집계, 다발 순 정렬
+    # 지속 알람은 1건으로 집계, 텔레메트리 샘플 수가 아닌 equipment_alarms 발령 이벤트 기준
     # 기간(start/end) 미지정 시 전체 이력 대상 (REST 요약 조회는 기본 전체)
     stmt = (
         select(
-            EquipmentTelemetry.alarm_code,
+            EquipmentAlarm.alarm_code,
             func.count().label("count"),
-            func.min(EquipmentTelemetry.timestamp).label("first_seen"),
-            func.max(EquipmentTelemetry.timestamp).label("last_seen"),
+            func.min(EquipmentAlarm.raised_at).label("first_seen"),
+            func.max(EquipmentAlarm.raised_at).label("last_seen"),
         )
-        .where(
-            EquipmentTelemetry.equipment_id == equipment_id,
-            EquipmentTelemetry.alarm_code.is_not(None),
-        )
-        .group_by(EquipmentTelemetry.alarm_code)
+        .where(EquipmentAlarm.equipment_id == equipment_id)
+        .group_by(EquipmentAlarm.alarm_code)
         .order_by(func.count().desc())
     )
     if start_time is not None:
-        stmt = stmt.where(EquipmentTelemetry.timestamp >= start_time)
+        stmt = stmt.where(EquipmentAlarm.raised_at >= start_time)
     if end_time is not None:
-        stmt = stmt.where(EquipmentTelemetry.timestamp <= end_time)
+        stmt = stmt.where(EquipmentAlarm.raised_at <= end_time)
     if alarm_code:
         # 특정 알람 코드로 좁힘
-        stmt = stmt.where(EquipmentTelemetry.alarm_code == alarm_code)
+        stmt = stmt.where(EquipmentAlarm.alarm_code == alarm_code)
 
     rows = await session.execute(stmt)
     # 코드별 집계 행을 dict로 변환
