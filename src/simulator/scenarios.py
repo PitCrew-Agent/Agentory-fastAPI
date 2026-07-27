@@ -2,7 +2,7 @@
 
 각 시나리오는 대상 설비에 어떤 이상을 주입할지 규정
 변수별 독립 이상(급성·드리프트·변동성)을 조합으로 표현, 한 설비가 변수마다 다른 상태를 동시에 가짐
-복합 코드(ERR-402·ERR-901)는 변수 간 코드 전이를 유발해 은퇴, 이상은 항상 단일변수 코드로 발생
+복합 냉각 고장(온도↑+압력↓)은 대표 알람 ERR-402, 그 외는 변수별 단일 코드 (매뉴얼 §5.1)
 """
 
 from dataclasses import dataclass
@@ -14,6 +14,8 @@ class ScenarioSpec:
     variance_vars: tuple[str, ...] = ()  # 변동성(sigma) 증폭 변수 → WRN-801
     # 값을 밴드 밖으로 계단 이탈시킬 변수 → ERR-401/301/201·WRN-501
     acute_vars: tuple[str, ...] = ()
+    # LSL 아래로 계단 이탈시킬 변수 (하향 급성), 온도 급성↑ 동반 시 복합 ERR-402
+    acute_low_vars: tuple[str, ...] = ()
 
 
 SCENARIOS: dict[str, ScenarioSpec] = {
@@ -41,18 +43,28 @@ SCENARIOS: dict[str, ScenarioSpec] = {
     "gas_acute_temp_drift": ScenarioSpec(
         acute_vars=("gas_flow",), drift_vars=("temperature",)
     ),  # 가스 WRN-501(주의) + 온도 WRN-701(주의)
+    # 복합 냉각 고장 (온도 급성↑ + 압력 급성↓ 동반) → 대표 알람 ERR-402 (매뉴얼 §5.1)
+    "cooling_fault_demo": ScenarioSpec(
+        acute_vars=("temperature",), acute_low_vars=("pressure",)
+    ),  # 온도 ERR-401 + 압력 ERR-301 → 복합 대표 ERR-402(위험)
 }
 
 NORMAL = SCENARIOS["normal"]
 
-# 데모용 다중 설비 시나리오 배치 (설비 → 시나리오 키), 미지정 설비는 normal
-# 4개 변수를 급성·드리프트로 고루 노출하고, 여러 설비가 변수별 동시 독립 이상을 갖도록 배치
+# 설비별 시나리오 배치 단일 소스 (설비 → 시나리오 키), 미지정 설비는 normal
+# 시드(seed_data)와 라이브 시뮬레이터(--preset)가 이 배치를 공유해 이상 상태를 일관 재현
+# 4개 변수를 급성·드리프트·변동성으로 고루 노출, A05는 복합 냉각 고장(ERR-402) 전담
 PRESETS: dict[str, dict[str, str]] = {
     "floor_demo": {
-        "EQP-A05": "temp_acute_pressure_drift",  # 온도 급성(위험) + 압력 드리프트(주의) 동시
-        "EQP-A03": "rf_acute_gas_drift",  # RF 급성(위험) + 가스 드리프트(주의) 동시
-        "EQP-B04": "gas_acute_temp_drift",  # 가스 급성(주의) + 온도 드리프트(주의) 동시
-        "EQP-C03": "pressure_acute",  # 압력 급성(위험) 단일
+        # A라인 (하경훈)
+        "EQP-A03": "pressure_drift_pm",  # 압력 드리프트 → WRN-702(주의)
+        "EQP-A05": "cooling_fault_demo",  # 온도 급성↑ + 압력 급성↓ → 복합 ERR-402(위험)
+        # B라인 (김철용)
+        "EQP-B03": "pressure_acute",  # 압력 급성 → ERR-301(위험)
+        # C라인 (이준호)
+        "EQP-C02": "gas_flow_acute",  # 가스 급성 → WRN-501(주의)
+        "EQP-C04": "variance_increase",  # 압력 변동성 → WRN-801(주의)
+        "EQP-C05": "rf_acute_gas_drift",  # RF 급성(위험) + 가스 드리프트(주의) 동시
     },
 }
 

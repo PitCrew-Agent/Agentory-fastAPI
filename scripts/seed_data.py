@@ -13,6 +13,7 @@ equipment_id 기준 UPSERT로 정의만 갱신해 학습성 이상감지 데이�
 import asyncio
 import math
 import random
+import zlib
 from collections import deque
 from datetime import UTC, date, datetime, timedelta
 
@@ -27,13 +28,14 @@ from agentory.modules.telemetry.models import (
     EquipmentMaster,
     EquipmentTelemetry,
 )
-from simulator.generator import VARS, generate_reading, representative
-from simulator.scenarios import SCENARIOS
+from agentory.modules.telemetry.schemas import alarm_severity
+from simulator.generator import VARS, generate_reading, representative, surface_codes
+from simulator.scenarios import PRESETS, SCENARIOS
 
 
 def _severity(alarm_code: str) -> str:
-    # 알람 코드 접두로 심각도 판정 (StatusLevel 값 표기), ERR=위험·그 외=주의
-    return "위험" if alarm_code.startswith("ERR") else "주의"
+    # 심각도 판정은 telemetry 단일 소스 사용 (복합·다변량만 위험, 단일 밴드 이탈은 주의)
+    return alarm_severity(alarm_code)
 
 
 # bay_zone별 3D 좌표·회전 (설비 문서 값 규칙), north는 정면·south는 180도 회전
@@ -53,35 +55,34 @@ LINES = [
     ("C", "C라인", "Main-Tech 3", "이준호"),
 ]
 
-# 라인별 설비 배치, 문서 배치의 x·bay_zone·상태 등급을 유지하되 전 슬롯 식각 챔버로 치환
-# (display_order, position_x, bay_zone, scenario), scenario는 이상 등급 재현용 시뮬레이터 시나리오
-# "normal"은 양호, 드리프트·급성 시나리오는 주의·위험 재현 (현재 상태 모델은 양호/주의/위험 3단계)
-LAYOUT: dict[str, list[tuple[int, float, str, str]]] = {
+# 라인별 설비 3D 배치 (display_order, position_x, bay_zone), 문서 배치의 x·bay_zone 유지
+# 이상 시나리오 배치는 PRESETS["floor_demo"]가 단일 소스 (시드·라이브 공유)
+LAYOUT: dict[str, list[tuple[int, float, str]]] = {
     "A": [
-        (1, -3.9, "north", "normal"),
-        (2, -3.9, "south", "normal"),
-        (3, -1.3, "south", "pressure_drift_pm"),  # 주의(WRN-702)
-        (4, -1.3, "north", "normal"),
-        (5, 1.3, "north", "temp_acute_pressure_drift"),  # 위험(ERR-401)+주의(WRN-702) 동시
-        (6, 1.3, "south", "temperature_acute"),  # 위험(ERR-401)
-        (7, 3.9, "north", "normal"),
+        (1, -3.9, "north"),
+        (2, -3.9, "south"),
+        (3, -1.3, "south"),
+        (4, -1.3, "north"),
+        (5, 1.3, "north"),
+        (6, 1.3, "south"),
+        (7, 3.9, "north"),
     ],
     "B": [
-        (1, -3.9, "north", "normal"),
-        (2, -3.9, "south", "rf_power_drift_pm"),  # 주의(WRN-703)
-        (3, -1.3, "north", "pressure_acute"),  # 위험(ERR-301)
-        (4, -1.3, "south", "gas_flow_drift_pm"),  # 주의(WRN-704)
-        (5, 1.3, "south", "normal"),
-        (6, 1.3, "north", "rf_power_acute"),  # 위험(ERR-201)
-        (7, 3.9, "north", "normal"),
+        (1, -3.9, "north"),
+        (2, -3.9, "south"),
+        (3, -1.3, "north"),
+        (4, -1.3, "south"),
+        (5, 1.3, "south"),
+        (6, 1.3, "north"),
+        (7, 3.9, "north"),
     ],
     "C": [
-        (1, -2.6, "north", "normal"),
-        (2, 0.0, "north", "gas_flow_acute"),  # 주의(WRN-501)
-        (3, -2.6, "south", "temperature_drift_pm"),  # 주의(WRN-701)
-        (4, 2.6, "north", "variance_increase"),  # 주의(WRN-801)
-        (5, 0.0, "south", "rf_acute_gas_drift"),  # 위험(ERR-201)+주의(WRN-704) 동시
-        (6, 2.6, "south", "normal"),
+        (1, -2.6, "north"),
+        (2, 0.0, "north"),
+        (3, -2.6, "south"),
+        (4, 2.6, "north"),
+        (5, 0.0, "south"),
+        (6, 2.6, "south"),
     ],
 }
 
@@ -112,7 +113,7 @@ def build_masters() -> list[EquipmentMaster]:
     # 3라인 배치를 설비 마스터로 전개, 위치·회전은 bay_zone에서 파생
     masters: list[EquipmentMaster] = []
     for line_code, line_name, dept, owner in LINES:
-        for order, pos_x, bay_zone, _scenario in LAYOUT[line_code]:
+        for order, pos_x, bay_zone in LAYOUT[line_code]:
             geom = BAY_GEOMETRY[bay_zone]
             equipment_id = f"EQP-{line_code}{order:02d}"
             masters.append(
@@ -144,10 +145,12 @@ def build_telemetry(
     # 확정 코드의 발생/해제 전이를 equipment_alarms 이벤트로 산출 (시뮬레이터 적재와 동일 규칙)
     scenario = SCENARIOS[scenario_name]
     drift_start = LATE_START_TICK if scenario_name in LATE_START_SCENARIOS else DRIFT_START_TICK
-    # 설비별 고정 시드로 재현 가능한 잡음 생성
-    rng = random.Random(hash(equipment_id) & 0xFFFFFFFF)
+    # 설비별 고정 시드로 재현 가능한 잡음 생성 (hash는 프로세스마다 값이 달라 crc32 사용)
+    is_normal = scenario_name == "normal"
+    rng = random.Random(zlib.crc32(equipment_id.encode()))
     window: deque = deque(maxlen=8)
     prev_candidates: dict[str, str | None] = {}
+    prev_composite: str | None = None  # 직전 tick 복합 후보 (ERR-402 2 tick 지속 확정용)
     active: dict[str, tuple[str, datetime]] = {}  # metric -> (code, raised_at) 열린 알람
     rows: list[EquipmentTelemetry] = []
     alarms: list[EquipmentAlarm] = []
@@ -163,15 +166,26 @@ def build_telemetry(
             rng=rng,
         )
         window.append(reading)
-        # 변수별 확정 (직전 tick과 동일 후보만)
-        confirmed: dict[str, str | None] = {}
-        for var in VARS:
-            cand = reading.alarm_codes.get(var)
-            confirmed[var] = cand if cand is not None and cand == prev_candidates.get(var) else None
-        prev_candidates = dict(reading.alarm_codes)
+        # 정상 배치 설비는 노이즈 값만 유지하고 알람 억제, 통제된 데모·오탐 방지
+        confirmed: dict[str, str | None] = {var: None for var in VARS}
+        comp_confirmed: str | None = None
+        if not is_normal:
+            # 변수별 확정 (직전 tick과 동일 후보만)
+            for var in VARS:
+                cand = reading.alarm_codes.get(var)
+                if cand is not None and cand == prev_candidates.get(var):
+                    confirmed[var] = cand
+            prev_candidates = dict(reading.alarm_codes)
+            # 복합 냉각 고장(ERR-402)도 2 tick 지속 확정 (변수별과 동일 규칙, 대표 알람 오버레이)
+            comp_cand = reading.composite_code
+            if comp_cand is not None and comp_cand == prev_composite:
+                comp_confirmed = comp_cand
+            prev_composite = comp_cand
+        # 복합이면 단일 코드 억제·대표 채널 ERR-402 부여 후 전이 산출 (매뉴얼 §5.1)
+        surfaced = surface_codes(confirmed, comp_confirmed)
         # 변수별 발생/해제 전이 → equipment_alarms 이벤트
         for metric in VARS:
-            code = confirmed[metric]
+            code = surfaced[metric]
             current = active.get(metric)
             current_code = current[0] if current else None
             if code == current_code:
@@ -198,7 +212,7 @@ def build_telemetry(
                 pressure=reading.pressure,
                 rf_power=reading.rf_power,
                 gas_flow=reading.gas_flow,
-                alarm_code=representative(confirmed),
+                alarm_code=representative(surfaced),
             )
         )
     # 마지막까지 열려 있는 알람은 활성(cleared_at NULL)으로 남겨 현재 알람 상태 재현
@@ -224,11 +238,19 @@ REPAIR_MAX_COUNT = 5  # 장비별 최대 건수
 
 # 알람 코드별 수리 비고 풀, 코드 풀이 작아 동일 코드가 반복되며 반복 고장 패턴 재현
 REPAIR_NOTES: dict[str, list[str]] = {
+    "ERR-402": [
+        "냉각 계통 고장, 냉각수 밸브 개방 조정·냉각팬 점검",
+        "동일 냉각 고장 재발, 밸브 압력 재확보",
+    ],
     "ERR-401": ["온도 급상승, 냉각 밸브 점검·교체", "동일 증상 재발, 냉각수 라인 세정"],
     "ERR-301": ["압력 이상, 배관 누설 보수", "진공 펌프 오일 교환·리크 체크"],
     "ERR-201": ["RF 파워 이상, 매칭 네트워크 조정", "RF 제너레이터 출력 캘리브레이션"],
     "WRN-501": ["가스 유량 저하, MFC 점검·퍼지", "가스 공급 라인 필터 교체"],
 }
+# 일반 설비 수리 비고 랜덤 풀 (복합 냉각 ERR-402는 A05 전용이라 제외)
+_GENERAL_REPAIR_CODES = ["ERR-201", "ERR-301", "ERR-401", "WRN-501"]
+# 특정 설비의 반복 고장 강제 (설비 → (알람 코드, 최소 반복 건수)), 재발 집계 데모 재현
+_RECURRING_REPAIRS = {"EQP-A05": ("ERR-402", 2)}
 
 # 팀 공용 로그인 계정 더미 배정 (BE_NOTI01_SCOPE01), field_engineer라 배정 라인 알림만 조회
 # SSO 자동 프로비저닝이 이메일로 기존 유저를 연결하므로 선시드해도 로그인 시 정상 연결
@@ -243,15 +265,20 @@ def build_repairs() -> list[EquipmentRepair]:
     # 문자열 시드 고정으로 재실행에도 동일 데이터 재현, repaired_by는 시드 범위 밖이라 NULL
     repairs: list[EquipmentRepair] = []
     period_minutes = int((REPAIR_PERIOD_END - REPAIR_PERIOD_START).total_seconds() // 60)
-    codes = sorted(REPAIR_NOTES)
     for line_code, *_ in LINES:
         for order, *_rest in LAYOUT[line_code]:
             equipment_id = f"EQP-{line_code}{order:02d}"
             rng = random.Random(f"repair-{equipment_id}")
             count = rng.randint(REPAIR_MIN_COUNT, REPAIR_MAX_COUNT)
             offsets = sorted(rng.sample(range(period_minutes), count))
-            picked = [rng.choice(codes) for _ in range(count)]
-            if len(set(picked)) == len(picked):
+            picked = [rng.choice(_GENERAL_REPAIR_CODES) for _ in range(count)]
+            recurring = _RECURRING_REPAIRS.get(equipment_id)
+            if recurring is not None:
+                # 지정 설비는 앞부분을 동일 코드로 강제해 반복 고장(재발) 이력 재현
+                code, min_count = recurring
+                for i in range(min(min_count, count)):
+                    picked[i] = code
+            elif len(set(picked)) == len(picked):
                 picked[-1] = picked[0]  # 전부 다른 코드로 뽑히면 반복 고장 패턴 보장용 보정
             for offset, code in zip(offsets, picked, strict=True):
                 repairs.append(
@@ -311,9 +338,11 @@ async def seed() -> None:
 
     telemetry: list[EquipmentTelemetry] = []
     alarms: list[EquipmentAlarm] = []
+    floor_demo = PRESETS["floor_demo"]  # 설비별 시나리오 배치 단일 소스 (라이브 시뮬레이터와 공유)
     for line_code, *_ in LINES:
-        for order, _pos_x, _bay_zone, scenario_name in LAYOUT[line_code]:
+        for order, _pos_x, _bay_zone in LAYOUT[line_code]:
             equipment_id = f"EQP-{line_code}{order:02d}"
+            scenario_name = floor_demo.get(equipment_id, "normal")
             rows, alarm_rows = build_telemetry(equipment_id, scenario_name)
             telemetry.extend(rows)
             alarms.extend(alarm_rows)

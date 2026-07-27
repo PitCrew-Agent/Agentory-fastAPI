@@ -108,7 +108,7 @@ async def get_equipment_metadata(equipment_id: str = "", line_name: str = "") ->
 async def get_repair_history(equipment_id: str = "", start: str = "", end: str = "") -> str:
     """설비 과거 수리 이력 조회"""
     await _delay()
-    return "EQP-A05 repair 2026-07-02 ERR-401 냉각수 라인 세정, 반복 고장 2회"
+    return "EQP-A05 repair 2026-07-02 ERR-402 냉각 계통 밸브 조정, 반복 고장 2회"
 
 
 @tool

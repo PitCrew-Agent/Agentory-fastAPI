@@ -22,7 +22,7 @@ from langchain_core.messages import AIMessage
 from agentory.modules.agent.runner import RECURSION_LIMIT, initial_state
 from agentory.modules.agent.supervisor.graph import build_agent_graph
 
-# 워크로드: 워커 3종 경로 + 범위밖 잡담, 시드 설비(EQP-A05: ERR-401+WRN-702, 수리 2건) 기반
+# 워크로드: 워커 3종 경로 + 범위밖 잡담, 시드 설비(EQP-A05: 복합 냉각 고장 ERR-402, 수리 2건) 기반
 # (라벨, 질의, 기대 도구 집합, 정답 키워드 후보, 인용 필요)
 CASES = [
     (
@@ -43,7 +43,7 @@ CASES = [
         "maintenance",
         "EQP-A05 전에도 같은 고장 난 적 있어? 그때 무슨 조치 했는지도 알려줘",
         {"get_repair_history", "get_maintenance_summary"},
-        ["ERR-401", "냉각", "수리"],
+        ["ERR-402", "냉각", "수리"],
         False,
     ),
     (

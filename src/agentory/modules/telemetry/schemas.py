@@ -13,6 +13,16 @@ class StatusLevel(StrEnum):
     CRITICAL = "위험"
 
 
+# 위험 등급 알람 코드 집합 (매뉴얼 상태 판정)
+# 복합 냉각 고장(ERR-402)·다변량 관계 붕괴(ERR-901·WRN-901)만 위험, 단일 급성·드리프트·변동성은 주의
+CRITICAL_ALARM_CODES: frozenset[str] = frozenset({"ERR-402", "ERR-901", "WRN-901"})
+
+
+def alarm_severity(alarm_code: str) -> str:
+    # 알람 심각도 라벨, 복합·다변량만 위험 나머지 주의 (관리한계 단일 이탈은 주의)
+    return StatusLevel.CRITICAL if alarm_code in CRITICAL_ALARM_CODES else StatusLevel.WARNING
+
+
 class ChecklistItem(BaseModel):
     # 조치 체크리스트 단일 항목 (표시 전용, 체크 상태 미영속)
     text: str

@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import pytest
 
-from simulator.generator import VARS, generate_reading
+from simulator.generator import VARS, generate_reading, surface_codes
 from simulator.main import _select_spec
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
@@ -138,7 +138,7 @@ def test_gain_default_keeps_baseline_behavior():
 
 
 def test_floor_demo_preset_covers_all_sensor_variables():
-    # 데모 preset은 4개 센서 변수를 급성으로 모두 노출, 복합 코드 없이 변수별 단일 이상만 배치
+    # 데모 preset은 4개 센서 변수를 급성으로 모두 노출, A05는 복합 냉각 고장(ERR-402) 전담
     assigned = [SCENARIOS[name] for name in PRESETS["floor_demo"].values()]
     acute = {var for s in assigned for var in s.acute_vars}
     assert acute == set(VARS)
@@ -146,6 +146,57 @@ def test_floor_demo_preset_covers_all_sensor_variables():
     assert any(s.acute_vars and s.drift_vars for s in assigned)
     # 한 변수가 급성과 드리프트를 겹쳐 갖지 않음 (변수 내 상태 모호 방지)
     assert all(not (set(s.acute_vars) & set(s.drift_vars)) for s in assigned)
+    # A05는 온도 급성↑ + 압력 급성↓ 복합 냉각 고장 배치
+    a05 = SCENARIOS[PRESETS["floor_demo"]["EQP-A05"]]
+    assert a05.acute_vars == ("temperature",) and a05.acute_low_vars == ("pressure",)
+
+
+def test_cooling_fault_demo_yields_composite_err402():
+    # 온도 급성↑ + 압력 급성↓ 동반 → 변수별 ERR-401·ERR-301, 대표는 복합 ERR-402 (매뉴얼 §5.1)
+    reading = generate_reading(
+        "EQP-A05",
+        "Etching",
+        scenario=SCENARIOS["cooling_fault_demo"],
+        tick=10,
+        drift_start_tick=0,
+        rng=_rng(),
+    )
+    assert reading.alarm_codes["temperature"] == "ERR-401"
+    assert reading.alarm_codes["pressure"] == "ERR-301"
+    assert reading.alarm_codes["rf_power"] is None
+    assert reading.composite_code == "ERR-402"
+    # 대표 알람은 복합 냉각 고장 우선 (option a: 변수별 코드는 유지)
+    assert reading.alarm_code == "ERR-402"
+
+
+def test_acute_low_pushes_pressure_below_band():
+    # 하향 급성은 값을 밴드 아래로 계단 이탈시켜 압력 급성(ERR-301) 발생
+    reading = generate_reading(
+        "EQP-A05",
+        "Etching",
+        scenario=SCENARIOS["cooling_fault_demo"],
+        tick=10,
+        drift_start_tick=0,
+        rng=_rng(),
+    )
+    assert float(reading.pressure) < 40.0  # 압력 밴드 하한(40) 미만
+    assert reading.alarm_codes["pressure"] == "ERR-301"
+
+
+def test_surface_codes_composite_suppresses_singles():
+    # 복합이면 온도·압력 단일 코드 억제, 대표 채널(온도)에 ERR-402, 무관 변수는 유지 (매뉴얼 §5.1)
+    codes = {
+        "temperature": "ERR-401",
+        "pressure": "ERR-301",
+        "rf_power": None,
+        "gas_flow": "WRN-704",
+    }
+    surfaced = surface_codes(codes, "ERR-402")
+    assert surfaced["temperature"] == "ERR-402"
+    assert surfaced["pressure"] is None
+    assert surfaced["gas_flow"] == "WRN-704"
+    # 복합 없으면 원본 그대로
+    assert surface_codes(codes, None) == codes
 
 
 @pytest.mark.parametrize(
@@ -180,7 +231,7 @@ def test_acute_offset_keeps_value_within_fault_clamp():
 
 _NOW = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 _HEAL = timedelta(minutes=60)
-_MAP = {"EQP-A05": "temp_acute_pressure_drift"}  # preset 배치상 고장 설비
+_MAP = {"EQP-A05": "cooling_fault_demo"}  # preset 배치상 고장 설비 (A05 복합 냉각 고장)
 
 
 def test_heal_window_forces_normal_within_window():
@@ -208,7 +259,7 @@ def test_heal_window_resumes_scenario_after_window():
         scenario=NORMAL,
         target_equipment_id="EQP-003",
     )
-    assert spec is SCENARIOS["temp_acute_pressure_drift"]
+    assert spec is SCENARIOS["cooling_fault_demo"]
 
 
 def test_no_repair_keeps_scenario():
@@ -222,7 +273,7 @@ def test_no_repair_keeps_scenario():
         scenario=NORMAL,
         target_equipment_id="EQP-003",
     )
-    assert spec is SCENARIOS["temp_acute_pressure_drift"]
+    assert spec is SCENARIOS["cooling_fault_demo"]
 
 
 def test_heal_window_target_mode_after_window():

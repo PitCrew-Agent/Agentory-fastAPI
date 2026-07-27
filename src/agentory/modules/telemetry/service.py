@@ -15,6 +15,7 @@ from agentory.modules.agent.equipment_suggest import generate_equipment_suggesti
 from agentory.modules.telemetry import repository
 from agentory.modules.telemetry.checklists import alarm_metrics, build_checklist_items
 from agentory.modules.telemetry.schemas import (
+    CRITICAL_ALARM_CODES,
     AlarmEventItem,
     AlarmHistoryPage,
     AlarmSensorSummaryItem,
@@ -38,10 +39,10 @@ MAX_ALARM_PAGE_SIZE = 50
 
 
 def assess_status(alarm_code: str | None) -> StatusLevel:
-    # 알람 코드 접두로 상태 판정, 미분류 알람은 보수적으로 경고 처리
+    # 복합 냉각·다변량만 위험, 단일 밴드 이탈은 주의, 미분류는 보수적 경고 (매뉴얼 상태 판정)
     if not alarm_code:
         return StatusLevel.NORMAL
-    if alarm_code.startswith("ERR"):
+    if alarm_code in CRITICAL_ALARM_CODES:
         return StatusLevel.CRITICAL
     return StatusLevel.WARNING
 

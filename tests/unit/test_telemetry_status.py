@@ -18,13 +18,18 @@ from agentory.modules.telemetry.service import assess_status
     [
         (None, StatusLevel.NORMAL),
         ("", StatusLevel.NORMAL),
+        ("ERR-401", StatusLevel.WARNING),  # 단일 급성 밴드 이탈은 주의 (매뉴얼 상태 판정)
+        ("ERR-301", StatusLevel.WARNING),
+        ("ERR-201", StatusLevel.WARNING),
+        ("WRN-501", StatusLevel.WARNING),
         ("WRN-701", StatusLevel.WARNING),
         ("WRN-801", StatusLevel.WARNING),
-        ("ERR-402", StatusLevel.CRITICAL),
-        ("ERR-901", StatusLevel.CRITICAL),
+        ("ERR-402", StatusLevel.CRITICAL),  # 복합 냉각 고장만 위험
+        ("ERR-901", StatusLevel.CRITICAL),  # 다변량 관계 붕괴
+        ("WRN-901", StatusLevel.CRITICAL),  # 다변량 이상 감지 (실발령 코드)
     ],
 )
-def test_assess_status_by_alarm_prefix(alarm_code, expected):
+def test_assess_status_critical_only_composite_and_multivariate(alarm_code, expected):
     assert assess_status(alarm_code) == expected
 
 

@@ -88,7 +88,8 @@ services:
 
   simulator:
     build: .
-    command: ["simulator"]  # 기본 normal 시나리오, 5초 주기 무한 적재
+    # floor_demo 배치를 드리프트 소진 지점(start-tick)부터 지속 적용, 수리 전까지 이상 유지
+    command: ["simulator", "--preset", "floor_demo", "--start-tick", "200"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://agentory:agentory@db:5432/agentory

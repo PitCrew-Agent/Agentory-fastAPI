@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from agentory.modules.telemetry.schemas import alarm_severity
 from anomaly.models.pca_mspc import PcaMspc
 from anomaly.models.var_residual import VarResidual
 from anomaly.scoring import ewma_masked, sustained, transition_mask
@@ -18,8 +19,9 @@ from anomaly.windowing import sliding_windows
 VARS: tuple[str, ...] = ("temperature", "pressure", "rf_power", "gas_flow")
 
 # 이상 감지 발령 코드·심각도, 규칙 코드(ERR/WRN-50x~80x)와 구분되는 통계 이상 코드
+# 다변량 관계 붕괴는 위험 등급 (매뉴얼 상태 판정), 심각도는 telemetry 단일 소스 사용
 ANOMALY_ALARM_CODE = "WRN-901"
-ANOMALY_SEVERITY = "주의"
+ANOMALY_SEVERITY = alarm_severity(ANOMALY_ALARM_CODE)
 
 
 @dataclass(frozen=True)
