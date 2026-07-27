@@ -5,8 +5,9 @@ SPC 기반 동적 밴드 모델 (참고서 §2·§3)
 - 급성 이상(값이 동적 밴드 밖) → ERR-401·ERR-301·ERR-201·WRN-501
 - 드리프트/PM(밴드가 하드리밋 회랑 소진) → WRN-701~704
 - 변동성 증가(최근 창 1차 차분 표준편차가 정상의 2배 초과, 추세 무관) → WRN-801
+- 복합 냉각 고장(온도 급성↑ + 압력 급성↓ 동반) → 대표 알람 ERR-402 (매뉴얼 §5.1)
 - 변수마다 독립 판정, 후보 중 우선순위 최상위 1개를 그 변수 알람으로 선정
-- 대표 알람(alarm_code)은 변수별 알람 중 최고 심각도
+- 대표 알람(alarm_code)은 복합 냉각 고장(ERR-402) 우선, 없으면 변수별 최고 심각도
 - 연속 2 tick 지속 판정은 상위 실행부(main)가 수행
 
 DB·시간 의존 없이 순수 함수라 단위 테스트가 결정론적으로 검증 가능
@@ -38,14 +39,16 @@ DRIFT_CODES = {
     "gas_flow": "WRN-704",
 }
 VARIANCE = "WRN-801"  # 변동성 증가
+COMPOSITE_COOLING = "ERR-402"  # 복합 냉각 고장 (온도 급성↑ + 압력 급성↓), 매뉴얼 §5.1
 
 VARIANCE_MIN_SAMPLES = 5  # WRN-801 판정 최소 표본 수
 # iid 노이즈의 1차 차분 표준편차는 sqrt(2)*sigma, 노이즈 2배면 2*sqrt(2)*sigma 초과
 _VARIANCE_DIFF_FACTOR = 2 * math.sqrt(2)
 
 # 알람 우선순위, 작을수록 우선 (참고서 §7)
-# 변수 내 후보 선택과 변수 간 대표값(worst-of) 선정에 공통 사용
+# 변수 내 후보 선택과 변수 간 대표값(worst-of) 선정에 공통 사용, ERR-402 복합 냉각 고장이 최우선
 PRIORITY = {
+    "ERR-402": 1,
     "ERR-401": 2,
     "ERR-301": 2,
     "ERR-201": 3,
@@ -67,8 +70,11 @@ class SensorReading:
     pressure: Decimal
     rf_power: Decimal
     gas_flow: Decimal
-    alarm_code: str | None  # 대표 알람(변수별 중 최고 심각도), 지속 판정 전 원시값
+    alarm_code: (
+        str | None
+    )  # 대표 알람(복합 ERR-402 우선, 없으면 변수별 최고 심각도), 지속 판정 전 원시값
     alarm_codes: dict[str, str | None] = field(default_factory=dict)  # 변수별 후보 알람
+    composite_code: str | None = None  # 복합 대표 알람(ERR-402), 변수별 코드와 별개 오버레이
 
 
 def _dec(value: float) -> Decimal:
@@ -126,6 +132,30 @@ def representative(codes: dict[str, str | None]) -> str | None:
     return min(present, key=lambda code: PRIORITY[code])
 
 
+def detect_cooling_fault(
+    values: dict[str, float], bands: dict[str, tuple[float, float]]
+) -> str | None:
+    # 온도↑·압력↓ 동시 밴드 이탈 시 복합 냉각 고장 → 대표 ERR-402 (매뉴얼 §5.1)
+    temp_high = values["temperature"] > bands["temperature"][1]
+    pressure_low = values["pressure"] < bands["pressure"][0]
+    return COMPOSITE_COOLING if temp_high and pressure_low else None
+
+
+COMPOSITE_METRIC = "temperature"  # 복합 냉각 고장 대표 채널 (온도 축 서술 기준, 매뉴얼 §5.1)
+COMPOSITE_SUPPRESSED = ("temperature", "pressure")  # 복합 발령 시 억제할 단일 변수
+
+
+def surface_codes(codes: dict[str, str | None], composite: str | None) -> dict[str, str | None]:
+    # 복합이면 온도·압력 단일 코드 억제·대표 채널에 ERR-402 부여 (매뉴얼 "단일로 쪼개지 않음")
+    if composite is None:
+        return codes
+    surfaced = dict(codes)
+    for metric in COMPOSITE_SUPPRESSED:
+        surfaced[metric] = None
+    surfaced[COMPOSITE_METRIC] = composite
+    return surfaced
+
+
 def generate_reading(
     equipment_id: str,
     process_type: str | None,
@@ -167,16 +197,21 @@ def generate_reading(
         # 급성 단일변수 이상: 값을 밴드 밖(USL 바로 바깥)으로 계단 이탈 → ACUTE 알람 (센터 불변)
         if active and var in scenario.acute_vars:
             value += (spec.usl - spec.mu0) + spec.band_half
+        # 하향 급성: 값을 LSL 바로 바깥으로 계단 이탈 (온도 급성↑ 동반 시 복합 ERR-402)
+        if active and var in scenario.acute_low_vars:
+            value -= (spec.mu0 - spec.lsl) + spec.band_half
         values[var] = value
         bands[var] = (center - spec.band_half, center + spec.band_half)
 
     codes = judge_variables(profile, values, bands, history, variance_vars=scenario.variance_vars)
+    composite = detect_cooling_fault(values, bands)
     return SensorReading(
         equipment_id=equipment_id,
         temperature=_dec(values["temperature"]),
         pressure=_dec(values["pressure"]),
         rf_power=_dec(values["rf_power"]),
         gas_flow=_dec(values["gas_flow"]),
-        alarm_code=representative(codes),
+        alarm_code=composite or representative(codes),
         alarm_codes=codes,
+        composite_code=composite,
     )

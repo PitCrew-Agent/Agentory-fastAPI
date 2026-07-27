@@ -1,7 +1,7 @@
 """센서 데이터 시뮬레이터 (BE_SIM01_GEN01)
 
 실행: uv run simulator [--scenario ...] [--interval N] [--iterations N]
-      [--target EQP-003] [--drift-start N] [--preset floor_demo] [--gain 5]
+      [--target EQP-003] [--drift-start N] [--preset floor_demo] [--gain 5] [--start-tick N]
 equipment_masters의 설비 목록을 대상으로 주기적으로 센서값을 생성해 equipment_telemetries에 적재
 시나리오는 대상 설비에만 적용, 나머지 설비는 normal로 생성
 preset 지정 시 설비별로 서로 다른 시나리오 배치, gain은 데모용 드리프트 증폭 배수
@@ -25,7 +25,8 @@ from agentory.core.config import get_settings
 from agentory.core.db import SessionLocal
 from agentory.core.logging import setup_logging
 from agentory.modules.telemetry.models import EquipmentAlarm, EquipmentMaster, EquipmentTelemetry
-from simulator.generator import VARS, SensorReading, generate_reading
+from agentory.modules.telemetry.schemas import alarm_severity
+from simulator.generator import VARS, SensorReading, generate_reading, surface_codes
 from simulator.scenarios import NORMAL, PRESETS, SCENARIOS
 
 log = logging.getLogger("simulator")
@@ -45,6 +46,9 @@ class ScenarioConfig:
     drift_start_tick: int = DRIFT_START_DEFAULT
     preset: str | None = None  # 다중 설비 시나리오 배치, 지정 시 target/scenario 대신 우선
     gain: float = 1.0  # PM 드리프트 증폭 배수, 데모 가시성 조절
+    start_tick: int = (
+        0  # 시작 tick, 라이브 재개 시 드리프트 소진 지점부터 시작해 이상 지속 (BE_SIM01_GEN01)
+    )
 
 
 async def _load_equipment(
@@ -122,8 +126,8 @@ async def _persist(
 
 
 def _severity(alarm_code: str) -> str:
-    # 알람 코드 접두로 심각도 판정 (StatusLevel 값과 동일 표기), ERR=위험·그 외=주의
-    return "위험" if alarm_code.startswith("ERR") else "주의"
+    # 심각도 판정은 telemetry 단일 소스 사용 (복합·다변량만 위험, 단일 밴드 이탈은 주의)
+    return alarm_severity(alarm_code)
 
 
 def _alarm_transitions(
@@ -135,8 +139,10 @@ def _alarm_transitions(
     clears: list[tuple[str, str]] = []
     for reading in readings:
         active = active_alarms.get(reading.equipment_id, {})
+        # 복합이면 단일 코드 억제·대표 채널 ERR-402로 발령 (매뉴얼 §5.1)
+        surfaced = surface_codes(reading.alarm_codes, reading.composite_code)
         for metric in VARS:
-            code = reading.alarm_codes.get(metric)
+            code = surfaced.get(metric)
             current = active.get(metric)
             if code == current:
                 continue
@@ -210,7 +216,7 @@ async def run_simulation(
     heal_window = timedelta(minutes=get_settings().sim_repair_heal_minutes)
     history: dict[str, deque] = {}  # 설비별 최근 센서값 (WRN-801 이동창 판정용)
     active_alarms = await _load_active_alarms(session_factory)  # 설비별·변수별 활성 알람 상태
-    tick = 0
+    tick = config.start_tick
     while config.iterations is None or tick < config.iterations:
         equipment = await _load_equipment(session_factory)
         if not equipment:
@@ -272,6 +278,12 @@ def _parse_args() -> ScenarioConfig:
         "--preset", default=None, choices=list(PRESETS), help="다중 설비 시나리오 배치"
     )
     parser.add_argument("--gain", type=float, default=1.0, help="PM 드리프트 증폭 배수")
+    parser.add_argument(
+        "--start-tick",
+        type=int,
+        default=0,
+        help="시작 tick, 드리프트 소진 지점부터 시작해 이상 지속",
+    )
     args = parser.parse_args()
     return ScenarioConfig(
         name=args.scenario,
@@ -281,6 +293,7 @@ def _parse_args() -> ScenarioConfig:
         drift_start_tick=args.drift_start,
         preset=args.preset,
         gain=args.gain,
+        start_tick=args.start_tick,
     )
 
 
