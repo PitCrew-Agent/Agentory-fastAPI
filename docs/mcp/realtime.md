@@ -42,7 +42,7 @@ MCP(Model Context Protocol)는 AI 에이전트가 외부 도구·데이터를 �
 
 - 입력: `equipment_id`, `start_time`, `end_time`(필수), `alarm_code`(선택)
 - 출력: `[{alarm_code, count, first_seen, last_seen}]`, 발생 횟수 내림차순
-- 알람이 없는(NULL) 로그는 집계에서 제외합니다.
+- 횟수는 `equipment_alarms` 저널의 발령 이벤트 기준입니다. 같은 알람이 여러 tick 지속돼도 발령 1건으로 세며, 텔레메트리 샘플 수로 부풀지 않습니다.
 
 ### get_equipment_metadata
 

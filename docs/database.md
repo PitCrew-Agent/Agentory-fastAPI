@@ -390,8 +390,10 @@ rf_power와 gas_flow는 에칭 장비 특성을 반영한 확장 컬럼입니다
 
 `(equipment_id, metric, raised_at)` 인덱스(`ix_equipment_alarms_equip_metric_time`)로 센서별 이력·집계에
 대응하고, 활성 알람 조회·발생/해제 전이 판정은 `cleared_at IS NULL` 부분 인덱스(`ix_equipment_alarms_active`)로
-대응합니다. 시뮬레이터가 변수별 확정 알람의 상태전이(발생·해제)를 이 테이블에 적재하며, 복합 코드
-(과거 ERR-402·ERR-901)는 변수 간 코드 전이를 유발하므로 사용하지 않고 항상 단일변수 코드로 발생시킵니다.
+대응합니다. 시뮬레이터가 변수별 확정 알람의 상태전이(발생·해제)를 이 테이블에 적재합니다. 냉각 복합
+고장은 대표 코드 ERR-402로 발령하되, 생성 단계 `surface_codes`가 온도·압력의 단일 코드를 억제해 이
+저널에는 ERR-402 단건만 적재하므로 변수 간 코드 전이가 생기지 않습니다. 다변량 관계 붕괴 코드(ERR-901)는
+시뮬레이터가 아니라 워처가 WRN-901로 발령합니다.
 
 ### equipment_repairs (NEW_REPAIR01_HISTORY01)
 

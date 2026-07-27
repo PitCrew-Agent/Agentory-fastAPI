@@ -63,25 +63,25 @@ Deposition은 라인 구분용 데모 파생값이며 상세는 `profiles.py`를
 ### 판정 규칙
 
 - 급성(값이 동적 밴드 밖): ERR-401(온도)·ERR-301(압력)·ERR-201(rf)·WRN-501(가스)
-- 냉각 급성(온도 급상승 + 압력 하강): ERR-402
+- 냉각 복합 고장(온도 급성 상승 + 압력 급성 하강 동반): 대표 코드 ERR-402, `surface_codes`가 온도·압력 단일 코드(ERR-401·ERR-301)를 억제해 저널에 ERR-402 단건으로 표면화
 - 드리프트/PM(밴드가 하드리밋 회랑 소진): WRN-701~704
 - 변동성 증가(최근 창 1차 차분 표준편차가 정상의 2배 초과, 추세 무관): WRN-801
-- 다변량 복합(전부 밴드 안이나 rf 상승·온도 하강으로 관계 붕괴): ERR-901
 - 우선순위(참고서 §7)로 대표 알람 1개 선정, 밴드 이탈은 첫 tick 즉시 알람으로 저장해 최초 이상 접촉을 지연 없이 발령
+
+다변량 관계 붕괴(전부 밴드 안이나 rf 상승·온도 하강)는 시뮬레이터가 생성하지 않고, 워처(watcher)가 별도로 감지해 WRN-901로 발령합니다.
 
 ### 시나리오 목록
 
 | 시나리오 | 동작 | 기대 알람 |
 | --- | --- | --- |
 | normal | 4개 센서 정상 생성 | 없음 |
-| err402_temp_rise | 온도 급상승 + 압력 하강 | ERR-402 |
+| cooling_fault_demo | 온도 급성 상승 + 압력 급성 하강 동반 | 복합 대표 ERR-402 (단일 ERR-401·ERR-301 억제) |
 | temperature_drift_pm | 온도 중심선 상승 | WRN-701 |
 | pressure_drift_pm | 압력 중심선 상승 | WRN-702 |
 | rf_power_drift_pm | rf 중심선 하강 | WRN-703 |
 | gas_flow_drift_pm | 가스 중심선 하강 | WRN-704 |
 | mixed_pm_demo | 압력 상승 + rf 하강 | 먼저 버짓 소진된 WRN |
 | variance_increase | 압력 변동성(sigma) 증폭 | WRN-801 |
-| multivariate_anomaly | rf 상승 + 온도 하강 관계 붕괴 | ERR-901 |
 
 RAG 데모에는 `pressure_drift_pm`·`gas_flow_drift_pm`을 우선 권장합니다(참고서 §8).
 
