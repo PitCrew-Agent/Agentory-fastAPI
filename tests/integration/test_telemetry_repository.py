@@ -105,12 +105,23 @@ async def test_fetch_sensor_logs_empty_range(seeded_session):
 
 
 async def test_fetch_alarm_history_aggregates(seeded_session):
+    # 텔레메트리 ERR-402 샘플 2건이 있어도 발령 이벤트 1건으로 집계 (원장 기준)
+    seeded_session.add(
+        EquipmentAlarm(
+            equipment_id=EQP,
+            metric="temperature",
+            alarm_code="ERR-402",
+            severity="위험",
+            raised_at=T0.replace(minute=15),
+        )
+    )
+    await seeded_session.flush()
     alarms = await repository.fetch_alarm_history(
         seeded_session, equipment_id=EQP, start_time=T0, end_time=T0.replace(minute=59)
     )
     assert len(alarms) == 1
     assert alarms[0]["alarm_code"] == "ERR-402"
-    assert alarms[0]["count"] == 2  # NULL 알람은 집계 제외
+    assert alarms[0]["count"] == 1  # 지속 알람은 발령 이벤트 1건으로 집계
 
 
 async def test_fetch_alarm_events_timeline_desc(seeded_session):
@@ -183,13 +194,23 @@ async def test_list_alarm_events_not_found(seeded_session):
 
 async def test_get_alarm_summary_aggregates_and_severity(seeded_session):
     # 코드별 집계 요약 + 심각도 매핑, 기간 미지정 시 전체 이력
+    seeded_session.add(
+        EquipmentAlarm(
+            equipment_id=EQP,
+            metric="temperature",
+            alarm_code="ERR-402",
+            severity="위험",
+            raised_at=T0.replace(minute=15),
+        )
+    )
+    await seeded_session.flush()
     summary = await service.get_alarm_summary(seeded_session, EQP)
     assert summary is not None
     assert len(summary) == 1
     assert summary[0].alarm_code == "ERR-402"
-    assert summary[0].count == 2
+    assert summary[0].count == 1
     assert summary[0].severity == StatusLevel.CRITICAL
-    assert summary[0].first_seen < summary[0].last_seen
+    assert summary[0].first_seen == summary[0].last_seen  # 단일 발령 이벤트
 
 
 async def test_get_alarm_summary_not_found(seeded_session):

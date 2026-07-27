@@ -153,6 +153,16 @@ async def _seed_scenario(maker: async_sessionmaker) -> tuple[list[int], list[str
             for i, (temp, alarm) in enumerate(ANOMALY)
         ]
         s.add_all(rows)
+        # 알람 발령 이력 1건, get_alarm_history가 원장 기준으로 ERR-402를 집계 (발령 이벤트 1건)
+        s.add(
+            EquipmentAlarm(
+                equipment_id=TARGET,
+                metric="temperature",
+                alarm_code="ERR-402",
+                severity="위험",
+                raised_at=base + timedelta(minutes=5),
+            )
+        )
         await s.commit()
         return [r.log_id for r in rows], created
 
@@ -163,6 +173,7 @@ async def _cleanup(
     # 주입한 텔레메트리 + 이번에 새로 심은 설비 마스터 제거해 DB 오염 방지
     # 신규 설비의 잔여 자식(알람·텔레메트리) 먼저 정리 후 마스터 삭제로 FK 보호
     async with maker() as s:
+        await s.execute(delete(EquipmentAlarm).where(EquipmentAlarm.equipment_id == TARGET))
         await s.execute(delete(EquipmentTelemetry).where(EquipmentTelemetry.log_id.in_(log_ids)))
         if created_equipment:
             await s.execute(
