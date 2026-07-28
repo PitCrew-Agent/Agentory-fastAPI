@@ -38,6 +38,10 @@ DEFAULT_ALARM_PAGE_SIZE = 10
 MAX_ALARM_PAGE_SIZE = 50
 
 
+# 이상 감지 워처 발령 코드, 규칙이 침묵인 밴드 안 이상 설비의 상태 표면화용
+ANOMALY_ALARM_CODE = "WRN-901"
+
+
 def assess_status(alarm_code: str | None) -> StatusLevel:
     # 복합 냉각·다변량만 위험, 단일 밴드 이탈은 주의, 미분류는 보수적 경고 (매뉴얼 상태 판정)
     if not alarm_code:
@@ -52,20 +56,27 @@ async def list_equipment_status(
 ) -> list[EquipmentStatusItem]:
     # 설비 최신 상태 목록, 텔레메트리 없는 설비는 양호, line_name 지정 시 해당 라인만
     rows = await repository.fetch_latest_status_rows(session, line_name=line_name)
-    return [
-        EquipmentStatusItem(
-            equipment_id=row["equipment_id"],
-            line_name=row["line_name"],
-            status=assess_status(row["alarm_code"]),
-            alarm_code=row["alarm_code"],
-            display_order=row["display_order"],
-            shape=row["shape"],
-            bay_zone=row["bay_zone"],
-            position=_scene_position(row),
-            rotation_y=row["rotation_y"],
+    # 규칙 무알람이나 활성 이상 감지(WRN-901)가 있으면 주의로 표면화 (규칙 알람 있으면 그대로 우선)
+    anomaly_active = await repository.fetch_active_anomaly_equipment(session)
+    items = []
+    for row in rows:
+        alarm_code = row["alarm_code"]
+        if not alarm_code and row["equipment_id"] in anomaly_active:
+            alarm_code = ANOMALY_ALARM_CODE
+        items.append(
+            EquipmentStatusItem(
+                equipment_id=row["equipment_id"],
+                line_name=row["line_name"],
+                status=assess_status(alarm_code),
+                alarm_code=alarm_code,
+                display_order=row["display_order"],
+                shape=row["shape"],
+                bay_zone=row["bay_zone"],
+                position=_scene_position(row),
+                rotation_y=row["rotation_y"],
+            )
         )
-        for row in rows
-    ]
+    return items
 
 
 def _scene_position(row: dict) -> ScenePosition | None:
@@ -130,6 +141,9 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
     # 센서값·상태·알람 모두 실시간 최신 tick 기준 (3D 뷰와 동일 소스로 일치, 래치는 판정 제외)
     latest = await repository.fetch_latest_telemetry(session, equipment_id)
     alarm_code = latest["alarm_code"] if latest else None
+    # 규칙 무알람이나 활성 이상 감지(WRN-901) 보유 시 표면화 (3D 뷰 상태와 동일 판정)
+    if not alarm_code and equipment_id in await repository.fetch_active_anomaly_equipment(session):
+        alarm_code = ANOMALY_ALARM_CODE
     checklist = [ChecklistItem(text=t) for t in build_checklist_items(alarm_code)]
     # 책임자 유저 지정 시 요약 로드, 미지정이면 레거시 manager_name만 노출
     manager = None

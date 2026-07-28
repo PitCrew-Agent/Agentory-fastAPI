@@ -245,6 +245,17 @@ async def fetch_alarm_history(
     ]
 
 
+async def fetch_active_anomaly_equipment(session: AsyncSession) -> set[str]:
+    # 활성(미해제) 이상 감지 알람(WRN-901) 보유 설비, 규칙 무알람 설비의 트윈 상태 표면화용
+    stmt = (
+        select(EquipmentAlarm.equipment_id)
+        .where(EquipmentAlarm.alarm_code == "WRN-901", EquipmentAlarm.cleared_at.is_(None))
+        .distinct()
+    )
+    rows = await session.execute(stmt)
+    return {row[0] for row in rows}
+
+
 async def fetch_alarm_events(
     session: AsyncSession,
     *,
