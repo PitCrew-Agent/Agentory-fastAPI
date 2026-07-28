@@ -89,6 +89,10 @@ async def _persist(
                         pressure=r.pressure,
                         rf_power=r.rf_power,
                         gas_flow=r.gas_flow,
+                        temperature_center=r.temperature_center,
+                        pressure_center=r.pressure_center,
+                        rf_power_center=r.rf_power_center,
+                        gas_flow_center=r.gas_flow_center,
                         alarm_code=r.alarm_code,
                     )
                     for r in readings

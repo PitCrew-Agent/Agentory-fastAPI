@@ -25,10 +25,27 @@ from agentory.modules.telemetry.schemas import (
     EquipmentManager,
     EquipmentStatusItem,
     LineItem,
+    MetricBand,
     ScenePosition,
     SensorPoint,
     StatusLevel,
 )
+from simulator.profiles import get_profile
+
+# 그래프 밴드·하드리밋 렌더 대상 센서 변수 (프로파일 필드명과 동일)
+BAND_METRICS = ("temperature", "pressure", "rf_power", "gas_flow")
+
+
+def _metric_bands(process_type: str) -> dict[str, MetricBand]:
+    # 공정 프로파일에서 변수별 밴드 반폭·하드리밋을 구성 (BE_SIM01_GEN01)
+    # 밴드 = 시점별 center ± half, half·usl·lsl은 프로파일 상수라 설비 단위로 1회 제공
+    profile = get_profile(process_type)
+    return {
+        metric: MetricBand(half=spec.band_half, usl=spec.usl, lsl=spec.lsl)
+        for metric in BAND_METRICS
+        if (spec := getattr(profile, metric))
+    }
+
 
 # 시계열 기간 미지정 시 최신 텔레메트리 기준 기본 조회 폭
 DEFAULT_SERIES_WINDOW = timedelta(hours=6)
@@ -127,6 +144,10 @@ async def get_sensor_series(
             pressure=log["pressure"],
             rf_power=log["rf_power"],
             gas_flow=log["gas_flow"],
+            temperature_center=log.get("temperature_center"),
+            pressure_center=log.get("pressure_center"),
+            rf_power_center=log.get("rf_power_center"),
+            gas_flow_center=log.get("gas_flow_center"),
         )
         for log in logs
     ]
@@ -164,6 +185,7 @@ async def get_equipment_detail(session: AsyncSession, equipment_id: str) -> Equi
         pressure=latest["pressure"] if latest else None,
         rf_power=latest["rf_power"] if latest else None,
         gas_flow=latest["gas_flow"] if latest else None,
+        bands=_metric_bands(meta["process_type"]),
         checklist=checklist,
     )
 

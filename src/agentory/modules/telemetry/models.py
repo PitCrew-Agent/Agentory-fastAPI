@@ -89,6 +89,12 @@ class EquipmentTelemetry(Base):
     pressure: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # 압력
     rf_power: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))  # kW
     gas_flow: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))  # sccm
+    # 동적 밴드 중심선 (mu0 + 드리프트), 프론트 SPC 밴드 렌더용 (BE_SIM01_GEN01)
+    # 밴드 = center ± band_half, band_half는 프로파일 상수라 center만 적재
+    temperature_center: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    pressure_center: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    rf_power_center: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    gas_flow_center: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
     # 대표 알람 (활성 변수별 알람 중 최고 심각도 파생값), 하위 소비 모듈·SSE 계약 호환용
     alarm_code: Mapped[str | None] = mapped_column(String(20))
 

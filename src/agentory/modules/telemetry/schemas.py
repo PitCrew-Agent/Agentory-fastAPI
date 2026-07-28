@@ -62,6 +62,14 @@ class EquipmentManager(BaseModel):
     email: str = Field(description="책임자 이메일", examples=["kim@example.com"])
 
 
+class MetricBand(BaseModel):
+    # 센서 변수별 밴드·하드리밋 규격 (프론트 SPC 밴드·하드리밋 렌더용)
+    # 밴드 상·하한은 시점별 SensorPoint.{metric}_center ± half, 하드리밋은 축 고정
+    half: float = Field(description="정상 밴드 반폭 (3σ)", examples=[0.08])
+    usl: float = Field(description="하드리밋 상한", examples=[3.05])
+    lsl: float = Field(description="하드리밋 하한", examples=[2.45])
+
+
 class EquipmentDetail(BaseModel):
     # 선택 설비 상세 = 상태 + 메타 + 최신 센서값 + 조치 체크리스트 (대시보드 상세 패널용)
     equipment_id: str
@@ -81,6 +89,8 @@ class EquipmentDetail(BaseModel):
     pressure: float | None = None
     rf_power: float | None = None
     gas_flow: float | None = None
+    # 센서 변수별 밴드·하드리밋 규격 (프론트 SPC 밴드 렌더용, 시점별 중심은 series에서 조회)
+    bands: dict[str, MetricBand] = {}
     # 조치 체크리스트, 양호면 빈 목록
     checklist: list[ChecklistItem] = []
 
@@ -101,6 +111,20 @@ class SensorPoint(BaseModel):
     pressure: float | None = Field(default=None, description="압력(mTorr)", examples=[41.11])
     rf_power: float | None = Field(default=None, description="RF 파워(kW)", examples=[2.79])
     gas_flow: float | None = Field(default=None, description="가스 유량(sccm)", examples=[617.0])
+    # 동적 밴드 중심선 (mu0 + 드리프트), 밴드 = center ± half (half는 EquipmentDetail.bands 참조)
+    # 비드리프트 설비는 중심 고정, 드리프트 설비는 tick마다 이동 (BE_SIM01_GEN01)
+    temperature_center: float | None = Field(
+        default=None, description="온도 밴드 중심", examples=[60.0]
+    )
+    pressure_center: float | None = Field(
+        default=None, description="압력 밴드 중심", examples=[42.0]
+    )
+    rf_power_center: float | None = Field(
+        default=None, description="RF 파워 밴드 중심", examples=[2.79]
+    )
+    gas_flow_center: float | None = Field(
+        default=None, description="가스 유량 밴드 중심", examples=[606.0]
+    )
 
 
 class AlarmEventItem(BaseModel):

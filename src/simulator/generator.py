@@ -81,6 +81,12 @@ class SensorReading:
     )  # 대표 알람(복합 ERR-402 우선, 없으면 변수별 최고 심각도), 지속 판정 전 원시값
     alarm_codes: dict[str, str | None] = field(default_factory=dict)  # 변수별 후보 알람
     composite_code: str | None = None  # 복합 대표 알람(ERR-402), 변수별 코드와 별개 오버레이
+    # 동적 밴드 중심선(mu0 + 드리프트), 프론트 SPC 밴드 렌더용 (BE_SIM01_GEN01)
+    # 밴드 = center ± band_half, band_half는 프로파일 상수라 center만 적재하면 재구성 가능
+    temperature_center: Decimal | None = None
+    pressure_center: Decimal | None = None
+    rf_power_center: Decimal | None = None
+    gas_flow_center: Decimal | None = None
 
 
 def _dec(value: float) -> Decimal:
@@ -183,6 +189,7 @@ def generate_reading(
     active = tick >= drift_start_tick
     values: dict[str, float] = {}
     bands: dict[str, tuple[float, float]] = {}
+    centers: dict[str, float] = {}  # 변수별 밴드 중심선, 프론트 SPC 밴드 렌더용
 
     for var in VARS:
         spec = getattr(profile, var)
@@ -215,6 +222,7 @@ def generate_reading(
             value = max(shifted, center - spec.band_half * INBAND_CLAMP)
         values[var] = value
         bands[var] = (center - spec.band_half, center + spec.band_half)
+        centers[var] = center  # 밴드 중심(급성 계단 이탈은 값만 이동, 중심·밴드는 nominal 유지)
 
     codes = judge_variables(profile, values, bands, history, variance_vars=scenario.variance_vars)
     composite = detect_cooling_fault(values, bands)
@@ -227,4 +235,8 @@ def generate_reading(
         alarm_code=composite or representative(codes),
         alarm_codes=codes,
         composite_code=composite,
+        temperature_center=_dec(centers["temperature"]),
+        pressure_center=_dec(centers["pressure"]),
+        rf_power_center=_dec(centers["rf_power"]),
+        gas_flow_center=_dec(centers["gas_flow"]),
     )
