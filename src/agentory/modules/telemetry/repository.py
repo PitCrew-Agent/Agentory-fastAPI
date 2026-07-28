@@ -37,6 +37,11 @@ def _telemetry_to_dict(row: EquipmentTelemetry) -> dict[str, Any]:
         "pressure": _num(row.pressure),
         "rf_power": _num(row.rf_power),
         "gas_flow": _num(row.gas_flow),
+        # 동적 밴드 중심선, 프론트 SPC 밴드 렌더용 (BE_SIM01_GEN01)
+        "temperature_center": _num(row.temperature_center),
+        "pressure_center": _num(row.pressure_center),
+        "rf_power_center": _num(row.rf_power_center),
+        "gas_flow_center": _num(row.gas_flow_center),
         "alarm_code": row.alarm_code,
     }
 
@@ -78,10 +83,13 @@ async def _fetch_sensor_logs_bucketed(
     columns = [EquipmentTelemetry.equipment_id, bucket.label("bucket")]
     for name in metrics:
         column = getattr(EquipmentTelemetry, name)
+        center_column = getattr(EquipmentTelemetry, f"{name}_center")
         columns += [
             func.avg(column).label(f"{name}_avg"),
             func.min(column).label(f"{name}_min"),
             func.max(column).label(f"{name}_max"),
+            # 밴드 중심선 버킷 평균, 원시 center와 동일 의미로 프론트 밴드 렌더 유지
+            func.avg(center_column).label(f"{name}_center"),
         ]
     # 버킷 대표 알람은 최고 심각도 1건, 구간 내 이상이 평균에 묻히지 않도록 유지
     columns.append(
@@ -126,6 +134,7 @@ async def _fetch_sensor_logs_bucketed(
             item[name] = _num(getattr(row, f"{name}_avg"))
             item[f"{name}_min"] = _num(getattr(row, f"{name}_min"))
             item[f"{name}_max"] = _num(getattr(row, f"{name}_max"))
+            item[f"{name}_center"] = _num(getattr(row, f"{name}_center"))
         item["alarm_code"] = row.alarm_code
         result.append(item)
     return result
