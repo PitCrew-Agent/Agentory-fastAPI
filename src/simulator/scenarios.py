@@ -16,6 +16,10 @@ class ScenarioSpec:
     acute_vars: tuple[str, ...] = ()
     # LSL 아래로 계단 이탈시킬 변수 (하향 급성), 온도 급성↑ 동반 시 복합 ERR-402
     acute_low_vars: tuple[str, ...] = ()
+    # 값을 밴드 안에서 상단으로 지속 이동 (규칙 침묵), 통계 이상 감지 전용 → WRN-901
+    inband_high_vars: tuple[str, ...] = ()
+    # 값을 밴드 안에서 하단으로 지속 이동 (규칙 침묵), 통계 이상 감지 전용 → WRN-901
+    inband_low_vars: tuple[str, ...] = ()
 
 
 SCENARIOS: dict[str, ScenarioSpec] = {
@@ -47,6 +51,10 @@ SCENARIOS: dict[str, ScenarioSpec] = {
     "cooling_fault_demo": ScenarioSpec(
         acute_vars=("temperature",), acute_low_vars=("pressure",)
     ),  # 온도 ERR-401 + 압력 ERR-301 → 복합 대표 ERR-402(위험)
+    # 밴드 안 냉각 초기 이상 (온도↑·압력↓ 밴드 안) → 규칙 침묵, 이상 감지만 WRN-901 선제
+    "cooling_early_demo": ScenarioSpec(
+        inband_high_vars=("temperature",), inband_low_vars=("pressure",)
+    ),  # 값은 정상 범위 안, 관계만 어긋남 → 규칙 미탐, 이상 감지 WRN-901(주의)
 }
 
 NORMAL = SCENARIOS["normal"]
@@ -57,7 +65,7 @@ NORMAL = SCENARIOS["normal"]
 PRESETS: dict[str, dict[str, str]] = {
     "floor_demo": {
         # A라인 (하경훈)
-        "EQP-A03": "pressure_drift_pm",  # 압력 드리프트 → WRN-702(주의)
+        "EQP-A03": "cooling_early_demo",  # 온도↑·압력↓ 밴드 안 → 규칙 침묵, 이상 감지 WRN-901 선제
         "EQP-A05": "cooling_fault_demo",  # 온도 급성↑ + 압력 급성↓ → 복합 ERR-402(위험)
         # B라인 (김철용)
         "EQP-B03": "pressure_acute",  # 압력 급성 → ERR-301(위험)
@@ -78,3 +86,9 @@ FAULT_OVERSHOOT = 0.5
 # 변동성 증가(WRN-801): 대상 변수 sigma 증폭 배수
 # 임계(2*sqrt2*sigma) 대비 여유를 크게 둬 최신 tick 기준에서도 알람이 안정적으로 확정되게 함
 VARIANCE_MULT = 3.5
+
+# 밴드 안 이상: 중심에서 sigma 배수만큼 밴드 안으로 오프셋 (규칙 침묵 유지, 통계 이상 감지 대상)
+# 2.0sigma는 정상 매니폴드(중심 근처)에서 충분히 벗어나 이상 감지가 발령하되 3sigma 밴드는 안 넘김
+INBAND_SHIFT = 2.0
+# 밴드 안 오프셋 값의 밴드 이탈 방지 클램프 한계 (band_half 대비 비율, 규칙 발령 여유)
+INBAND_CLAMP = 0.9
