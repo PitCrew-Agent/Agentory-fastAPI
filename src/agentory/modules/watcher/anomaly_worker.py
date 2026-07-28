@@ -17,19 +17,29 @@ log = logging.getLogger("anomaly-worker")
 
 
 async def score_once(settings: Settings) -> int:
-    """한 주기 스코어링, 신규 발령 건수 반환 (섀도우 시 관찰 저널 기록)"""
-    sink = repo.resolve_sink(settings.anomaly_shadow_mode)
+    """한 주기 스코어링, 신규 발령 건수 반환 (섀도우 시 관찰 저널 기록)
+
+    설비별 싱크 라우팅, 섀도우 모드라도 realfire 목록 설비는 실발령 (데모 시연 BE_ANOM01_SERVE01)
+    """
+    real_sink = repo.resolve_sink(shadow=False)  # 실발령 (EquipmentAlarm)
+    shadow_sink = repo.resolve_sink(shadow=True)  # 관찰 저널
+    realfire = settings.anomaly_realfire_equipment
     async with SessionLocal() as session:
         scorer = await repo.load_scorer(session, settings)
         if not scorer.process_types:
             return 0  # 적합 모델 없음 (anomaly-fit 미실행)
         equipment = await repo.list_equipment(session)
-        active = await sink.active(session)
+        real_active = await real_sink.active(session)
+        shadow_active = await shadow_sink.active(session)
         now = datetime.now(UTC)
         raised = 0
         for equipment_id, process_type in equipment:
             if not scorer.has(process_type):
                 continue
+            # 전역 실발령이거나 realfire 목록 설비면 실발령, 그 외는 관찰 저널
+            use_real = not settings.anomaly_shadow_mode or equipment_id in realfire
+            sink = real_sink if use_real else shadow_sink
+            active = real_active if use_real else shadow_active
             series = await repo.fetch_recent_series(
                 session, equipment_id, settings.anomaly_lookback_rows
             )
