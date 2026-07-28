@@ -20,7 +20,13 @@ from decimal import ROUND_HALF_UP, Decimal
 from statistics import pstdev
 
 from simulator.profiles import SensorProfile, VariableSpec, get_profile
-from simulator.scenarios import FAULT_OVERSHOOT, VARIANCE_MULT, ScenarioSpec
+from simulator.scenarios import (
+    FAULT_OVERSHOOT,
+    INBAND_CLAMP,
+    INBAND_SHIFT,
+    VARIANCE_MULT,
+    ScenarioSpec,
+)
 
 VARS = ("temperature", "pressure", "rf_power", "gas_flow")
 
@@ -200,6 +206,13 @@ def generate_reading(
         # 하향 급성: 값을 LSL 바로 바깥으로 계단 이탈 (온도 급성↑ 동반 시 복합 ERR-402)
         if active and var in scenario.acute_low_vars:
             value -= (spec.mu0 - spec.lsl) + spec.band_half
+        # 밴드 안 이상: 중심에서 상단/하단 오프셋 후 밴드 안 클램프 (규칙 침묵, WRN-901 감지 대상)
+        if active and var in scenario.inband_high_vars:
+            shifted = center + INBAND_SHIFT * spec.sigma + rng.gauss(0, spec.sigma * 0.3)
+            value = min(shifted, center + spec.band_half * INBAND_CLAMP)
+        if active and var in scenario.inband_low_vars:
+            shifted = center - INBAND_SHIFT * spec.sigma + rng.gauss(0, spec.sigma * 0.3)
+            value = max(shifted, center - spec.band_half * INBAND_CLAMP)
         values[var] = value
         bands[var] = (center - spec.band_half, center + spec.band_half)
 
