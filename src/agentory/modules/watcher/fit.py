@@ -123,6 +123,9 @@ async def fit_in_session(
             continue  # 아직 신선, 재적합 불요
         per_equipment: list[tuple[str, np.ndarray]] = []
         for eid, repaired_at in equipment:
+            # realfire 데모 설비는 밴드 안 이상이 alarm_code NULL이라 정상으로 오학습되므로 제외
+            if eid in settings.anomaly_realfire_equipment:
+                continue
             since = _effective_since(recency_cutoff, repaired_at)
             w = await _normal_windows(session, eid, window, stride, since)
             if w.shape[0] > 0:
