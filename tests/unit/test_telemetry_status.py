@@ -25,11 +25,11 @@ from agentory.modules.telemetry.service import assess_status
         ("WRN-701", StatusLevel.WARNING),
         ("WRN-801", StatusLevel.WARNING),
         ("ERR-402", StatusLevel.CRITICAL),  # 복합 냉각 고장만 위험
-        ("ERR-901", StatusLevel.CRITICAL),  # 다변량 관계 붕괴
-        ("WRN-901", StatusLevel.CRITICAL),  # 다변량 이상 감지 (실발령 코드)
+        ("ERR-901", StatusLevel.WARNING),  # 은퇴한 구 다변량 코드, 매뉴얼 정합상 주의
+        ("WRN-901", StatusLevel.WARNING),  # 다변량 이상 감지 선제 경고는 주의 (매뉴얼 정합)
     ],
 )
-def test_assess_status_critical_only_composite_and_multivariate(alarm_code, expected):
+def test_assess_status_critical_only_cooling_composite(alarm_code, expected):
     assert assess_status(alarm_code) == expected
 
 
