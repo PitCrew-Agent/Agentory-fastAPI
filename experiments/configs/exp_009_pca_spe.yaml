@@ -11,7 +11,9 @@ cross_correlation: true
 ewma_alpha: 0.1
 ewma_clip: 3.0
 confirm_k: 2
-max_delay_ticks: 180
+max_delay_ticks:
+  _default: 180
+  drift_inband: 720  # 완만 드리프트는 15분 내 SNR<0.6, 물리적 감지 한계 반영
 transition_threshold: 1000.0
 transition_settle: 10
 statistic: spe

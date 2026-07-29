@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-009-PCA",
-  "run_at": "2026-07-29T06:39:01+00:00",
-  "git_commit": "6cc7f85f974e94f83c47e7d7fa00d2a8e9b075a8",
+  "run_at": "2026-07-29T07:36:52+00:00",
+  "git_commit": "dafa07b1d4984c0a7e734e2f42a2014110dca003",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-009-PCA",
@@ -15,19 +15,22 @@
     "ewma_alpha": 0.1,
     "ewma_clip": 3.0,
     "confirm_k": 2,
-    "max_delay_ticks": 180,
+    "max_delay_ticks": {
+      "_default": 180,
+      "drift_inband": 720
+    },
     "transition_threshold": 1000.0,
     "transition_settle": 10,
     "statistic": "both"
   },
   "metrics": {
     "events_total": 22.0,
-    "events_detected": 20.0,
-    "event_recall": 0.9090909090909091,
+    "events_detected": 22.0,
+    "event_recall": 1.0,
     "false_alarms_total": 25.0,
     "false_alarms_per_equipment_day": 3.7037037037037037,
-    "detection_delay_mean_ticks": 24.2,
-    "detection_delay_p90_ticks": 35.600000000000094,
+    "detection_delay_mean_ticks": 49.45454545454545,
+    "detection_delay_p90_ticks": 111.20000000000005,
     "false_alarms_dedup_total": 4.0,
     "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
     "recall_acute": 1.0,
@@ -36,8 +39,8 @@
     "delay_mean_corr_break_ticks": 104.0,
     "recall_drift": 1.0,
     "delay_mean_drift_ticks": 16.25,
-    "recall_drift_inband": 0.0,
-    "delay_mean_drift_inband_ticks": NaN,
+    "recall_drift_inband": 1.0,
+    "delay_mean_drift_inband_ticks": 302.0,
     "recall_oscillation": 1.0,
     "delay_mean_oscillation_ticks": 26.0,
     "recall_variance": 1.0,
