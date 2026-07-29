@@ -7,6 +7,7 @@ import numpy as np
 from anomaly.evaluation import (
     AnomalyEvent,
     auc_pr,
+    bucket_dedup,
     event_recall_and_delays,
     false_alarms,
     point_labels,
@@ -55,6 +56,42 @@ def test_false_alarms_counts_outside_events_only():
     total, per_day = false_alarms(EVENTS, detections, n_ticks, tick_seconds=10.0)
     assert total == 2
     assert per_day == 1.0
+
+
+def test_bucket_dedup_keeps_first_per_fixed_bucket():
+    ticks = np.array([0, 6, 12, 360, 366, 900])
+    # bucket_ticks=360 → 버킷 0(0·6·12), 1(360·366), 2(900), 각 최초만
+    assert bucket_dedup(ticks, 360).tolist() == [0, 360, 900]
+
+
+def test_bucket_dedup_passthrough_when_bucket_leq_one():
+    ticks = np.array([1, 2, 3])
+    assert bucket_dedup(ticks, 1).tolist() == [1, 2, 3]
+
+
+def test_false_alarms_dedup_collapses_burst_within_bucket():
+    # 이벤트 밖 한 30분버킷(360~719 tick) 안 10건 연속 발령
+    burst = np.arange(400, 460, 6)
+    detections = {"EQP-1": burst}
+    n_ticks = {"EQP-1": 8640}
+    raw_total, _ = false_alarms(EVENTS, detections, n_ticks, tick_seconds=5.0)
+    dedup_total, _ = false_alarms(
+        EVENTS, detections, n_ticks, tick_seconds=5.0, dedup_bucket_seconds=1800.0
+    )
+    assert raw_total == 10
+    assert dedup_total == 1
+
+
+def test_summarize_reports_dedup_false_alarms():
+    burst = np.arange(400, 460, 6)
+    detections = {"EQP-1": burst, "EQP-2": np.array([], dtype=int)}
+    n_ticks = {"EQP-1": 8640, "EQP-2": 8640}
+    metrics = summarize(EVENTS, detections, n_ticks, tick_seconds=5.0)
+    assert metrics["false_alarms_total"] == 10.0
+    assert metrics["false_alarms_dedup_total"] == 1.0
+    assert (
+        metrics["false_alarms_per_equipment_day_dedup"] < metrics["false_alarms_per_equipment_day"]
+    )
 
 
 def test_point_labels_marks_event_range_inclusive():

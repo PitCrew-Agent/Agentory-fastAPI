@@ -1,11 +1,13 @@
 """이상 감지 실험 공통 평가기
 
 전 실험(E1 규칙 베이스라인, E2 PCA MSPC, E4 TS2Vec)이 동일 지표로 채점되도록 단일 소스 유지
-지표 4종
+지표 4종 + 오탐 dedup 변형
 - 이벤트 단위 recall: 정답 이벤트 구간 내 판정 1건 이상이면 감지
 - 설비·일당 오탐 수: 이벤트 밖 판정 수를 (설비 수 x 관측일)로 정규화, 운영자 신뢰 지표
 - 감지 지연: 이벤트 시작 tick부터 첫 판정 tick까지 (tick 단위)
 - AUC-PR: 포인트 단위 점수 순위 품질, 임계 무관 모델 간 비교용
+- 오탐 dedup 변형: 운영 알림화(설비+변수+알람+30분 고정버킷 1건)를 근사한 버킷당 1건 집계,
+  지속·flicker 발령이 버킷당 다건으로 과대 집계되는 것을 보정한 운영 정합 오탐률
 """
 
 from dataclasses import dataclass
@@ -14,6 +16,8 @@ import numpy as np
 from sklearn.metrics import average_precision_score
 
 SECONDS_PER_DAY = 86400
+# 운영 알림 dedup 고정버킷 폭, notification.sync_from_alarms의 interval '30 minutes'와 정합
+DEDUP_BUCKET_SECONDS = 1800.0
 
 
 @dataclass(frozen=True)
@@ -56,17 +60,37 @@ def event_recall_and_delays(
     return recall, delays, missed
 
 
+def bucket_dedup(ticks: np.ndarray, bucket_ticks: int) -> np.ndarray:
+    """고정버킷(원점 tick 0 정렬)당 최초 판정 1건만 남김
+
+    운영 알림화(설비+변수+알람+30분 고정버킷 1건, notification.sync_from_alarms의 date_bin)를
+    실험 detection에 근사, 지속·flicker 발령이 버킷당 다건으로 과대 집계되는 것 방지
+    실험 detection에는 변수·알람코드 축이 없어 설비+버킷 단위로만 축약(운영 대비 보수적 근사)
+    bucket_ticks<=1 또는 빈 입력이면 원본 그대로
+    """
+    if bucket_ticks <= 1 or ticks.size == 0:
+        return ticks
+    buckets = ticks // bucket_ticks
+    _, first_idx = np.unique(buckets, return_index=True)
+    return ticks[np.sort(first_idx)]
+
+
 def false_alarms(
     events: list[AnomalyEvent],
     detections: dict[str, np.ndarray],
     n_ticks: dict[str, int],
     tick_seconds: float,
+    dedup_bucket_seconds: float | None = None,
 ) -> tuple[int, float]:
     """정답 이벤트 밖 판정을 오탐으로 집계
 
     n_ticks는 설비별 총 관측 tick 수
+    dedup_bucket_seconds 지정 시 운영 알림 dedup을 근사해 설비·고정버킷당 오탐 1건만 집계
     반환: (총 오탐 수, 설비·일당 오탐 수)
     """
+    bucket_ticks = (
+        max(1, round(dedup_bucket_seconds / tick_seconds)) if dedup_bucket_seconds else None
+    )
     total = 0
     total_days = 0.0
     for equipment_id, ticks in detections.items():
@@ -74,7 +98,10 @@ def false_alarms(
         for event in events:
             if event.equipment_id == equipment_id:
                 outside &= ~((ticks >= event.start_tick) & (ticks <= event.end_tick))
-        total += int(outside.sum())
+        outside_ticks = ticks[outside]
+        if bucket_ticks is not None:
+            outside_ticks = bucket_dedup(outside_ticks, bucket_ticks)
+        total += int(outside_ticks.size)
     for count in n_ticks.values():
         total_days += count * tick_seconds / SECONDS_PER_DAY
     per_day = total / total_days if total_days else float("nan")
@@ -103,11 +130,13 @@ def summarize(
     n_ticks: dict[str, int],
     tick_seconds: float,
     max_delay_ticks: int | None = None,
+    dedup_bucket_seconds: float | None = DEDUP_BUCKET_SECONDS,
 ) -> dict[str, float]:
     """전 지표 일괄 산출, MLflow log_metrics에 그대로 기록 가능한 평탄 dict 반환
 
     recall·지연은 max_delay_ticks 유예 적용, 오탐은 이벤트 전 구간을 비오탐 구역으로 유지
     (유예 이후의 구간 내 판정은 미인정일 뿐 오탐은 아님)
+    dedup_bucket_seconds 지정 시 운영 정합 오탐(버킷당 1건)을 raw 오탐과 함께 기록
     """
     recall, delays, missed = event_recall_and_delays(events, detections, max_delay_ticks)
     fa_total, fa_per_day = false_alarms(events, detections, n_ticks, tick_seconds)
@@ -120,6 +149,13 @@ def summarize(
         "detection_delay_mean_ticks": float(np.mean(delays)) if delays else float("nan"),
         "detection_delay_p90_ticks": float(np.percentile(delays, 90)) if delays else float("nan"),
     }
+    # 운영 알림 dedup 근사 오탐, raw 대비 지속·flicker 과대집계 제거분을 ADR 정량 비교에 사용
+    if dedup_bucket_seconds:
+        fa_dedup_total, fa_dedup_per_day = false_alarms(
+            events, detections, n_ticks, tick_seconds, dedup_bucket_seconds
+        )
+        metrics["false_alarms_dedup_total"] = float(fa_dedup_total)
+        metrics["false_alarms_per_equipment_day_dedup"] = fa_dedup_per_day
     # 유형별 recall·지연 분해, 집계값이 이상 유형 구성에 가려지는 것 방지 (EXP-004·007 교훈)
     for kind in sorted({e.kind for e in events}):
         subset = [e for e in events if e.kind == kind]
