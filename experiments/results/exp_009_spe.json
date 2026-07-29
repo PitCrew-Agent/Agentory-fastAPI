@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-009-SPE",
-  "run_at": "2026-07-20T07:28:12+00:00",
-  "git_commit": "f6a37d881b1d3ad1d782e334d2552e331c5e9ed4",
+  "run_at": "2026-07-29T06:39:03+00:00",
+  "git_commit": "6cc7f85f974e94f83c47e7d7fa00d2a8e9b075a8",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-009-SPE",
@@ -28,6 +28,8 @@
     "false_alarms_per_equipment_day": 3.8518518518518516,
     "detection_delay_mean_ticks": 24.2,
     "detection_delay_p90_ticks": 44.60000000000005,
+    "false_alarms_dedup_total": 6.0,
+    "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
     "recall_acute": 1.0,
     "delay_mean_acute_ticks": 11.0,
     "recall_corr_break": 1.0,
