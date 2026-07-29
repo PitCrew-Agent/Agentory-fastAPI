@@ -31,10 +31,22 @@ class AnomalyEvent:
     end_tick: int
 
 
+def resolve_grace(kind: str, max_delay_ticks: int | dict | None) -> int | None:
+    """이상 유형별 감지 유예 해석
+
+    max_delay_ticks가 int·None이면 전 유형 공통, dict이면 유형별 유예 매핑으로 해석
+    (매핑에 없는 유형은 "_default" 키로 폴백, 그마저 없으면 유예 무제한)
+    느린 유형(예: drift_inband)은 물리적으로 짧은 유예 내 감지 불가하므로 유형별 지정 필요
+    """
+    if isinstance(max_delay_ticks, dict):
+        return max_delay_ticks.get(kind, max_delay_ticks.get("_default"))
+    return max_delay_ticks
+
+
 def event_recall_and_delays(
     events: list[AnomalyEvent],
     detections: dict[str, np.ndarray],
-    max_delay_ticks: int | None = None,
+    max_delay_ticks: int | dict | None = None,
 ) -> tuple[float, list[int], list[AnomalyEvent]]:
     """이벤트별 감지 여부·지연 산출
 
@@ -42,15 +54,17 @@ def event_recall_and_delays(
     max_delay_ticks는 감지 유예, 이벤트 시작 후 이 안에 판정해야 감지로 인정
     (미지정 시 이벤트 전 구간 인정, 장구간 이벤트는 배경 오탐의 우연 적중으로
     recall이 포화하므로 v2부터 유예 지정을 권장)
+    dict 지정 시 유형별 유예 적용 (resolve_grace 참고, 유형별 감지 물리 한계 반영)
     반환: (recall, 감지 이벤트별 지연 tick 목록, 미감지 이벤트 목록)
     """
     delays: list[int] = []
     missed: list[AnomalyEvent] = []
     for event in events:
         ticks = detections.get(event.equipment_id, np.empty(0, dtype=int))
+        grace = resolve_grace(event.kind, max_delay_ticks)
         deadline = event.end_tick
-        if max_delay_ticks is not None:
-            deadline = min(deadline, event.start_tick + max_delay_ticks)
+        if grace is not None:
+            deadline = min(deadline, event.start_tick + grace)
         in_window = ticks[(ticks >= event.start_tick) & (ticks <= deadline)]
         if in_window.size:
             delays.append(int(in_window[0]) - event.start_tick)
@@ -129,7 +143,7 @@ def summarize(
     detections: dict[str, np.ndarray],
     n_ticks: dict[str, int],
     tick_seconds: float,
-    max_delay_ticks: int | None = None,
+    max_delay_ticks: int | dict | None = None,
     dedup_bucket_seconds: float | None = DEDUP_BUCKET_SECONDS,
 ) -> dict[str, float]:
     """전 지표 일괄 산출, MLflow log_metrics에 그대로 기록 가능한 평탄 dict 반환

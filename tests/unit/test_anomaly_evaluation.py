@@ -11,6 +11,7 @@ from anomaly.evaluation import (
     event_recall_and_delays,
     false_alarms,
     point_labels,
+    resolve_grace,
     summarize,
 )
 
@@ -38,6 +39,33 @@ def test_event_recall_respects_max_delay_grace():
     assert recall_tight == 0.0 and delays == [] and len(missed) == 2
     recall_loose, delays, _missed = event_recall_and_delays(EVENTS, detections, max_delay_ticks=5)
     assert recall_loose == 0.5 and delays == [5]
+
+
+def test_resolve_grace_scalar_and_dict():
+    assert resolve_grace("acute", 180) == 180
+    assert resolve_grace("acute", None) is None
+    assert resolve_grace("drift_inband", {"_default": 180, "drift_inband": 720}) == 720
+    assert resolve_grace("acute", {"_default": 180, "drift_inband": 720}) == 180
+    # 매핑에 유형·_default 모두 없으면 유예 무제한(None)
+    assert resolve_grace("acute", {"drift_inband": 720}) is None
+
+
+def test_event_recall_kind_specific_grace():
+    events = [
+        AnomalyEvent("EQP-A", "acute", ("t",), start_tick=0, end_tick=1000),
+        AnomalyEvent("EQP-B", "drift_inband", ("t",), start_tick=0, end_tick=1000),
+    ]
+    # 두 이벤트 모두 300 tick에 첫 판정
+    det = {"EQP-A": np.array([300]), "EQP-B": np.array([300])}
+    # 공통 유예 180이면 둘 다 미감지
+    r_uniform, _, _ = event_recall_and_delays(events, det, max_delay_ticks=180)
+    assert r_uniform == 0.0
+    # 유형별 유예: acute 180(미감지)·drift_inband 720(감지) → recall 0.5
+    grace = {"_default": 180, "drift_inband": 720}
+    r_kind, delays, missed = event_recall_and_delays(events, det, max_delay_ticks=grace)
+    assert r_kind == 0.5
+    assert delays == [300]
+    assert missed[0].kind == "acute"
 
 
 def test_event_recall_empty_events_is_nan():
