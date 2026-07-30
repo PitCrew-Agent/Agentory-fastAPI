@@ -4,4 +4,6 @@
 name: EXP-004-RULE
 method: rule_baseline
 eval_set: data/eval/v2
-max_delay_ticks: 60
+max_delay_ticks:
+  _default: 60
+  drift_inband: 720  # 완만 드리프트 물리적 감지 한계 반영

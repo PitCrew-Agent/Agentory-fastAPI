@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-005-COSINE",
-  "run_at": "2026-07-16T03:46:21+00:00",
-  "git_commit": "273c141bdb81e373c7b49dd428fd9b6e4843023f",
+  "run_at": "2026-07-30T05:23:25+00:00",
+  "git_commit": "13a80064a94a6e425a188ba44f4c3184e57a3e81",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-005-COSINE",
@@ -18,22 +18,33 @@
     "threshold_quantile": 0.999,
     "baseline": "cosine",
     "seed": 20260716,
-    "max_delay_ticks": 60
+    "max_delay_ticks": {
+      "_default": 60,
+      "drift_inband": 720
+    }
   },
   "metrics": {
     "events_total": 22.0,
-    "events_detected": 16.0,
-    "event_recall": 0.7272727272727273,
+    "events_detected": 18.0,
+    "event_recall": 0.8181818181818182,
     "false_alarms_total": 22.0,
     "false_alarms_per_equipment_day": 3.259259259259259,
-    "detection_delay_mean_ticks": 14.75,
-    "detection_delay_p90_ticks": 23.0,
+    "detection_delay_mean_ticks": 74.33333333333333,
+    "detection_delay_p90_ticks": 134.60000000000025,
+    "false_alarms_dedup_total": 4.0,
+    "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
     "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 11.0,
     "recall_corr_break": 0.0,
+    "delay_mean_corr_break_ticks": NaN,
     "recall_drift": 1.0,
-    "recall_drift_inband": 0.0,
+    "delay_mean_drift_ticks": 17.0,
+    "recall_drift_inband": 1.0,
+    "delay_mean_drift_inband_ticks": 551.0,
     "recall_oscillation": 0.0,
+    "delay_mean_oscillation_ticks": NaN,
     "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 23.0,
     "auc_pr": 0.9258611466263759
   }
 }

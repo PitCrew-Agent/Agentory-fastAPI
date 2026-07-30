@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-002",
-  "run_at": "2026-07-16T03:04:23+00:00",
-  "git_commit": "340ae69e6ccae5d9d74857bb46babf3d405ab0de",
+  "run_at": "2026-07-30T05:18:55+00:00",
+  "git_commit": "13a80064a94a6e425a188ba44f4c3184e57a3e81",
   "eval_set_version": "v1",
   "config": {
     "name": "EXP-002",
@@ -20,6 +20,14 @@
     "false_alarms_per_equipment_day": 5.866666666666666,
     "detection_delay_mean_ticks": 11.75,
     "detection_delay_p90_ticks": 11.0,
+    "false_alarms_dedup_total": 13.0,
+    "false_alarms_per_equipment_day_dedup": 3.466666666666667,
+    "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 11.0,
+    "recall_drift": 1.0,
+    "delay_mean_drift_ticks": 12.5,
+    "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 11.0,
     "auc_pr": 0.9995312831204813
   }
 }
