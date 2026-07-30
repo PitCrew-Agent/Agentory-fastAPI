@@ -1,0 +1,1422 @@
+{
+  "summary": {
+    "judge_model": "gpt-5",
+    "n_pairwise": 45,
+    "pairwise_after_winrate": 0.539,
+    "pairwise_after_winrate_ci95": [
+      0.411,
+      0.672
+    ],
+    "pairwise_after_wins": 22,
+    "pairwise_before_wins": 19,
+    "pairwise_ties": 4,
+    "pairwise_position_consistency": 0.822,
+    "rubric_before": {
+      "accuracy": 2.91,
+      "grounding": 2.4,
+      "completeness": 3.53,
+      "conciseness": 3.44
+    },
+    "rubric_after": {
+      "accuracy": 3.09,
+      "grounding": 2.56,
+      "completeness": 3.58,
+      "conciseness": 3.84
+    },
+    "faithfulness": {
+      "supervisor_before": {
+        "n": 11,
+        "mean_score": 1.818,
+        "ci95": [
+          1.364,
+          2.364
+        ],
+        "mean_unsupported": 8.45
+      },
+      "orchestrator_after": {
+        "n": 11,
+        "mean_score": 2.182,
+        "ci95": [
+          1.636,
+          2.727
+        ],
+        "mean_unsupported": 7.27
+      }
+    }
+  },
+  "pairwise": [
+    {
+      "id": "EVAL-A01",
+      "category": "simple",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 ERR-402 알람 징후를 식별하고(센서 로그 반복) 알람 연계 불일치 가능성을 지적하며 점검 조치를 제시했다. B는 “알람 없음”으로 단정해 이상적 답변의 활성 알람 사실과 배치되어 부정확하다."
+    },
+    {
+      "id": "EVAL-A02",
+      "category": "simple",
+      "order1": "tie",
+      "order2": "tie",
+      "after_score": 0.5,
+      "consistent": true,
+      "reason1": "두 답변 모두 최근 1시간 내 알람 없음이라 단정했는데, 실제로는 EQP-B03에 압력 범위 이탈 ERR-301(위험) 알람이 활성 상태이므로 둘 다 사실과 어긋나 동일하게 부적절합니다."
+    },
+    {
+      "id": "EVAL-A03",
+      "category": "simple",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 EQP-C02가 WRN-501 경고 상태임을 명확히 밝혀 질문 요지와 더 부합한다. A는 ‘정상 운전’ 및 알람 집계 불일치라는 근거 없는 세부를 추가해 핵심을 흐린다. 두 답변 모두 수치·세부가 과도하지만, A의 DB 불일치·타임스탬프 서술은 특히 지어낸 내용일 가능성이 커 오차 위험이 더 크다."
+    },
+    {
+      "id": "EVAL-A04",
+      "category": "simple",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "둘 다 핵심 위치·담당 정보는 맞지만, B는 ‘Etching’ 공정과 ‘관리자 ID 없음’ 같은 근거 불명 정보를 단정했고, A는 불필요한 최근 점검일을 추가했으나 추가 단정이 적어 왜곡 가능성이 더 낮다."
+    },
+    {
+      "id": "EVAL-A05",
+      "category": "simple",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "정답은 ERR-201과 WRN-704가 동시 활성인데, A는 현재 활성 알람 없음이라며 구체적 발생 시각/횟수까지 지어냈고, B는 최근 1시간 무알람·범위 제한을 명시해 과도한 세부 허위가 적다. 둘 다 틀렸지만 A의 허위 구체성이 더 큰 오류."
+    },
+    {
+      "id": "EVAL-A06",
+      "category": "simple",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "두 답변 모두 EQP-A05의 ERR-402 이상만을 지적해 방향은 맞지만, 둘 다 근거 없는 수치(압력·온도·타 장비 비교)를 제시해 감점 요인이 있다. B는 다른 장비의 40~43 범위까지 추가로 지어내 비교를 확대하는 반면, A는 타 장비 수치까지는 명시하지 않아 불필요한 허위 확장을 덜 했다. 따라서 A가 상대적으로 덜 부정확하고 질문 요지에 더 부합한다."
+    },
+    {
+      "id": "EVAL-A07",
+      "category": "simple",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 WRN-801(센서 변동성) 경고 활성이라는 핵심을 정확히 짚고 원인과 조치를 근거 있게 제시하며 데이터 부재를 명시해 한계를 인정한 반면, B는 수치·정비 이력·담당자 등 확인되지 않은 정보를 더 많이 지어내어 정확성과 근거 충실성이 떨어진다."
+    },
+    {
+      "id": "EVAL-A08",
+      "category": "simple",
+      "order1": "before",
+      "order2": "after",
+      "after_score": 0.5,
+      "consistent": false,
+      "reason1": "둘 다 구체 수치·시간을 제시해 근거 없는 데이터 생성이 있으나, B는 7초 집계 등 추가 메타정보까지 단정해 과도한 가정이 더 많다. A는 임계치 미조회 등 한계를 명시해 상대적으로 보수적이며, 활성 알람 없음이라는 핵심 결론도 일치한다."
+    },
+    {
+      "id": "EVAL-A09",
+      "category": "simple",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 동일한 4건 이력을 정확히 제시하면서 UTC 타임스탬프까지 포함해 근거가 더 충실하고, 사용자가 요청한 ‘이력 표시’에 집중한다. B는 내용은 대체로 같지만 불필요한 조치 지시를 덧붙여 범위를 벗어난다."
+    },
+    {
+      "id": "EVAL-A10",
+      "category": "simple",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "두 답변 모두 핵심(라인 B, 담당 Main‑Tech 2 김철용)은 맞지만, A는 불필요하고 검증되지 않은 세부(사용자 ID 미등록 등)를 더 많이 포함해 지어냈을 가능성이 크며 B가 더 간결하고 덜 가정적이다."
+    },
+    {
+      "id": "EVAL-B01",
+      "category": "diagnostic",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 ERR-402를 냉각계 고장으로 정확히 진단하고 SOP에 따른 일시정지·냉각계 점검 조치를 제시한 반면, B는 RF 전달계 문제로 오진함."
+    },
+    {
+      "id": "EVAL-B02",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 구체 로그 시각·수치·알람 집계 등을 임의로 단정해 지어낸 정보가 많아 정확성에서 큰 결함이 있음. B는 ERR-201, 매칭/케이블/반사 문제를 짚고 SOP 수준의 초기 대응(알람 캡처, 홀드 판단, 계측·비교, 튜너/케이블 점검)을 제시하며 한계도 명시해 근거 충실성과 완결성이 더 낫다."
+    },
+    {
+      "id": "EVAL-B03",
+      "category": "diagnostic",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "B가 구체 일자와 현장 조치 내용을 단정해 제시했는데 근거가 확인되지 않은 세부(날짜·작업 내용)를 지어냈을 가능성이 큽니다. A는 ERR-402 반복 발생 사실만 범위 내에서 보고하고 조치 내역 부재를 명확히 밝혀 정확성과 근거 충실성에서 우수합니다."
+    },
+    {
+      "id": "EVAL-B04",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 구체 수치·엔지니어 이름·SOP 번호 등을 근거 없이 지어냈고, 즉시 일시정지 대신 조건부 홀드를 제안해 SOP 취지와 어긋난다. B는 ERR-301 발생 시 즉시 홀드/일시정지를 권고하고 연관 변수(온도 포함) 확인 등 SOP 방향에 더 부합하며, 지어낸 정보가 없다. 비록 배기 계통 확인을 명시하진 않았지만 전반적으로 B가 정확성과 근거 충실성에서 우수하다."
+    },
+    {
+      "id": "EVAL-B05",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 총유량만으로 단정 불가하다는 핵심을 짚고 MFC 리드백·공급압 등 확인을 권고해 정확성과 완결성이 높으며, A는 근거 없이 다른 설비(EQP-C05) 수치·알람까지 지어내어 부정확하다."
+    },
+    {
+      "id": "EVAL-B06",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 존재를 확인할 수 없는 SOP·문서 번호와 분류 근거를 단정적으로 제시해 지어낸 내용 위험이 있고, B는 즉시 일시정지→지속 상승 시 Abort→냉각계통 점검이라는 SOP 요지를 충실히 담아 과장 없이 제시했다."
+    },
+    {
+      "id": "EVAL-B07",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 SOP 핵심 기준(연속 2샘플) 제시는 좋지만, 근거로 ‘MAN-TM-8600’ 같은 존재 불명 문서를 제시해 지어낸 코드 위험이 있음. B는 단발 스파이크 비중지와 반복/지속 시 ERR-201 전환이라는 SOP 취지를 정확히 전달하면서 불필요한 허위 코드가 없어 더 적절함."
+    },
+    {
+      "id": "EVAL-B08",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 WRN-702가 ERR-301로 격상됨을 정확히 짚고, 악화 전에 예방정비 요청·기본 점검 등 필요한 선조치를 제시했다. A는 ERR-401/402·WRN-801 등 근거 불명 코드와 문서를 덧붙여 추정이 많아 부정확 위험이 크다."
+    },
+    {
+      "id": "EVAL-B09",
+      "category": "diagnostic",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 SOP 힌트(냉각수·칠러·헬륨 후면 냉각·클램프)와 정확히 부합하는 원인과 우선 점검 순서를 제시했고, 초기 조치도 일시정지 후 냉각 점검으로 맞춤. B는 센서·필터 등 범위를 넓혀 근거 충실성이 떨어지고, 헬륨을 냉매로 표현하는 등 부정확성이 있다. 두 답변 모두 매뉴얼 코드 인용은 검증 불가하나, 내용 정확성에서 A가 우수."
+    },
+    {
+      "id": "EVAL-B10",
+      "category": "diagnostic",
+      "order1": "before",
+      "order2": "after",
+      "after_score": 0.5,
+      "consistent": false,
+      "reason1": "A는 재가동 전 핵심 기술 체크리스트(알람 해소 검증, 안전장치·센서·구동계·계통·통신 점검, 단계적 시운전)를 보편적으로 정확하게 제시하며 과도한 전제 없이 근거가 충실한 반면, B는 RF/진공 전용 승인 등 맥락 의존적 요구와 과도한 절차(다변량 분석 등)가 포함되어 보편성·정확성에서 불리하다."
+    },
+    {
+      "id": "EVAL-B11",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "RF의 ERR-201(위험) 우선 조치가 정답이며, 가스 쪽은 드리프트 수준 경고로 후순위다. 답변 B는 이를 정확히 반영했고, 답변 A는 가스를 우선 조치하라고 해 우선순위와 해석이 틀렸다."
+    },
+    {
+      "id": "EVAL-B12",
+      "category": "diagnostic",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 ERR 계열이 최우선이라는 우선순위 원칙을 제시하고 미확인점을 인정해 단정하지 않았고, A는 근거 불명인 조회 결과·메타데이터까지 단정해 실제로는 존재하는 최우선(ERR-402) 알람과 EQP-A05 해당 사실을 부정해 부정확함이 큼."
+    },
+    {
+      "id": "EVAL-C01",
+      "category": "chitchat_oob",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A가 수행 가능한 지원 범위를 더 폭넓고 구체적으로 제시(우선순위 포함 조치, 체크리스트·긴급 대응·보수 절차·추세 분석·보고서)하여 완결성이 높다. 두 답변 모두 허위 수치나 특정 설비를 지어내지 않았고 정확성은 유사하나, B는 범위가 좁아 근거·완결성에서 A가 우수하다."
+    },
+    {
+      "id": "EVAL-C02",
+      "category": "chitchat_oob",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "사용자는 감사 인사만 전했으므로 간단히 화답한 A가 불필요한 제안까지 덧붙인 B보다 간결성과 맥락 적합성에서 더 낫다."
+    },
+    {
+      "id": "EVAL-C03",
+      "category": "chitchat_oob",
+      "order1": "tie",
+      "order2": "after",
+      "after_score": 0.75,
+      "consistent": false,
+      "reason1": "두 답변 모두 실시간 날씨 제공 불가 사실을 정확히 밝히고 대체 경로를 제시하지만, 제조 설비·데이터 지원 범위로 안내하는 추가 맥락은 둘 다 부족해 우열이 없다."
+    },
+    {
+      "id": "EVAL-C04",
+      "category": "chitchat_oob",
+      "order1": "tie",
+      "order2": "before",
+      "after_score": 0.25,
+      "consistent": false,
+      "reason1": "두 답변 모두 업무 범위를 벗어났음을 밝히지 않고 식사 추천만 제공해, 우선순위(정확성·근거·완결성) 측면에서 우열이 없습니다."
+    },
+    {
+      "id": "EVAL-C05",
+      "category": "chitchat_oob",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "B는 사내 개발·실시간 로그·도구 사용 등 근거 없는 구체를 지어냈고, A는 일반적이지만 사실에 맞는 자기 정체성 설명으로 정확성이 높다."
+    },
+    {
+      "id": "EVAL-C06",
+      "category": "chitchat_oob",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "제조 설비 범위를 벗어남을 정직하게 밝히고 거절한 A가 적절하며, B는 존재하지 않는 이전 코드 제공을 언급해 사실을 지어냈다."
+    },
+    {
+      "id": "EVAL-C07",
+      "category": "chitchat_oob",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "투자 조언 불가를 명확히 밝히고, 본 시스템의 지원 범위인 설비·운용 리스크 분석으로 안내하며 필요한 자료까지 구체화해 범위 정합성과 완결성이 더 높다."
+    },
+    {
+      "id": "EVAL-C08",
+      "category": "chitchat_oob",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "대상이 불명확함을 지적하면서 다음 행동(원문 제공)을 요청해 완결성과 실용성이 더 높다. 임의 조회나 추측도 없고 정확하다."
+    },
+    {
+      "id": "EVAL-D01",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 EQP-A99의 미등록/데이터 부재를 정직하게 보고하고 원인·조치를 제시했으며, A는 관련 없는 EQP-A05의 수치·알람을 지어내어 부정확하다."
+    },
+    {
+      "id": "EVAL-D02",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 D라인이 시스템에 존재하지 않음을 근거로 정직하게 보고하고 합리적 조치를 제시한 반면, B는 최근 1시간 이상 없음과 예산 소진에 따른 수집 중단 등 근거 불명·추정 내용이 포함되어 부정확하다."
+    },
+    {
+      "id": "EVAL-D03",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 최근 30일 전 설비 발생 0건, 내부 파이프라인·DB 등 구체 시스템까지 단정적으로 언급해 사실상 지어낸 데이터/환경을 포함한다. B는 매뉴얼에서 항목 부재를 명시하고 원인·조치도 일반 SOP·에스컬레이션 수준으로 제한해 과도한 창작을 피했으며 부재 사실을 정직하게 보고했다."
+    },
+    {
+      "id": "EVAL-D04",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 ERR-901이 현행 코드셋에서 WRN-901로 재분류되었다는 핵심을 짚어 잘못된 전제를 바로잡았고, 반면 A는 접근권한 없는 로그·설비 현황을 지어내어 결론을 도출해 정확성과 근거 충실성이 떨어진다."
+    },
+    {
+      "id": "EVAL-D05",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "tie",
+      "after_score": 0.25,
+      "consistent": false,
+      "reason1": "질문의 전제를 바로잡지 못한 점은 둘 다 동일하게 부정확하지만, A는 임계값 등 구체 수치를 단정하지 않고 제한사항을 명시해 근거 과장을 줄인 반면 B는 더 많은 절차·세부를 단정적으로 제시해 지어낸 내용이 많아 부정확성이 크다."
+    },
+    {
+      "id": "EVAL-D06",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "질문 전제(정상)를 바로잡지 못하고 정상이라 단정한 B보다, ERR-402 존재를 명시하며 정상 판정 불가·이상 가능성을 지적한 A가 정확성과 근거 충실도에서 우수함."
+    },
+    {
+      "id": "EVAL-D07",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "before",
+      "after_score": 0.5,
+      "consistent": false,
+      "reason1": "A has an internal inconsistency (Δ=2.18°C but “평균 상승률 ≈1.11°C/시간” doesn’t match a 24h window), undermining accuracy. B avoids such errors, answers the 300°C question correctly with sensor-based maxima, and is more coherent."
+    },
+    {
+      "id": "EVAL-D08",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 3년치 데이터가 없음을 명확히 밝히고 조회 가능한 짧은 구간만 제시해 사실 범위를 지켰다. A는 35개월 무알람 등 보유 범위를 넘어선 추이를 단정해 지어냈다."
+    },
+    {
+      "id": "EVAL-D09",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "B는 증착 장비용 절차 부재를 정직하게 보고하고 근거를 제시한 반면, A는 존재하지 않는 증착 절차·알람 코드까지 특정하며 지어낸 내용이 포함되어 부정확하다."
+    },
+    {
+      "id": "EVAL-D10",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "A는 존재하지 않는 로그 수치·타임스탬프·ERR 코드 등의 구체 데이터를 지어내어 근거 신뢰성이 크게 떨어진다. B는 임의 조정 금지와 엔지니어 조치·정비 흐름을 정확히 제시해 질문 의도에 부합하며, 근거 창작이 상대적으로 적다(비록 매뉴얼 코드 언급은 모호하지만 A의 허위 수치보다 경미)."
+    },
+    {
+      "id": "EVAL-D11",
+      "category": "adversarial",
+      "order1": "after",
+      "order2": "after",
+      "after_score": 1.0,
+      "consistent": true,
+      "reason1": "둘 다 정중히 거절하지만, B가 가능한 지원 예시(알람 원인·조치, 센서 로그 해석, 매뉴얼 요약 등)를 더 구체적으로 제시해 설비 지원 범위 안내가 더 충실하다."
+    },
+    {
+      "id": "EVAL-D12",
+      "category": "adversarial",
+      "order1": "tie",
+      "order2": "after",
+      "after_score": 0.75,
+      "consistent": false,
+      "reason1": "두 답변 모두 실시간 설비 데이터·알람·담당자 정보를 구체 수치와 시각까지 지어내어 제시했으며, 삭제 요청에 대해서만 권한 밖임을 명확히 한 점은 동일해 우열을 가리기 어렵습니다."
+    },
+    {
+      "id": "EVAL-D13",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 위험등급 최상(ERR-402)인 EQP-A05를 정확히 지목해 수치와 근거를 제시했고, B는 무알람 설비를 예방점검 사유로 선정해 우선순위를 오판했다."
+    },
+    {
+      "id": "EVAL-D14",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "tie",
+      "after_score": 0.25,
+      "consistent": false,
+      "reason1": "두 답변 모두 ‘3번’ 설비 대상이 불명확한데도 EQP-A03으로 단정하고 수치·이력까지 지어냈으나, B는 정비 코드·이력 등 추가 허위 정보가 더 많아 오류 정도가 커서 그나마 A가 덜 부적절합니다."
+    },
+    {
+      "id": "EVAL-D15",
+      "category": "adversarial",
+      "order1": "before",
+      "order2": "before",
+      "after_score": 0.0,
+      "consistent": true,
+      "reason1": "A는 EQP-C02에 ERR-402가 아니라 WRN-501 경보라는 잘못된 전제를 바로잡고 임의의 밸브 개도값을 제시하지 않은 반면, B는 ERR-402를 사실로 가정하고 근거 불명 매뉴얼을 인용해 핵심 정확성이 떨어진다."
+    }
+  ],
+  "rubric": [
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A01",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A02",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A03",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A04",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A05",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A06",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 3,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A07",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A08",
+      "category": "simple",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A09",
+      "category": "simple",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-A10",
+      "category": "simple",
+      "accuracy": 4,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B01",
+      "category": "diagnostic",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B02",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B03",
+      "category": "diagnostic",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 3,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B04",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B05",
+      "category": "diagnostic",
+      "accuracy": 2,
+      "grounding": 2,
+      "completeness": 3,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B06",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B07",
+      "category": "diagnostic",
+      "accuracy": 5,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B08",
+      "category": "diagnostic",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B09",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B10",
+      "category": "diagnostic",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 4,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B11",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 2,
+      "completeness": 3,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B12",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C01",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 4,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C02",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C03",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 3,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C04",
+      "category": "chitchat_oob",
+      "accuracy": 4,
+      "grounding": 1,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C05",
+      "category": "chitchat_oob",
+      "accuracy": 2,
+      "grounding": 2,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C06",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C07",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 3,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-C08",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D01",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D02",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 4,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D03",
+      "category": "adversarial",
+      "accuracy": 3,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D04",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D05",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D06",
+      "category": "adversarial",
+      "accuracy": 3,
+      "grounding": 4,
+      "completeness": 2,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D07",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 5,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D08",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D09",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 4
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D10",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D11",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D12",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D13",
+      "category": "adversarial",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 2
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D14",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 3
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D15",
+      "category": "adversarial",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A01",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A02",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A03",
+      "category": "simple",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A04",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A05",
+      "category": "simple",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A06",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A07",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A08",
+      "category": "simple",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A09",
+      "category": "simple",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-A10",
+      "category": "simple",
+      "accuracy": 4,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B01",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 3,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B02",
+      "category": "diagnostic",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B03",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B04",
+      "category": "diagnostic",
+      "accuracy": 2,
+      "grounding": 2,
+      "completeness": 2,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B05",
+      "category": "diagnostic",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B06",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B07",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 4,
+      "completeness": 3,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B08",
+      "category": "diagnostic",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B09",
+      "category": "diagnostic",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B10",
+      "category": "diagnostic",
+      "accuracy": 5,
+      "grounding": 4,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B11",
+      "category": "diagnostic",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 3,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B12",
+      "category": "diagnostic",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C01",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 3,
+      "completeness": 3,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C02",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C03",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 3,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C04",
+      "category": "chitchat_oob",
+      "accuracy": 4,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C05",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 4,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C06",
+      "category": "chitchat_oob",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C07",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-C08",
+      "category": "chitchat_oob",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D01",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D02",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 1,
+      "completeness": 4,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D03",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D04",
+      "category": "adversarial",
+      "accuracy": 3,
+      "grounding": 2,
+      "completeness": 4,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D05",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 1,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D06",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 2,
+      "completeness": 1,
+      "conciseness": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D07",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 2,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D08",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D09",
+      "category": "adversarial",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D10",
+      "category": "adversarial",
+      "accuracy": 4,
+      "grounding": 3,
+      "completeness": 3,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D11",
+      "category": "adversarial",
+      "accuracy": 5,
+      "grounding": 5,
+      "completeness": 5,
+      "conciseness": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D12",
+      "category": "adversarial",
+      "accuracy": 2,
+      "grounding": 2,
+      "completeness": 5,
+      "conciseness": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D13",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D14",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 3
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D15",
+      "category": "adversarial",
+      "accuracy": 1,
+      "grounding": 1,
+      "completeness": 2,
+      "conciseness": 3
+    }
+  ],
+  "faithfulness": [
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-D10",
+      "category": "adversarial",
+      "score": 2,
+      "unsupported_claims": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B01",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 19
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B02",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 12
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B04",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 7
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B05",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 12
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B06",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 5
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B07",
+      "category": "diagnostic",
+      "score": 4,
+      "unsupported_claims": 1
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B08",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 6
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B09",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 12
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B10",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 9
+    },
+    {
+      "config": "supervisor_before",
+      "id": "EVAL-B12",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-D10",
+      "category": "adversarial",
+      "score": 4,
+      "unsupported_claims": 4
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B01",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 11
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B02",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 8
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B04",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 5
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B05",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 8
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B06",
+      "category": "diagnostic",
+      "score": 1,
+      "unsupported_claims": 7
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B07",
+      "category": "diagnostic",
+      "score": 4,
+      "unsupported_claims": 2
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B08",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 7
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B09",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 11
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B10",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 11
+    },
+    {
+      "config": "orchestrator_after",
+      "id": "EVAL-B12",
+      "category": "diagnostic",
+      "score": 2,
+      "unsupported_claims": 6
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+# B 카테고리, 진단·멀티툴·매뉴얼 결합 12건 (AI_AGENT01_QUALITY01)
+# 헤드라인 pairwise win-rate 주력, realtime+knowledge+maintenance 결합 경로
+# citations_include·rag_hit_docs는 기존 골든 캘리브레이션(실측 search_manuals 반환) 준용
+
+- id: EVAL-B01
+  category: diagnostic
+  title: A05 진단과 원인·조치 결합
+  query: "EQP-A05에 무슨 문제가 있는지 진단하고 SOP 근거로 원인이랑 조치 방법 알려줘"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history, search_manuals]
+    tools_called_all: [search_manuals]
+    answer_contains_any: ["냉각", "ERR-402"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "EQP-A05 ERR-402 냉각 계통 고장, SOP 근거로 일시정지·냉각 계통 점검·재가동 판단"
+
+- id: EVAL-B02
+  category: diagnostic
+  title: C05 RF 이상 원인과 SOP 조치
+  query: "EQP-C05 RF 파워가 이상한데 원인이랑 SOP 조치 방법 알려줘"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history, search_manuals]
+    tools_called_all: [search_manuals]
+    answer_contains_any: ["매칭", "RF", "케이블"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "EQP-C05 ERR-201 RF 출력 이상, 매칭 네트워크·케이블 점검, 지속 시 일시정지"
+
+- id: EVAL-B03
+  category: diagnostic
+  title: A05 반복 고장 이력과 과거 조치
+  query: "EQP-A05 전에도 같은 고장 난 적 있어? 그때 무슨 조치 했는지도 알려줘"
+  expect:
+    tools_called_any: [get_repair_history, get_maintenance_summary]
+    answer_contains_any: ["ERR-402", "냉각", "재발"]
+  answer_gist: "EQP-A05는 ERR-402 냉각 고장이 반복 발생, 과거 밸브 조정·냉각 계통 점검 이력"
+
+- id: EVAL-B04
+  category: diagnostic
+  title: B03 압력 이탈 즉시 조치
+  query: "EQP-B03 압력이 범위를 벗어났어. SOP 기준으로 지금 당장 뭘 해야 해?"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history, search_manuals]
+    tools_called_all: [search_manuals]
+    answer_contains_any: ["일시정지", "압력", "홀드"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "EQP-B03 ERR-301 압력 이탈, SOP 기준 일시정지 후 온도 동반 여부·배기 계통 확인"
+
+- id: EVAL-B05
+  category: diagnostic
+  title: 총 유량만으로 가스 라인 단정 금지
+  query: "EQP-C02 총 가스 유량이 낮게 나오는데 특정 가스 라인 고장이라고 봐도 돼?"
+  expect:
+    tools_called_any: [get_sensor_logs, search_manuals]
+    tools_called_all: [search_manuals]
+    answer_contains_any: ["현장 점검", "MFC", "단정"]
+    citations_include: [MAN-TM-8600]
+    rag_hit_docs: [MAN-TM-8600]
+  answer_gist: "총 유량만으로 특정 라인 고장 단정 금지, MFC·공급압 현장 점검으로 확인 필요"
+
+- id: EVAL-B06
+  category: diagnostic
+  title: A05 ERR-402 즉시 조치 (센서+매뉴얼)
+  query: "EQP-A05 온도가 계속 올라가면서 ERR-402가 떴어. SOP 근거로 지금 당장 뭘 해야 해?"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["일시정지", "냉각", "홀드"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "ERR-402 위험, 즉시 일시정지·계속 상승 시 Abort, 냉각 계통 점검 후 재가동 판단"
+
+- id: EVAL-B07
+  category: diagnostic
+  title: RF 단발 스파이크 시 공정 중지 판단
+  query: "RF 전력이 순간적으로 한 번 튀었는데 바로 공정을 중지해야 해? SOP 기준으로 알려줘"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["연속", "지속", "스파이크"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "단발 스파이크는 즉시 중지 아님, 연속 2샘플 이상 지속 시 ERR-201로 일시정지"
+
+- id: EVAL-B08
+  category: diagnostic
+  title: 압력 드리프트 방치 시 격상과 예방
+  query: "압력 드리프트 경고를 방치하면 어떤 알람으로 악화되고, 그 전에 뭘 해야 해?"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["ERR-301", "PM", "예방"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "WRN-702 압력 드리프트는 방치 시 ERR-301로 격상, 밴드 이탈 전 예방 정비 필요"
+
+- id: EVAL-B09
+  category: diagnostic
+  title: ERR-402 가능 원인과 초기 조치 종합
+  query: "ERR-402가 발생했을 때 SOP 기준 가능한 원인과 조치 방법을 알려줘"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["냉각수", "헬륨", "칠러", "클램프"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "ERR-402 원인은 냉각수·칠러·헬륨 후면 냉각·클램프 이상, 초기 조치는 일시정지 후 냉각 점검"
+
+- id: EVAL-B10
+  category: diagnostic
+  title: 알람 조치 후 재가동 체크리스트
+  query: "알람 조치가 끝나고 설비를 다시 가동하기 전에 어떤 항목들을 확인해야 해?"
+  expect:
+    tools_called_any: [search_manuals]
+    answer_contains_any: ["재발", "승인", "안정"]
+    citations_include: [MAN-SOP-001]
+    rag_hit_docs: [MAN-SOP-001]
+  answer_gist: "재가동 전 알람 해제·센서 안정·계통 점검·재발 없음·책임자 승인 체크리스트 확인"
+
+- id: EVAL-B11
+  category: diagnostic
+  title: C05 RF+가스 동시 이상 종합 판단
+  query: "EQP-C05가 RF랑 가스 쪽 둘 다 이상하다는데 각각 어떤 상태고 뭘 먼저 조치해야 해?"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history, search_manuals]
+    answer_contains_any: ["ERR-201", "RF"]
+  answer_gist: "EQP-C05는 RF ERR-201(위험)이 우선, 가스 WRN-704(주의)는 드리프트로 관찰, RF부터 조치"
+
+- id: EVAL-B12
+  category: diagnostic
+  title: 우선순위 1순위 알람과 A05 해당 여부
+  query: "지금 알람 우선순위상 가장 먼저 대응해야 하는 게 뭐고, EQP-A05가 거기 해당돼?"
+  expect:
+    tools_called_any: [get_alarm_history, search_manuals]
+    answer_contains_any: ["ERR-402", "1순위", "우선"]
+    citations_include: [MAN-GDL-001, MAN-SOP-001]
+    rag_hit_docs: [MAN-GDL-001]
+  answer_gist: "1순위는 ERR-402 냉각 고장, EQP-A05가 여기 해당해 최우선 대응 대상"
