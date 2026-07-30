@@ -1,0 +1,433 @@
+{
+  "budget_per_equipment_day": 1.0,
+  "quantiles": [
+    0.99,
+    0.995,
+    0.997,
+    0.999,
+    0.9995,
+    0.9999
+  ],
+  "detectors": {
+    "PCA-both": {
+      "operating_point": {
+        "threshold_quantile": 0.999,
+        "event_recall": 1.0,
+        "recall_drift_inband": 1.0,
+        "false_alarms_per_equipment_day": 3.7037037037037037,
+        "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+        "detection_delay_p90_ticks": 111.20000000000005
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 9.777777777777779,
+          "false_alarms_per_equipment_day_dedup": 2.074074074074074,
+          "detection_delay_p90_ticks": 94.4
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 5.925925925925926,
+          "false_alarms_per_equipment_day_dedup": 1.1851851851851851,
+          "detection_delay_p90_ticks": 95.0
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 4.592592592592593,
+          "false_alarms_per_equipment_day_dedup": 1.037037037037037,
+          "detection_delay_p90_ticks": 95.0
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.7037037037037037,
+          "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+          "detection_delay_p90_ticks": 111.20000000000005
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 2.814814814814815,
+          "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+          "detection_delay_p90_ticks": 111.20000000000005
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 1.6296296296296295,
+          "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+          "detection_delay_p90_ticks": 134.00000000000006
+        }
+      ]
+    },
+    "PCA-SPE": {
+      "operating_point": {
+        "threshold_quantile": 0.999,
+        "event_recall": 1.0,
+        "recall_drift_inband": 1.0,
+        "false_alarms_per_equipment_day": 3.8518518518518516,
+        "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+        "detection_delay_p90_ticks": 93.20000000000005
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 12.0,
+          "false_alarms_per_equipment_day_dedup": 3.111111111111111,
+          "detection_delay_p90_ticks": 84.8000000000001
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 8.0,
+          "false_alarms_per_equipment_day_dedup": 1.9259259259259258,
+          "detection_delay_p90_ticks": 87.20000000000005
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 5.925925925925926,
+          "false_alarms_per_equipment_day_dedup": 1.4814814814814814,
+          "detection_delay_p90_ticks": 87.20000000000005
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.8518518518518516,
+          "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+          "detection_delay_p90_ticks": 93.20000000000005
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.4074074074074074,
+          "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+          "detection_delay_p90_ticks": 93.80000000000003
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 1.6296296296296295,
+          "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+          "detection_delay_p90_ticks": 94.4
+        }
+      ]
+    },
+    "PCA-T2": {
+      "operating_point": {
+        "threshold_quantile": 0.999,
+        "event_recall": 0.9090909090909091,
+        "recall_drift_inband": 0.5,
+        "false_alarms_per_equipment_day": 2.6666666666666665,
+        "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+        "detection_delay_p90_ticks": 41.00000000000017
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 9.481481481481481,
+          "false_alarms_per_equipment_day_dedup": 2.2222222222222223,
+          "detection_delay_p90_ticks": 149.0
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 5.62962962962963,
+          "false_alarms_per_equipment_day_dedup": 1.1851851851851851,
+          "detection_delay_p90_ticks": 35.60000000000018
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 5.037037037037037,
+          "false_alarms_per_equipment_day_dedup": 1.037037037037037,
+          "detection_delay_p90_ticks": 35.60000000000018
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 2.6666666666666665,
+          "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+          "detection_delay_p90_ticks": 41.00000000000017
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 2.3703703703703702,
+          "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+          "detection_delay_p90_ticks": 41.00000000000017
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 2.5185185185185186,
+          "false_alarms_per_equipment_day_dedup": 0.4444444444444444,
+          "detection_delay_p90_ticks": 47.00000000000017
+        }
+      ]
+    },
+    "iForest": {
+      "operating_point": {
+        "threshold_quantile": 0.9995,
+        "event_recall": 0.8636363636363636,
+        "recall_drift_inband": 0.5,
+        "false_alarms_per_equipment_day": 12.296296296296296,
+        "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+        "detection_delay_p90_ticks": 55.39999999999999
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 19.85185185185185,
+          "false_alarms_per_equipment_day_dedup": 2.5185185185185186,
+          "detection_delay_p90_ticks": 155.0
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 17.333333333333332,
+          "false_alarms_per_equipment_day_dedup": 1.4814814814814814,
+          "detection_delay_p90_ticks": 161.0
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 16.14814814814815,
+          "false_alarms_per_equipment_day_dedup": 1.4814814814814814,
+          "detection_delay_p90_ticks": 71.00000000000034
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 0.8636363636363636,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 13.185185185185185,
+          "false_alarms_per_equipment_day_dedup": 1.037037037037037,
+          "detection_delay_p90_ticks": 53.0
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 0.8636363636363636,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 12.296296296296296,
+          "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+          "detection_delay_p90_ticks": 55.39999999999999
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 0.8181818181818182,
+          "recall_drift_inband": 0.0,
+          "false_alarms_per_equipment_day": 11.555555555555555,
+          "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+          "detection_delay_p90_ticks": 54.800000000000004
+        }
+      ]
+    },
+    "kernelPCA": {
+      "operating_point": {
+        "threshold_quantile": 0.999,
+        "event_recall": 0.9545454545454546,
+        "recall_drift_inband": 1.0,
+        "false_alarms_per_equipment_day": 3.111111111111111,
+        "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+        "detection_delay_p90_ticks": 149.0
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 13.62962962962963,
+          "false_alarms_per_equipment_day_dedup": 2.5185185185185186,
+          "detection_delay_p90_ticks": 143.0
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 8.88888888888889,
+          "false_alarms_per_equipment_day_dedup": 1.4814814814814814,
+          "detection_delay_p90_ticks": 149.0
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 6.518518518518518,
+          "false_alarms_per_equipment_day_dedup": 1.3333333333333333,
+          "detection_delay_p90_ticks": 149.0
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.111111111111111,
+          "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+          "detection_delay_p90_ticks": 149.0
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 0.9545454545454546,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 1.7777777777777777,
+          "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+          "detection_delay_p90_ticks": 149.0
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 0.9090909090909091,
+          "recall_drift_inband": 0.5,
+          "false_alarms_per_equipment_day": 0.7407407407407407,
+          "false_alarms_per_equipment_day_dedup": 0.2962962962962963,
+          "detection_delay_p90_ticks": 52.40000000000016
+        }
+      ]
+    },
+    "VAR": {
+      "operating_point": {
+        "threshold_quantile": 0.9995,
+        "event_recall": 1.0,
+        "recall_drift_inband": 1.0,
+        "false_alarms_per_equipment_day": 3.8518518518518516,
+        "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+        "detection_delay_p90_ticks": 144.2000000000001
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 12.0,
+          "false_alarms_per_equipment_day_dedup": 2.6666666666666665,
+          "detection_delay_p90_ticks": 121.40000000000008
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 7.851851851851852,
+          "false_alarms_per_equipment_day_dedup": 1.6296296296296295,
+          "detection_delay_p90_ticks": 121.40000000000008
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 6.222222222222222,
+          "false_alarms_per_equipment_day_dedup": 1.3333333333333333,
+          "detection_delay_p90_ticks": 128.00000000000006
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 4.444444444444445,
+          "false_alarms_per_equipment_day_dedup": 1.037037037037037,
+          "detection_delay_p90_ticks": 128.00000000000006
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.8518518518518516,
+          "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+          "detection_delay_p90_ticks": 144.2000000000001
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.4074074074074074,
+          "false_alarms_per_equipment_day_dedup": 0.8888888888888888,
+          "detection_delay_p90_ticks": 155.0000000000001
+        }
+      ]
+    },
+    "AE": {
+      "operating_point": {
+        "threshold_quantile": 0.999,
+        "event_recall": 1.0,
+        "recall_drift_inband": 1.0,
+        "false_alarms_per_equipment_day": 3.4074074074074074,
+        "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+        "detection_delay_p90_ticks": 95.0
+      },
+      "curve": [
+        {
+          "threshold_quantile": 0.99,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 12.88888888888889,
+          "false_alarms_per_equipment_day_dedup": 3.5555555555555554,
+          "detection_delay_p90_ticks": 77.60000000000011
+        },
+        {
+          "threshold_quantile": 0.995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 6.666666666666667,
+          "false_alarms_per_equipment_day_dedup": 1.9259259259259258,
+          "detection_delay_p90_ticks": 89.00000000000013
+        },
+        {
+          "threshold_quantile": 0.997,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 5.481481481481482,
+          "false_alarms_per_equipment_day_dedup": 1.037037037037037,
+          "detection_delay_p90_ticks": 89.00000000000013
+        },
+        {
+          "threshold_quantile": 0.999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 3.4074074074074074,
+          "false_alarms_per_equipment_day_dedup": 0.7407407407407407,
+          "detection_delay_p90_ticks": 95.0
+        },
+        {
+          "threshold_quantile": 0.9995,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 2.6666666666666665,
+          "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+          "detection_delay_p90_ticks": 106.4
+        },
+        {
+          "threshold_quantile": 0.9999,
+          "event_recall": 1.0,
+          "recall_drift_inband": 1.0,
+          "false_alarms_per_equipment_day": 2.074074074074074,
+          "false_alarms_per_equipment_day_dedup": 0.5925925925925926,
+          "detection_delay_p90_ticks": 111.80000000000003
+        }
+      ]
+    }
+  }
+}

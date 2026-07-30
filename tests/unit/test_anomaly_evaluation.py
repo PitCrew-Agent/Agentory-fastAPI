@@ -10,6 +10,7 @@ from anomaly.evaluation import (
     bucket_dedup,
     event_recall_and_delays,
     false_alarms,
+    operating_point,
     point_labels,
     resolve_grace,
     summarize,
@@ -120,6 +121,44 @@ def test_summarize_reports_dedup_false_alarms():
     assert (
         metrics["false_alarms_per_equipment_day_dedup"] < metrics["false_alarms_per_equipment_day"]
     )
+
+
+def _sweep_pt(q, recall, dedup_fa, p90):
+    return {
+        "q": q,
+        "event_recall": recall,
+        "false_alarms_per_equipment_day_dedup": dedup_fa,
+        "detection_delay_p90_ticks": p90,
+    }
+
+
+def test_operating_point_max_recall_within_budget():
+    sweep = [
+        _sweep_pt(0.99, 1.0, 2.0, 30),  # 예산 초과
+        _sweep_pt(0.999, 1.0, 0.6, 36),
+        _sweep_pt(0.9999, 0.9, 0.3, 40),
+    ]
+    op = operating_point(sweep, budget=1.0)
+    assert op["q"] == 0.999  # 예산 1.0 이하 중 recall 최대(1.0)
+
+
+def test_operating_point_tiebreak_by_delay():
+    sweep = [
+        _sweep_pt(0.999, 1.0, 0.6, 50),
+        _sweep_pt(0.9995, 1.0, 0.5, 36),  # 동일 recall이면 지연 낮은 쪽
+    ]
+    op = operating_point(sweep, budget=1.0)
+    assert op["q"] == 0.9995
+
+
+def test_operating_point_fallback_to_min_fa_when_over_budget():
+    sweep = [_sweep_pt(0.99, 1.0, 3.0, 30), _sweep_pt(0.999, 1.0, 2.0, 36)]
+    op = operating_point(sweep, budget=1.0)  # 전부 예산 초과 → 오탐 최저
+    assert op["q"] == 0.999
+
+
+def test_operating_point_empty_is_none():
+    assert operating_point([], budget=1.0) is None
 
 
 def test_point_labels_marks_event_range_inclusive():
