@@ -282,7 +282,7 @@ modules/agent/
 | 2 | Planner + 병렬 Fetch + 재판단 예산 + SSE 매핑 | 완료 (#139) |
 | 검증 | 아키텍처 A/B 벤치 실측 | 완료 (#139) |
 | 3 | Evidence Store 정규화 + Finalizer 입력 축소 | 예정 |
-| 4 | 시나리오 3.2 골든 E2E + 플래그 전환 | 예정 |
+| 4 | 시나리오 3.2 골든 E2E + 플래그 전환 | 완료 (골든 E2E tests/e2e·플래그 기본 true) |
 
 ## 9. 요구사항 매핑
 
