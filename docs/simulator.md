@@ -43,8 +43,8 @@ MCP 실시간 조회 도구와 에이전트가 진단할 대상이 생깁니다.
 
 수리한 설비는 시나리오와 무관하게 정상으로 강제됩니다(NEW_REPAIR01, [ADR-0007](adr/0007-equipment-repair.md)).
 수리 API가 `equipment_masters.repaired_at`을 래치하면, 시뮬레이터는 매 tick 이 값을 읽어
-힐 윈도우(`SIM_REPAIR_HEAL_MINUTES`, 기본 60분) 동안 정상값을 생성하고, 윈도우 경과 후 원래
-시나리오를 재개합니다. 이로써 시연 중에는 재고장이 보이지 않고, 장시간 개발 실행에서는 최소 1시간
+힐 윈도우(`SIM_REPAIR_HEAL_MINUTES`, 기본 120분) 동안 정상값을 생성하고, 윈도우 경과 후 원래
+시나리오를 재개합니다. 이로써 시연 중에는 재고장이 보이지 않고, 장시간 개발 실행에서는 최소 2시간
 이후 재고장이 다시 나타납니다.
 
 ### 정상 프로파일
@@ -101,13 +101,18 @@ uv run simulator --scenario pressure_drift_pm --iterations 40 --drift-start 5 --
 | `--iterations` | 무한 | 반복 횟수, 미지정 시 무한 |
 | `--target` | EQP-003 | 시나리오 적용 대상 설비 |
 | `--drift-start` | 10 | 드리프트 시작 tick |
+| `--preset` | 없음 | 다중 설비 시나리오 배치(예: floor_demo) |
+| `--gain` | 1.0 | PM 드리프트 증폭 배수 |
+| `--start-tick` | 0 | 시작 tick, 드리프트 소진 지점부터 시작해 이상 지속 |
 
 드리프트/급성 시나리오는 `--iterations`로 유한 실행하는 것을 권장합니다. 골든 E2E 테스트도
 이 유한 모드로 시나리오를 결정론적으로 주입합니다.
 
 ### docker-compose
 
-`simulator` 서비스로 등록되어 있어 스택과 함께 자동 실행됩니다.
+`simulator` 서비스로 등록되어 있어 스택과 함께 자동 실행됩니다. 기본 command는
+`simulator --preset floor_demo --start-tick 200`으로, 데모용 다중 설비 배치를 이상 지속
+지점부터 기동합니다.
 
 ```bash
 docker compose up -d          # db·api·mcp와 함께 시뮬레이터도 기동

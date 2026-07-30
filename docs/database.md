@@ -358,6 +358,10 @@ role과 status는 CHECK 제약(`ck_users_role`·`ck_users_status`)으로 허용�
 | pressure | decimal(5,2) |  | 압력 mTorr |
 | rf_power | decimal(6,2) |  | RF 파워 kW (ERD v2 신규) |
 | gas_flow | decimal(7,2) |  | 가스 유량 sccm (ERD v2 신규) |
+| temperature_center | decimal(5,2) |  | 동적 밴드 중심선, 온도 (마이그레이션 0031) |
+| pressure_center | decimal(5,2) |  | 동적 밴드 중심선, 압력 (마이그레이션 0031) |
+| rf_power_center | decimal(6,2) |  | 동적 밴드 중심선, RF 파워 (마이그레이션 0031) |
+| gas_flow_center | decimal(7,2) |  | 동적 밴드 중심선, 가스 유량 (마이그레이션 0031) |
 | alarm_code | varchar(20) |  | 대표 알람 코드, 활성 변수별 알람 중 최고 심각도 파생값 |
 
 `(equipment_id, timestamp)` 복합 인덱스(`ix_telemetry_equipment_time`)로 설비별 기간 조회에
@@ -470,13 +474,13 @@ email을 저장하며, 배경은 위 chat_session 절과 [ADR-0002](adr/0002-aut
 | equipment_type | varchar(50) |  | 메타 필터용 공정 유형 |
 | alarm_code | varchar(20) |  | 메타 필터용 알람 코드 |
 | content | text | NN | 청크 본문 |
-| embedding | vector(1536) | NN | 임베딩 벡터 |
+| embedding | vector(768) | NN | 임베딩 벡터 (e5 로컬 임베더, 마이그레이션 0030) |
 | created_at | timestamptz | NN, default now | 적재 시각 |
 
 임베딩 컬럼에는 HNSW 인덱스(`ix_knowledge_embedding_hnsw`, vector_cosine_ops)를 두어 코사인
 유사도 검색에 대응하며, equipment_type과 alarm_code에는 메타 필터 검색용 인덱스를 둡니다.
-이 컬렉션은 벡터 검색 전용이므로 다른 테이블과 외래 키를 맺지 않습니다. 임베딩 차원(현재 1536)은
-임베딩 모델 선정에 따라 조정해야 하며, 값이 일치하지 않으면 적재에 실패합니다.
+이 컬렉션은 벡터 검색 전용이므로 다른 테이블과 외래 키를 맺지 않습니다. 임베딩 차원(현재 768,
+e5 로컬 임베더)은 임베딩 모델 선정에 따라 조정해야 하며, 값이 일치하지 않으면 적재에 실패합니다.
 
 ### chat_session
 
@@ -571,6 +575,8 @@ trace에는 ReAct 단계(Thought·Action·Observation)를 jsonb로 적재합니�
 | confirm_k | int | NN | 지속 확인 윈도우 수 |
 | ewma_limit | float |  | 공정 유형 EWMA 한계 |
 | state | jsonb | NN | PCA MSPC 파라미터 직렬화 |
+| var_state | jsonb |  | VAR 보완 경로 파라미터 직렬화 (마이그레이션 0029) |
+| var_ewma_limit | float |  | VAR 경로 EWMA 한계 (마이그레이션 0029) |
 | train_rows | int | NN | 적합 표본 수 |
 | fitted_at | timestamptz | NN, default now | 적합 시각 |
 
