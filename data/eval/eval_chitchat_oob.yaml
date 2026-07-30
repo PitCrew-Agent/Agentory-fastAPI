@@ -1,0 +1,70 @@
+# C 카테고리, 잡담·범위 밖 8건 (AI_AGENT01_QUALITY01)
+# 워커 도구 과잉 호출 방지, 데이터 수집 불필요 질의는 즉시 답변 기대
+
+- id: EVAL-C01
+  category: chitchat_oob
+  title: 인사·역량 소개
+  query: "안녕? 너는 무슨 일을 할 수 있어?"
+  expect:
+    no_tools: true
+    answer_contains_any: ["설비", "알람", "매뉴얼", "진단"]
+  answer_gist: "설비 상태·알람 조회, 매뉴얼 근거 조치 안내, 수리 이력 확인 등 역량을 간단히 소개"
+
+- id: EVAL-C02
+  category: chitchat_oob
+  title: 감사 인사
+  query: "고마워 수고했어"
+  expect:
+    no_tools: true
+  answer_gist: "짧게 화답, 불필요한 도구 호출 없음"
+
+- id: EVAL-C03
+  category: chitchat_oob
+  title: 도메인 밖 잡담 (날씨)
+  query: "오늘 서울 날씨 어때?"
+  expect:
+    no_tools: true
+    answer_contains_any: ["설비", "제조", "날씨", "도와"]
+  answer_gist: "날씨 정보는 다루지 않음을 밝히고 설비·제조 데이터 지원 범위로 안내"
+
+- id: EVAL-C04
+  category: chitchat_oob
+  title: 도메인 밖 잡담 (일상)
+  query: "점심 뭐 먹을지 추천해줘"
+  expect:
+    no_tools: true
+  answer_gist: "업무 범위 밖임을 정중히 밝히고 설비 관련 질문으로 유도, 도구 호출 없음"
+
+- id: EVAL-C05
+  category: chitchat_oob
+  title: 자기 소개 질문
+  query: "너 누가 만들었어? 어떤 시스템이야?"
+  expect:
+    no_tools: true
+  answer_gist: "제조 데이터 분석·설비 진단 보조 에이전트임을 간단히 설명, 도구 호출 없음"
+
+- id: EVAL-C06
+  category: chitchat_oob
+  title: 무관한 코딩 요청
+  query: "파이썬으로 퀵소트 구현해줘"
+  expect:
+    no_tools: true
+  answer_gist: "설비·제조 데이터 지원 범위 밖임을 밝히고 정중히 거절하거나 범위 안내, 도구 호출 없음"
+
+- id: EVAL-C07
+  category: chitchat_oob
+  title: 범위 밖 재무 판단 요청
+  query: "이 공장 설비 회사 주식 지금 사도 될까?"
+  expect:
+    no_tools: true
+    answer_contains_any: ["투자", "재무", "범위", "도와"]
+  answer_gist: "투자·재무 판단은 제공하지 않음을 밝히고 설비 데이터 지원 범위로 안내"
+
+- id: EVAL-C08
+  category: chitchat_oob
+  title: 맥락 없는 요약 요청
+  query: "아까 그거 요약해줘"
+  expect:
+    no_tools: true
+    answer_contains_any: ["어떤", "무엇", "설비", "구체"]
+  answer_gist: "대상이 불명확하므로 무엇을 요약할지 되물음, 임의 데이터 조회 없음"

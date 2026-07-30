@@ -1,0 +1,93 @@
+# A 카테고리, 단순 조회 10건 (AI_AGENT01_QUALITY01)
+# 라우팅·엔티티 정확도 baseline, 시드 실측 활성 알람 기준 정답 라벨
+
+- id: EVAL-A01
+  category: simple
+  title: A05 현재 상태와 활성 알람 조회
+  query: "EQP-A05 지금 상태 어때? 무슨 알람이 떠 있어?"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs, get_equipment_metadata]
+    answer_contains_any: ["ERR-402"]
+    answer_contains_all: ["EQP-A05"]
+  answer_gist: "EQP-A05는 냉각 계통 복합 고장으로 ERR-402(위험)가 활성, 온도 상승 동반"
+
+- id: EVAL-A02
+  category: simple
+  title: B03 알람 확인
+  query: "EQP-B03에 지금 알람 떠 있어?"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs]
+    answer_contains_any: ["ERR-301"]
+  answer_gist: "EQP-B03은 압력 범위 이탈로 ERR-301(위험) 활성"
+
+- id: EVAL-A03
+  category: simple
+  title: C02 상태 조회
+  query: "EQP-C02 상태 알려줘"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs]
+    answer_contains_any: ["WRN-501", "가스"]
+  answer_gist: "EQP-C02는 총 가스 유량 편차로 WRN-501(주의) 활성"
+
+- id: EVAL-A04
+  category: simple
+  title: A05 위치와 담당 부서 조회
+  query: "EQP-A05 설비가 어디에 있고 담당 부서가 어디야?"
+  expect:
+    tools_called_any: [get_equipment_metadata]
+    answer_contains_any: ["Zone-A", "Main-Tech 1", "하경훈", "A라인"]
+  answer_gist: "EQP-A05는 A라인 Zone-A, 담당 Main-Tech 1(하경훈)"
+
+- id: EVAL-A05
+  category: simple
+  title: C05 활성 알람 조회
+  query: "EQP-C05에 무슨 알람들이 떠 있어?"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs]
+    answer_contains_any: ["ERR-201", "RF"]
+  answer_gist: "EQP-C05는 RF 출력 이상 ERR-201(위험)과 가스 드리프트 WRN-704(주의) 동시 활성"
+
+- id: EVAL-A06
+  category: simple
+  title: A라인 이상 설비 유무 조회
+  query: "A라인에서 지금 이상 있는 설비 있어?"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history]
+    answer_contains_any: ["EQP-A05", "ERR-402"]
+  answer_gist: "A라인에서 EQP-A05가 ERR-402로 위험, 나머지는 특이 알람 없음"
+
+- id: EVAL-A07
+  category: simple
+  title: C04 상태 조회
+  query: "EQP-C04 지금 어때?"
+  expect:
+    tools_called_any: [get_alarm_history, get_sensor_logs]
+    answer_contains_any: ["WRN-801", "변동"]
+  answer_gist: "EQP-C04는 센서 변동성 증가로 WRN-801(주의) 활성"
+
+- id: EVAL-A08
+  category: simple
+  title: 정상 설비 과잉 경보 방지
+  query: "EQP-A01 지금 이상 없어?"
+  expect:
+    tools_called_any: [get_sensor_logs, get_alarm_history]
+    answer_contains_any: ["없", "정상", "이상 없"]
+  answer_gist: "EQP-A01은 활성 알람 없이 정상 범위, 없는 알람을 지어내지 않아야 함"
+
+- id: EVAL-A09
+  category: simple
+  title: A05 수리 이력 조회
+  query: "EQP-A05 지금까지 수리한 이력 좀 보여줘"
+  expect:
+    tools_called_any: [get_repair_history, get_maintenance_summary]
+    answer_contains_any: ["ERR-402", "냉각", "수리"]
+  answer_gist: "EQP-A05는 냉각 계통 ERR-402 반복 수리 이력 보유"
+
+- id: EVAL-A10
+  category: simple
+  title: B03 담당 라인·담당자 조회
+  query: "EQP-B03은 어느 라인이고 담당자가 누구야?"
+  expect:
+    tools_called_any: [get_equipment_metadata]
+    answer_contains_any: ["B라인", "김철용", "Main-Tech 2"]
+  answer_gist: "EQP-B03은 B라인, 담당 Main-Tech 2(김철용)"
