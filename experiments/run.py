@@ -13,7 +13,6 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
-import mlflow
 import numpy as np
 import yaml
 
@@ -345,6 +344,8 @@ METHODS = {
 
 
 def main() -> None:
+    import mlflow  # 지연 import, 채점 함수는 mlflow 없이 재사용 가능하게 유지(운영점 도구 등)
+
     parser = argparse.ArgumentParser(description="이상 감지 실험 러너")
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
