@@ -1,0 +1,82 @@
+{
+  "EVAL-D11": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-C01": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-B09": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-A06": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-D02": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-C08": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-B04": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-A05": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-D01": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-C07": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-B12": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-A03": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-D12": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-C02": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-B07": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-A02": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-D05": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-C05": {
+    "slot1": "supervisor_before",
+    "slot2": "orchestrator_after"
+  },
+  "EVAL-B11": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  },
+  "EVAL-A08": {
+    "slot1": "orchestrator_after",
+    "slot2": "supervisor_before"
+  }
+}
