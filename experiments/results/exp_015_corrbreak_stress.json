@@ -1,0 +1,78 @@
+{
+  "experiment": "EXP-015-CORRBREAK-STRESS",
+  "run_at": "2026-07-30T03:19:05.751459+00:00",
+  "git_commit": "f9bbf0634eacc8ceca14f5aa40736bf1d95ac413",
+  "eval_set_version": "corrbreak_stress",
+  "config": {
+    "seeds": [
+      20260716,
+      11111,
+      77777,
+      20260101
+    ],
+    "n_corr_break_per_seed": 80,
+    "n_normal_per_seed": 4,
+    "stat": {
+      "window": 12,
+      "stride": 6,
+      "n_components": 0.9,
+      "threshold_quantile": 0.999,
+      "cross_correlation": true,
+      "ewma_alpha": 0.1,
+      "ewma_clip": 3.0,
+      "confirm_k": 2,
+      "max_delay_ticks": 180,
+      "transition_threshold": 1000.0,
+      "transition_settle": 10
+    },
+    "rule_max_delay_ticks": 60
+  },
+  "metrics": {
+    "corr_break_total": 320,
+    "stat_recall_corr_break": 0.8531,
+    "rule_recall_corr_break": 0.3312,
+    "stat_over_rule": 2.58,
+    "stat_detected": 273,
+    "rule_detected": 106,
+    "auc_pr_mean": 0.9963,
+    "delay_mean_corr_break_ticks": 81.1
+  },
+  "per_seed": [
+    {
+      "seed": 20260716,
+      "stat_detected": 63,
+      "rule_detected": 23,
+      "total": 80,
+      "stat_recall": 0.7875,
+      "rule_recall": 0.2875,
+      "auc_pr": 0.9956
+    },
+    {
+      "seed": 11111,
+      "stat_detected": 74,
+      "rule_detected": 25,
+      "total": 80,
+      "stat_recall": 0.925,
+      "rule_recall": 0.3125,
+      "auc_pr": 0.9958
+    },
+    {
+      "seed": 77777,
+      "stat_detected": 65,
+      "rule_detected": 27,
+      "total": 80,
+      "stat_recall": 0.8125,
+      "rule_recall": 0.3375,
+      "auc_pr": 0.996
+    },
+    {
+      "seed": 20260101,
+      "stat_detected": 71,
+      "rule_detected": 31,
+      "total": 80,
+      "stat_recall": 0.8875,
+      "rule_recall": 0.3875,
+      "auc_pr": 0.9976
+    }
+  ]
+}
