@@ -56,3 +56,8 @@ corr_break의 남은 레버는 점수 시계열 누적입니다. PCAX의 상관 
   확보 후 판단합니다
 - 점화(ignition) 흡수 검증은 미수행입니다. 학습 세트에 점화 구간이 없어 은행에 해당
   모드가 없기 때문이며, 다중 모드 은행 구성은 EXP-006 캘리브레이션과 함께 다룹니다
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. drift_inband 2건이 유예 720에서 감지로 전환되어 전체 event_recall이 상향되었습니다(v0 0.773→0.864, cosine 0.727→0.818). v1 보류 결론은 유효합니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.
