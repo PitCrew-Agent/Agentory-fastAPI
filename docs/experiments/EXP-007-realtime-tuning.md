@@ -99,3 +99,8 @@ EWMA 경로에서는 효과가 더 작습니다(18.8 → 17.5). 이유는 잔여
 - 오탐 절대 수준(17.5/일)은 30분 dedup 버킷 통과 후 실제 알림 수로 재평가 필요
 - 서빙 실행 주기 = stride(30초 배치)로 직결, 스코어링 부하는 실측 필요
 - K·stride 최종값은 섀도우 모드에서 운영자 피드백으로 재조정하는 것을 권장
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. 최종 구성 event_recall이 0.909에서 1.000으로 바뀌었습니다(drift_inband 감지). stride 지배·윈도우 품질 결론은 유효합니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.

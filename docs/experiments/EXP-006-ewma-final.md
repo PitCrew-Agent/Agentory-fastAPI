@@ -56,3 +56,8 @@ raw 경로와 누적 경로는 같은 PCAX 점수의 두 가지 소비 방식이
   확보 후 별도 실험으로 진행합니다
 - 유예 180 채점은 corr_break류 완만 이상에만 의미가 있으며, 급성 계열 비교는 유예
   60 결과를 기준으로 유지합니다
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. drift_inband이 감지로 전환되어 event_recall이 상향되었습니다(유예60 0.773→0.864, g180 0.909→1.000). "남은 미감지는 in-band 드리프트뿐" 서술은 유예 720 하에서 초과됩니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.

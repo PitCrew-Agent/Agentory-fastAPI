@@ -67,3 +67,8 @@ transition_threshold(기본 1000)·transition_settle(기본 10)을 추가합니�
 - 남은 baseline FA 25건은 별도 과제(K 상향·임계 조정), 전이 억제 범위 밖
 - 실측 데이터의 전이(레시피 실제 램프)는 합성보다 raw 점수가 낮을 수 있어, 서빙 후
   섀도우 모드에서 transition_threshold 재조정 권장
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. 최종 구성 event_recall이 전이 억제 전후 모두 0.909에서 1.000으로 바뀌었습니다. 오탐·corr_break·oscillation 결론은 유효하며, 현재 헤드라인 오탐은 dedup FAR 0.59입니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.

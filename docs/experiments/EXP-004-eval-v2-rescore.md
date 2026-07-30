@@ -74,3 +74,8 @@ v2로 "규칙이 못 보는 영역"이 정량화됐고, 그 영역에서 v0의 �
 - drift_inband의 유예 60 tick은 전개 속도(375 tick) 대비 물리적으로 불가능한 요구라
   해당 유형 recall은 0이 구조적 기본값이며, 유형별 유예 차등은 도입하지 않고 이벤트별
   지연 표로 보완했습니다
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. 재기록 스냅샷에서 drift_inband recall이 0.0에서 1.0으로 바뀌었습니다(규칙·v0·PCAX 모두). 특히 본문 한계의 "유형별 유예 차등 미도입" 서술은 ADR-0011에서 번복되어 현재는 유형별 유예를 사용합니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.

@@ -12,7 +12,7 @@
 [AI 에이전트 (MCP 클라이언트)]
         │  list_tools / call_tool (streamable-http)
         ▼
-[mcp-knowledge 서버]  →  임베더(OpenAI) + PgVectorStore  →  pgvector(HNSW)
+[mcp-knowledge 서버]  →  임베더(e5 로컬, 768차원) + PgVectorStore  →  pgvector(HNSW)
 ```
 
 ## 제공 도구

@@ -116,3 +116,8 @@ corr_break는 전적으로 SPE가 담당하며 T²는 절반을 놓칩니다. �
 - Autoencoder는 단일 하이퍼파라미터 설정만 시험했으며 튜닝 여지 존재
 - VAR 통합은 서빙 설계 결정이 필요한 별도 과제 (경로 추가·발령 병합 규칙)
 - SPE 단독 전환은 오탐이 소폭 늘어(3.70 → 3.85) 실측 관찰 후 판단 권장
+
+
+## 재캘리브레이션 후기 (2026-07-30, ADR-0011)
+
+본 문서 표는 실험 시점(전 유형 공통 유예, 오탐 raw FAR) 기록으로 보존합니다. 2026-07-29 [ADR-0011](../adr/0011-anomaly-eval-metrics.md) 재캘리브레이션으로 유형별 감지 유예(drift_inband 720 tick)와 dedup FAR이 도입되어 `experiments/results/` 스냅샷이 재기록되었습니다. 메인 결과표 recall 열이 재채점되어 상위 4종(PCA-both·VAR·PCA-SPE·AE) 1.000, kernelPCA 0.955, PCA-T2 0.909, iForest 0.864가 되었습니다. 헤드라인 오탐은 dedup FAR 기준이며, PCA-both 유지 결론은 유효합니다. EXP-010 병합 하위표(유예 int 180, 미재채점)는 그대로 유효합니다. 현재 기준 수치는 재기록 스냅샷과 [anomaly-model-summary.md](anomaly-model-summary.md)를 따릅니다.
