@@ -1,28 +1,39 @@
 {
   "experiment": "EXP-004-RULE",
-  "run_at": "2026-07-16T03:30:35+00:00",
-  "git_commit": "8729453a24a1bdb27a2bf467ac2091f0d951cdeb",
+  "run_at": "2026-07-30T05:19:02+00:00",
+  "git_commit": "13a80064a94a6e425a188ba44f4c3184e57a3e81",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-004-RULE",
     "method": "rule_baseline",
     "eval_set": "data/eval/v2",
-    "max_delay_ticks": 60
+    "max_delay_ticks": {
+      "_default": 60,
+      "drift_inband": 720
+    }
   },
   "metrics": {
     "events_total": 22.0,
-    "events_detected": 19.0,
-    "event_recall": 0.8636363636363636,
+    "events_detected": 20.0,
+    "event_recall": 0.9090909090909091,
     "false_alarms_total": 788.0,
     "false_alarms_per_equipment_day": 116.74074074074075,
-    "detection_delay_mean_ticks": 6.947368421052632,
-    "detection_delay_p90_ticks": 21.4,
+    "detection_delay_mean_ticks": 19.6,
+    "detection_delay_p90_ticks": 24.000000000000014,
+    "false_alarms_dedup_total": 122.0,
+    "false_alarms_per_equipment_day_dedup": 18.074074074074073,
     "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 0.0,
     "recall_corr_break": 0.0,
+    "delay_mean_corr_break_ticks": NaN,
     "recall_drift": 1.0,
-    "recall_drift_inband": 0.5,
+    "delay_mean_drift_ticks": 12.125,
+    "recall_drift_inband": 1.0,
+    "delay_mean_drift_inband_ticks": 138.5,
     "recall_oscillation": 1.0,
+    "delay_mean_oscillation_ticks": 8.5,
     "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 1.0,
     "auc_pr": 0.8685439241187392
   }
 }

@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-007-RT-NOK",
-  "run_at": "2026-07-16T05:40:11+00:00",
-  "git_commit": "7f4496fda7d5900cb892d51240989416f3b5f677",
+  "run_at": "2026-07-30T05:19:11+00:00",
+  "git_commit": "13a80064a94a6e425a188ba44f4c3184e57a3e81",
   "eval_set_version": "v2",
   "config": {
     "name": "EXP-007-RT-NOK",
@@ -15,24 +15,29 @@
     "ewma_alpha": 0.1,
     "ewma_clip": 3.0,
     "confirm_k": 1,
-    "max_delay_ticks": 180
+    "max_delay_ticks": {
+      "_default": 180,
+      "drift_inband": 720
+    }
   },
   "metrics": {
     "events_total": 22.0,
-    "events_detected": 20.0,
-    "event_recall": 0.9090909090909091,
+    "events_detected": 22.0,
+    "event_recall": 1.0,
     "false_alarms_total": 127.0,
     "false_alarms_per_equipment_day": 18.814814814814813,
-    "detection_delay_mean_ticks": 17.6,
-    "detection_delay_p90_ticks": 29.600000000000094,
+    "detection_delay_mean_ticks": 42.90909090909091,
+    "detection_delay_p90_ticks": 94.4,
+    "false_alarms_dedup_total": 8.0,
+    "false_alarms_per_equipment_day_dedup": 1.1851851851851851,
     "recall_acute": 1.0,
     "delay_mean_acute_ticks": 5.0,
     "recall_corr_break": 1.0,
     "delay_mean_corr_break_ticks": 92.0,
     "recall_drift": 1.0,
     "delay_mean_drift_ticks": 10.25,
-    "recall_drift_inband": 0.0,
-    "delay_mean_drift_inband_ticks": NaN,
+    "recall_drift_inband": 1.0,
+    "delay_mean_drift_inband_ticks": 296.0,
     "recall_oscillation": 1.0,
     "delay_mean_oscillation_ticks": 20.0,
     "recall_variance": 1.0,

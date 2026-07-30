@@ -1,7 +1,7 @@
 {
   "experiment": "EXP-003",
-  "run_at": "2026-07-16T03:10:13+00:00",
-  "git_commit": "55dfe775cef5a71f96ca88a8d85d91641c5788dc",
+  "run_at": "2026-07-30T05:19:52+00:00",
+  "git_commit": "13a80064a94a6e425a188ba44f4c3184e57a3e81",
   "eval_set_version": "v1",
   "config": {
     "name": "EXP-003",
@@ -34,6 +34,14 @@
     "false_alarms_per_equipment_day": 0.5333333333333333,
     "detection_delay_mean_ticks": 11.75,
     "detection_delay_p90_ticks": 11.0,
+    "false_alarms_dedup_total": 2.0,
+    "false_alarms_per_equipment_day_dedup": 0.5333333333333333,
+    "recall_acute": 1.0,
+    "delay_mean_acute_ticks": 11.0,
+    "recall_drift": 1.0,
+    "delay_mean_drift_ticks": 12.5,
+    "recall_variance": 1.0,
+    "delay_mean_variance_ticks": 11.0,
     "auc_pr": 0.9995870921924133
   },
   "best_params": {
@@ -58,6 +66,14 @@
         "false_alarms_per_equipment_day": 21.866666666666667,
         "detection_delay_mean_ticks": 6.875,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 33.0,
+        "false_alarms_per_equipment_day_dedup": 8.8,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 8.75,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997450251659754
       }
     },
@@ -76,6 +92,14 @@
         "false_alarms_per_equipment_day": 22.666666666666668,
         "detection_delay_mean_ticks": 6.875,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 34.0,
+        "false_alarms_per_equipment_day_dedup": 9.066666666666666,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 8.75,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.999741967624979
       }
     },
@@ -94,6 +118,14 @@
         "false_alarms_per_equipment_day": 4.8,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 12.0,
+        "false_alarms_per_equipment_day_dedup": 3.2,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997456007597064
       }
     },
@@ -112,6 +144,14 @@
         "false_alarms_per_equipment_day": 7.466666666666667,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 13.0,
+        "false_alarms_per_equipment_day_dedup": 3.466666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997446434720203
       }
     },
@@ -130,6 +170,14 @@
         "false_alarms_per_equipment_day": 2.1333333333333333,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 6.0,
+        "false_alarms_per_equipment_day_dedup": 1.6,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997487642329371
       }
     },
@@ -148,6 +196,14 @@
         "false_alarms_per_equipment_day": 3.466666666666667,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 8.0,
+        "false_alarms_per_equipment_day_dedup": 2.1333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997469986678236
       }
     },
@@ -166,6 +222,14 @@
         "false_alarms_per_equipment_day": 10.666666666666666,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 24.0,
+        "false_alarms_per_equipment_day_dedup": 6.4,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995645484338365
       }
     },
@@ -184,6 +248,14 @@
         "false_alarms_per_equipment_day": 13.6,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 29.0,
+        "false_alarms_per_equipment_day_dedup": 7.733333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995768193376668
       }
     },
@@ -202,6 +274,14 @@
         "false_alarms_per_equipment_day": 2.933333333333333,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 9.0,
+        "false_alarms_per_equipment_day_dedup": 2.4,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995745700257647
       }
     },
@@ -220,6 +300,14 @@
         "false_alarms_per_equipment_day": 3.2,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 8.0,
+        "false_alarms_per_equipment_day_dedup": 2.1333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995881318015445
       }
     },
@@ -238,6 +326,14 @@
         "false_alarms_per_equipment_day": 0.5333333333333333,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 2.0,
+        "false_alarms_per_equipment_day_dedup": 0.5333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995870921924133
       }
     },
@@ -256,6 +352,14 @@
         "false_alarms_per_equipment_day": 1.6,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 5.0,
+        "false_alarms_per_equipment_day_dedup": 1.3333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995898319345785
       }
     },
@@ -274,6 +378,14 @@
         "false_alarms_per_equipment_day": 30.666666666666668,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 28.0,
+        "false_alarms_per_equipment_day_dedup": 7.466666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997517085641883
       }
     },
@@ -292,6 +404,14 @@
         "false_alarms_per_equipment_day": 29.333333333333332,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 27.0,
+        "false_alarms_per_equipment_day_dedup": 7.2,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997165434863208
       }
     },
@@ -310,6 +430,14 @@
         "false_alarms_per_equipment_day": 10.666666666666666,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 14.0,
+        "false_alarms_per_equipment_day_dedup": 3.7333333333333334,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997498701409149
       }
     },
@@ -328,6 +456,14 @@
         "false_alarms_per_equipment_day": 12.266666666666667,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 13.0,
+        "false_alarms_per_equipment_day_dedup": 3.466666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997177700264928
       }
     },
@@ -346,6 +482,14 @@
         "false_alarms_per_equipment_day": 3.2,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 6.0,
+        "false_alarms_per_equipment_day_dedup": 1.6,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997412012711091
       }
     },
@@ -364,6 +508,14 @@
         "false_alarms_per_equipment_day": 6.4,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 8.0,
+        "false_alarms_per_equipment_day_dedup": 2.1333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9997161318396829
       }
     },
@@ -382,6 +534,14 @@
         "false_alarms_per_equipment_day": 15.733333333333333,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 26.0,
+        "false_alarms_per_equipment_day_dedup": 6.933333333333334,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995352602873098
       }
     },
@@ -400,6 +560,14 @@
         "false_alarms_per_equipment_day": 16.533333333333335,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 24.0,
+        "false_alarms_per_equipment_day_dedup": 6.4,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994958504659793
       }
     },
@@ -418,6 +586,14 @@
         "false_alarms_per_equipment_day": 5.866666666666666,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 13.0,
+        "false_alarms_per_equipment_day_dedup": 3.466666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995312831204813
       }
     },
@@ -436,6 +612,14 @@
         "false_alarms_per_equipment_day": 7.2,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 12.0,
+        "false_alarms_per_equipment_day_dedup": 3.2,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995000725411671
       }
     },
@@ -454,6 +638,14 @@
         "false_alarms_per_equipment_day": 2.933333333333333,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 7.0,
+        "false_alarms_per_equipment_day_dedup": 1.8666666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9995356163733544
       }
     },
@@ -472,6 +664,14 @@
         "false_alarms_per_equipment_day": 3.466666666666667,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 6.0,
+        "false_alarms_per_equipment_day_dedup": 1.6,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994990472949452
       }
     },
@@ -490,6 +690,14 @@
         "false_alarms_per_equipment_day": 33.06666666666667,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 22.0,
+        "false_alarms_per_equipment_day_dedup": 5.866666666666666,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9996784982512312
       }
     },
@@ -508,6 +716,14 @@
         "false_alarms_per_equipment_day": 38.4,
         "detection_delay_mean_ticks": 6.875,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 22.0,
+        "false_alarms_per_equipment_day_dedup": 5.866666666666666,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 8.75,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9996978811380002
       }
     },
@@ -526,6 +742,14 @@
         "false_alarms_per_equipment_day": 13.333333333333334,
         "detection_delay_mean_ticks": 7.625,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 7.0,
+        "false_alarms_per_equipment_day_dedup": 1.8666666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 10.25,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.99965980862929
       }
     },
@@ -544,6 +768,14 @@
         "false_alarms_per_equipment_day": 19.466666666666665,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 11.0,
+        "false_alarms_per_equipment_day_dedup": 2.933333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9996875933332174
       }
     },
@@ -562,6 +794,14 @@
         "false_alarms_per_equipment_day": 8.266666666666667,
         "detection_delay_mean_ticks": 7.625,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 6.0,
+        "false_alarms_per_equipment_day_dedup": 1.6,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 10.25,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9996504999843729
       }
     },
@@ -580,6 +820,14 @@
         "false_alarms_per_equipment_day": 12.266666666666667,
         "detection_delay_mean_ticks": 7.25,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 6.0,
+        "false_alarms_per_equipment_day_dedup": 1.6,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 5.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 9.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 5.0,
         "auc_pr": 0.9996803032706625
       }
     },
@@ -598,6 +846,14 @@
         "false_alarms_per_equipment_day": 14.933333333333334,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 18.0,
+        "false_alarms_per_equipment_day_dedup": 4.8,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994579631878326
       }
     },
@@ -616,6 +872,14 @@
         "false_alarms_per_equipment_day": 17.333333333333332,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 15.0,
+        "false_alarms_per_equipment_day_dedup": 4.0,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994899030804643
       }
     },
@@ -634,6 +898,14 @@
         "false_alarms_per_equipment_day": 6.4,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 7.0,
+        "false_alarms_per_equipment_day_dedup": 1.8666666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994243444713173
       }
     },
@@ -652,6 +924,14 @@
         "false_alarms_per_equipment_day": 10.666666666666666,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 10.0,
+        "false_alarms_per_equipment_day_dedup": 2.6666666666666665,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994875427402032
       }
     },
@@ -670,6 +950,14 @@
         "false_alarms_per_equipment_day": 3.7333333333333334,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 5.0,
+        "false_alarms_per_equipment_day_dedup": 1.3333333333333333,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994091665746784
       }
     },
@@ -688,6 +976,14 @@
         "false_alarms_per_equipment_day": 5.333333333333333,
         "detection_delay_mean_ticks": 11.75,
         "detection_delay_p90_ticks": 11.0,
+        "false_alarms_dedup_total": 4.0,
+        "false_alarms_per_equipment_day_dedup": 1.0666666666666667,
+        "recall_acute": 1.0,
+        "delay_mean_acute_ticks": 11.0,
+        "recall_drift": 1.0,
+        "delay_mean_drift_ticks": 12.5,
+        "recall_variance": 1.0,
+        "delay_mean_variance_ticks": 11.0,
         "auc_pr": 0.9994781212485778
       }
     }
