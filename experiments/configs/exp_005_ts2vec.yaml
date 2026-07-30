@@ -15,4 +15,6 @@ k_neighbors: 5
 threshold_quantile: 0.999
 baseline: knn
 seed: 20260716
-max_delay_ticks: 60
+max_delay_ticks:
+  _default: 60
+  drift_inband: 720  # 완만 드리프트 물리적 감지 한계 반영

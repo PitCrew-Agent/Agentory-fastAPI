@@ -8,5 +8,7 @@ window: 24
 stride: 12
 n_components: 0.9
 threshold_quantile: 0.999
-max_delay_ticks: 60
+max_delay_ticks:
+  _default: 60
+  drift_inband: 720  # 완만 드리프트 물리적 감지 한계 반영
 cross_correlation: true
