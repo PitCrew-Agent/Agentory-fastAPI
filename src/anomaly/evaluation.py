@@ -181,3 +181,26 @@ def summarize(
             float(np.mean(kind_delays)) if kind_delays else float("nan")
         )
     return metrics
+
+
+def operating_point(
+    sweep: list[dict],
+    budget: float,
+    fa_key: str = "false_alarms_per_equipment_day_dedup",
+    recall_key: str = "event_recall",
+    delay_key: str = "detection_delay_p90_ticks",
+) -> dict | None:
+    """오탐 예산 이하 스윕 점 중 운영점 선택 (recall 최대, 동률이면 지연 최소)
+
+    sweep은 임계 스윕 결과 metric dict 목록, budget은 fa_key 상한(건/설비·일)
+    예산 이하 점이 없으면 오탐 최저 점 반환, 모델 간 동일 예산 비교의 단일 기준
+    빈 sweep이면 None
+    """
+    if not sweep:
+        return None
+    eligible = [p for p in sweep if p.get(fa_key, float("inf")) <= budget]
+    pool = eligible or [min(sweep, key=lambda p: p.get(fa_key, float("inf")))]
+    return max(
+        pool,
+        key=lambda p: (round(p.get(recall_key, 0.0), 6), -p.get(delay_key, float("inf"))),
+    )
