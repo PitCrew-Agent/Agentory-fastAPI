@@ -107,7 +107,7 @@ class NotificationEvent(BaseModel):
     line_name: str | None  # 설비 소속 라인, 설비 마스터 미등록 시 null (BE_NOTI01_SCOPE01)
     metric: str | None  # 알람 발생 센서 변수 키, 변수 특정 불가 시 null
     alarm_code: str
-    severity: str  # 알람 심각도 (주의/위험), alarm_code 접두 기준 서버 판정값
+    severity: str  # 알람 심각도, ERR-402만 위험·그 외 주의 (telemetry.alarm_severity 정합)
     message: str
     is_read: bool
 
