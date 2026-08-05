@@ -6,6 +6,7 @@ SSE 이벤트 스키마는 agentory.common.events.NotificationEvent가 단일 �
 """
 
 import asyncio
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -37,10 +38,23 @@ async def list_notifications(
     limit: int = Query(
         default=service.DEFAULT_PAGE_SIZE, ge=1, le=service.MAX_PAGE_SIZE, examples=[10]
     ),
+    start: datetime | None = Query(
+        default=None,
+        description="조회 시작 시각 포함(ISO 8601, tz 포함), 캘린더 선택 기간 하한",
+        examples=["2026-08-01T00:00:00+09:00"],
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="조회 종료 시각 미포함(ISO 8601, tz 포함), 캘린더 선택 기간 상한(반열림)",
+        examples=["2026-08-06T00:00:00+09:00"],
+    ),
     session: AsyncSession = Depends(get_session),
     user: dict[str, Any] = Depends(get_current_user),
 ) -> ApiResponse[NotificationPage]:
-    """담당 라인 알림 목록, 발생 역순 페이지 번호 페이지네이션(기본 10개)"""
+    """담당 라인 알림 목록, 발생 역순 페이지 번호 페이지네이션(기본 10개)
+
+    start·end 지정 시 발생 시각 반열림 구간 [start, end) 필터, 미지정 시 전체 조회
+    """
     line_names = await service.scope_line_names(session, user)
     result = await service.list_notifications(
         session,
@@ -49,6 +63,8 @@ async def list_notifications(
         limit=limit,
         line_names=line_names,
         user_id=user["user_id"],
+        start=start,
+        end=end,
     )
     return ApiResponse.ok(result)
 

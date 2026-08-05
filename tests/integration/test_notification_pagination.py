@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from agentory.common.exceptions import ValidationError
 from agentory.core.config import get_settings
 from agentory.modules.auth.models import User
 from agentory.modules.notification import repository, service
@@ -135,3 +136,56 @@ async def test_unread_only_filters(session):
     )
     assert {i.id for i in page.items} == {rows[0].id, rows[1].id}  # 읽은 항목 제외
     assert page.total_items == 2
+
+
+async def test_range_filters_to_half_open_window(session):
+    # 발생 시각 [start, end) 반열림 구간만 조회, rows[index]는 Y2000+index분 (BE_NOTI01_RANGE01)
+    rows = await _seed(session, 25)
+    page = await service.list_notifications(
+        session,
+        page=1,
+        limit=10,
+        line_names=[LINE],
+        start=Y2000 + timedelta(minutes=5),
+        end=Y2000 + timedelta(minutes=10),
+    )
+    # 5·6·7·8·9분(=rows[5..9])만 포함, 발생 역순
+    assert [i.id for i in page.items] == [r.id for r in rows[9:4:-1]]
+    assert page.total_items == 5  # count도 동일 필터로 정합
+
+
+async def test_range_end_is_exclusive(session):
+    # end와 정확히 같은 시각의 알림은 미포함(반열림 상한)
+    rows = await _seed(session, 25)
+    page = await service.list_notifications(
+        session,
+        page=1,
+        limit=10,
+        line_names=[LINE],
+        start=Y2000 + timedelta(minutes=5),
+        end=Y2000 + timedelta(minutes=6),  # rows[6] 시각과 동일
+    )
+    assert [i.id for i in page.items] == [rows[5].id]  # rows[6]은 상한 미포함
+
+
+async def test_open_ended_range_filters_one_side(session):
+    # start만 지정 시 하한만 적용, end 미지정이면 상한 없음
+    rows = await _seed(session, 25)
+    page = await service.list_notifications(
+        session, page=1, limit=50, line_names=[LINE], start=Y2000 + timedelta(minutes=20)
+    )
+    assert {i.id for i in page.items} == {r.id for r in rows[20:]}  # 20분 이후 전체
+    assert page.total_items == 5
+
+
+async def test_inverted_range_raises_validation(session):
+    # start >= end 경계 역전 요청은 400
+    with pytest.raises(ValidationError):
+        await service.list_notifications(
+            session,
+            page=1,
+            limit=10,
+            line_names=[LINE],
+            start=Y2000 + timedelta(minutes=10),
+            end=Y2000 + timedelta(minutes=5),
+        )
