@@ -189,3 +189,62 @@ async def test_inverted_range_raises_validation(session):
             start=Y2000 + timedelta(minutes=10),
             end=Y2000 + timedelta(minutes=5),
         )
+
+
+async def test_available_dates_returns_distinct_kst_days(session):
+    # 알림이 있는 KST 날짜만 distinct 오름차순 반환 (BE_NOTI01_RANGE01)
+    # Y2000(=2000-01-01 00:00 UTC)은 KST로 2000-01-01 09:00이라 같은 날, 하루 뒤는 다음 날
+    base = Y2000
+    for offset in (base, base, base + timedelta(days=1), base + timedelta(days=3)):
+        session.add(
+            Notification(
+                occurred_at=offset,
+                equipment_id=EQP,
+                line_name=LINE,
+                alarm_code="ERR-000",
+                message="테스트 알림",
+                bucket_start=offset,
+            )
+        )
+    await session.flush()
+
+    result = await service.list_available_dates(session, line_names=[LINE])
+    assert [d.isoformat() for d in result.dates] == ["2000-01-01", "2000-01-02", "2000-01-04"]
+
+
+async def test_available_dates_respects_line_scope(session):
+    # 담당 라인 밖 알림은 가용 날짜에서 제외
+    await _seed(session, 1)  # LINE 소속 1건
+    other = Notification(
+        occurred_at=Y2000 + timedelta(days=10),
+        equipment_id=EQP,
+        line_name="ZZZ-OTHER-LINE",
+        alarm_code="ERR-000",
+        message="타 라인",
+        bucket_start=Y2000 + timedelta(days=10),
+    )
+    session.add(other)
+    await session.flush()
+
+    result = await service.list_available_dates(session, line_names=[LINE])
+    assert all(d.isoformat() != "2000-01-11" for d in result.dates)  # 타 라인 날짜 미포함
+
+
+async def test_available_dates_bounds_by_range(session):
+    # start·end 반열림 구간 밖의 날짜는 제외
+    await _seed(session, 5)  # 0~4분, 모두 2000-01-01
+    later = Notification(
+        occurred_at=Y2000 + timedelta(days=5),
+        equipment_id=EQP,
+        line_name=LINE,
+        alarm_code="ERR-000",
+        message="범위 밖",
+        bucket_start=Y2000 + timedelta(days=5),
+    )
+    session.add(later)
+    await session.flush()
+
+    result = await service.list_available_dates(
+        session, line_names=[LINE], start=Y2000, end=Y2000 + timedelta(days=1)
+    )
+    assert [d.isoformat() for d in result.dates] == ["2000-01-01"]  # 1/6은 상한 밖

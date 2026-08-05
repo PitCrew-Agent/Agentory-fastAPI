@@ -19,7 +19,11 @@ from agentory.common.response import ApiResponse
 from agentory.core.db import SessionLocal, get_session
 from agentory.modules.auth.middleware import get_current_user
 from agentory.modules.notification import repository, service
-from agentory.modules.notification.schemas import NotificationPage, ReadAllResponse
+from agentory.modules.notification.schemas import (
+    AvailableDatesResponse,
+    NotificationPage,
+    ReadAllResponse,
+)
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -65,6 +69,36 @@ async def list_notifications(
         user_id=user["user_id"],
         start=start,
         end=end,
+    )
+    return ApiResponse.ok(result)
+
+
+@router.get(
+    "/available-dates",
+    response_model=ApiResponse[AvailableDatesResponse],
+    summary="알림 존재 날짜 조회 (캘린더 선택 가능 날짜)",
+)
+async def available_dates(
+    start: datetime | None = Query(
+        default=None,
+        description="조회 시작 시각 포함(ISO 8601, tz 포함), 가시 월 하한",
+        examples=["2026-08-01T00:00:00+09:00"],
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="조회 종료 시각 미포함(ISO 8601, tz 포함), 가시 월 상한(반열림)",
+        examples=["2026-09-01T00:00:00+09:00"],
+    ),
+    session: AsyncSession = Depends(get_session),
+    user: dict[str, Any] = Depends(get_current_user),
+) -> ApiResponse[AvailableDatesResponse]:
+    """담당 라인 알림이 존재하는 KST 날짜 목록, 캘린더 선택 가능 날짜 하이라이트용
+
+    start·end 지정 시 그 반열림 구간 [start, end)만 스캔, 미지정 시 전체 이력 대상
+    """
+    line_names = await service.scope_line_names(session, user)
+    result = await service.list_available_dates(
+        session, line_names=line_names, start=start, end=end
     )
     return ApiResponse.ok(result)
 
