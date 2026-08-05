@@ -1,6 +1,8 @@
 """장애 대응 계획 서비스 단위 테스트 (NEW_INCIDENT01_PLAN01)"""
 
+import asyncio
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -138,6 +140,28 @@ async def test_create_plan_falls_back_without_manual(monkeypatch):
 
     assert "라인 정지 없이 압력 밸브 상태 확인" in result.work_log_draft.plan
     assert result.citations == []
+    assert any("기본 체크리스트" in warning for warning in result.warnings)
+
+
+@pytest.mark.asyncio
+async def test_create_plan_falls_back_when_manual_search_times_out(monkeypatch):
+    async def fake_context(session, notification_id):
+        return _context()
+
+    async def hanging_search(query, equipment_type):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(service.repository, "fetch_incident_context", fake_context)
+    monkeypatch.setattr(
+        service,
+        "get_settings",
+        lambda: SimpleNamespace(incident_manual_search_timeout_seconds=0.01),
+    )
+
+    result = await service.create_incident_plan(None, 42, manual_search=hanging_search)
+
+    assert result.citations == []
+    assert any("응답이 지연" in warning for warning in result.warnings)
     assert any("기본 체크리스트" in warning for warning in result.warnings)
 
 
