@@ -1,5 +1,6 @@
 """장애 대응 계획 생성 서비스 (NEW_INCIDENT01_PLAN01)"""
 
+import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -281,7 +282,12 @@ async def create_incident_plan(
     search = manual_search or _search_manuals
     query = _manual_query(context, deviations)
     try:
-        manuals = await search(query, context["equipment"].get("process_type"))
+        async with asyncio.timeout(get_settings().incident_manual_search_timeout_seconds):
+            manuals = await search(query, context["equipment"].get("process_type"))
+    except TimeoutError:
+        log.warning("장애 대응 매뉴얼 검색 시간 초과")
+        manuals = []
+        warnings.append("매뉴얼 검색 응답이 지연되어 기본 체크리스트로 전환했습니다")
     except Exception as exc:
         log.warning("장애 대응 매뉴얼 검색 실패: %s", exc)
         manuals = []

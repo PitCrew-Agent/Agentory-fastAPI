@@ -104,6 +104,7 @@ class Settings(BaseSettings):
     mcp_realtime_url: str = "http://localhost:8101/mcp"
     mcp_knowledge_url: str = "http://localhost:8102/mcp"
     mcp_maintenance_url: str = "http://localhost:8103/mcp"  # 정비 이력 (BE_MCP05_MAINT01)
+    incident_manual_search_timeout_seconds: float = 5.0
     # 센서 로그 단일 조회 최대 행수, 초과 시 최근 행 우선 반환 (BE_MCP02_TELEMETRY01)
     sensor_log_max_rows: int = 500
     # 센서 수집 주기(초), 행수 상한과 함께 실제 조회 가능 구간 산출에 사용 (BE_CHAT02_SUGGEST02)
