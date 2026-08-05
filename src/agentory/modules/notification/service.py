@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentory.common.exceptions import ValidationError
 from agentory.modules.notification import repository
 from agentory.modules.notification.schemas import (
+    AvailableDatesResponse,
     NotificationItem,
     NotificationPage,
     ReadAllResponse,
@@ -31,6 +32,12 @@ async def scope_line_names(session: AsyncSession, user: dict[str, Any]) -> list[
     return await repository.assigned_line_names(session, user["user_id"])
 
 
+def _validate_range(start: datetime | None, end: datetime | None) -> None:
+    # 반열림 구간 전제, 경계 역전(start >= end) 요청 조기 차단 (BE_NOTI01_RANGE01)
+    if start is not None and end is not None and start >= end:
+        raise ValidationError("error.notification.invalid_range")
+
+
 async def list_notifications(
     session: AsyncSession,
     *,
@@ -44,8 +51,7 @@ async def list_notifications(
 ) -> NotificationPage:
     # 알람→알림 동기화는 백그라운드 워처 전담, 조회는 읽기만 수행 (NEW_PROACT01_DETECT01)
     # 캘린더 선택 기간은 반열림 구간, 경계 역전 요청은 조기 차단 (BE_NOTI01_RANGE01)
-    if start is not None and end is not None and start >= end:
-        raise ValidationError("error.notification.invalid_range")
+    _validate_range(start, end)
     page_size = max(1, min(limit, MAX_PAGE_SIZE))
     # 총 건수는 화면의 페이지 번호 렌더용, 조회 조건과 동일 스코프로 집계
     total_items = await repository.count_notifications(
@@ -77,6 +83,21 @@ async def list_notifications(
         total_pages=total_pages,
         has_more=current_page < total_pages,
     )
+
+
+async def list_available_dates(
+    session: AsyncSession,
+    *,
+    line_names: list[str] | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> AvailableDatesResponse:
+    # 캘린더 선택 가능 날짜, 알림이 있는 KST 날짜만 반환 (BE_NOTI01_RANGE01)
+    _validate_range(start, end)
+    dates = await repository.fetch_available_dates(
+        session, line_names=line_names, start=start, end=end
+    )
+    return AvailableDatesResponse(dates=dates)
 
 
 async def mark_read(

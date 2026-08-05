@@ -1,6 +1,6 @@
 """알림 응답 스키마 (NEW_PROACT01_ALERT01)"""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -45,3 +45,11 @@ class NotificationPage(BaseModel):
 class ReadAllResponse(BaseModel):
     # 일괄 읽음 처리 결과
     updated: int = Field(description="읽음으로 바뀐 알림 수", examples=[7])
+
+
+class AvailableDatesResponse(BaseModel):
+    # 알림이 존재하는 KST 날짜 목록, 캘린더 선택 가능 날짜 하이라이트용 (BE_NOTI01_RANGE01)
+    dates: list[date] = Field(
+        description="알림이 하나 이상 있는 KST 날짜 (오름차순)",
+        examples=[["2026-08-01", "2026-08-05"]],
+    )

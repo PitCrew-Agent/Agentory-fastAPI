@@ -4,7 +4,7 @@
 동일 설비+변수+알람은 30분 버킷당 첫 알람 1건만 적재해 중복 억제 (NEW_PROACT01_ALERT03)
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import delete, false, func, select, text
@@ -20,6 +20,10 @@ from agentory.modules.telemetry.schemas import StatusLevel, alarm_severity
 # 30분 버킷 경계 기준점(00분·30분 정렬용), date_bin origin으로 사용
 _BUCKET_ORIGIN = text("timestamptz '2000-01-01 00:00:00+00'")
 _BUCKET_WIDTH = text("interval '30 minutes'")
+
+# 캘린더 가용 날짜 산출용 기준 타임존, 발생 시각을 이 tz의 하루 경계로 버킷팅 (BE_NOTI01_RANGE01)
+# 국내 단일 tz 서비스라 KST 고정, DST 없어 고정 오프셋과 동일
+_CALENDAR_TZ = "Asia/Seoul"
 
 
 def _severity(alarm_code: str) -> StatusLevel:
@@ -203,6 +207,22 @@ async def count_notifications(
     if unread_only:
         stmt = stmt.where(~read_flag)
     return int(await session.scalar(stmt) or 0)
+
+
+async def fetch_available_dates(
+    session: AsyncSession,
+    *,
+    line_names: list[str] | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[date]:
+    # 알림이 있는 KST 날짜만 distinct 반환, 캘린더 선택 가능 날짜 하이라이트용 (BE_NOTI01_RANGE01)
+    # 발생 시각을 KST 하루 경계로 절단해 그룹화, start·end로 스캔 범위 한정
+    day = func.date(func.timezone(_CALENDAR_TZ, Notification.occurred_at))
+    stmt = _scope_to_lines(select(day), line_names)
+    stmt = _scope_to_range(stmt, start, end)
+    stmt = stmt.distinct().order_by(day)
+    return list(await session.scalars(stmt))
 
 
 async def mark_read(
