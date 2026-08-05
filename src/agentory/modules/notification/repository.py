@@ -128,6 +128,16 @@ def _scope_to_lines(stmt, line_names: list[str] | None):
     return stmt.where(Notification.line_name.in_(line_names))
 
 
+def _scope_to_range(stmt, start: datetime | None, end: datetime | None):
+    # 발생 시각 반열림 구간, start 포함·end 미포함으로 인접 구간 경계 중복 방지 (BE_NOTI01_RANGE01)
+    # 경계는 프론트가 tz 포함해 산출, 서버는 timestamptz 비교만 수행해 tz 가정 배제
+    if start is not None:
+        stmt = stmt.where(Notification.occurred_at >= start)
+    if end is not None:
+        stmt = stmt.where(Notification.occurred_at < end)
+    return stmt
+
+
 async def fetch_notifications(
     session: AsyncSession,
     *,
@@ -157,11 +167,14 @@ async def fetch_notifications_page(
     limit: int,
     line_names: list[str] | None = None,
     user_id: int | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
 ) -> list[dict[str, Any]]:
     # 발생 역순(occurred_at, id) offset 페이지네이션
     # 화면이 페이지 번호로 임의 이동하므로 커서 대신 offset 사용, 정렬키는 인덱스 그대로 활용
     read_flag = _read_exists(user_id)
     stmt = _scope_to_lines(select(Notification, read_flag.label("is_read")), line_names)
+    stmt = _scope_to_range(stmt, start, end)
     if unread_only:
         stmt = stmt.where(~read_flag)
     stmt = (
@@ -179,10 +192,14 @@ async def count_notifications(
     unread_only: bool = False,
     line_names: list[str] | None = None,
     user_id: int | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
 ) -> int:
     # 조회 조건에 해당하는 전체 건수, 화면의 총 건수·페이지 수 표기용
+    # 페이지 조회와 동일 필터를 적용해야 페이지네이션 총계가 정합 유지 (BE_NOTI01_RANGE01)
     read_flag = _read_exists(user_id)
     stmt = _scope_to_lines(select(func.count()).select_from(Notification), line_names)
+    stmt = _scope_to_range(stmt, start, end)
     if unread_only:
         stmt = stmt.where(~read_flag)
     return int(await session.scalar(stmt) or 0)

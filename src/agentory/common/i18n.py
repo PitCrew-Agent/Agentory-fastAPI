@@ -63,6 +63,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "ko": "알림 없음: {id}",
         "en": "Notification not found: {id}",
     },
+    "error.notification.invalid_range": {
+        "ko": "조회 시작 시각이 종료 시각보다 앞서야 함",
+        "en": "Range start must be earlier than end",
+    },
     "error.chat_session.not_found": {
         "ko": "대화 세션 없음: {id}",
         "en": "Chat session not found: {id}",
