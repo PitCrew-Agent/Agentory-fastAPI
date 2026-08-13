@@ -129,8 +129,8 @@ flowchart TD
 기준을 적용하고, 애매하면 `diagnostic`으로 유지합니다. 설정 `agent_fast_router_enabled`로
 on/off 합니다.
 
-바이패스 효과는 잡담 질의 기준 지연 -43.1%, LLM 호출 -50.0%, 입력 토큰 -80.3%입니다
-(`scripts/bench/fast_router_bench.py`, 2026-07-20).
+바이패스 효과는 잡담 질의 기준 지연 -37.4%, LLM 호출 -50.0%, 입력 토큰 -80.3%입니다
+(`scripts/bench/fast_router_bench.py`, 2026-07-20, 재측정 최신값은 [ADR-0009](../adr/0009-agent-hybrid-orchestration.md) 기준).
 
 다만 **인사·감사 표현이 붙은 후속 턴 질의에서 `direct` 오탐이 확인되었습니다**. 규칙이 대화 이력을
 보지 않고 마지막 발화만 검사하므로, 지시대명사로 앞 맥락을 참조하는 질의("고마워, 근데 아까 그 값
