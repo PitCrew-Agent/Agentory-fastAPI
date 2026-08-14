@@ -1,5 +1,6 @@
 # Agentory: 자율형 제조 데이터 분석 및 MCP 에이전트 시스템 (Backend)
-
+<img width="812" height="482" alt="스크린샷 2026-08-06 오후 6 32 39" src="https://github.com/user-attachments/assets/dbe22805-a395-4ec9-957b-f1f9b1061862" />
+<br>
 제조 설비의 복합 이상을 다변량 센서에서 잡아내고, 현장의 자연어 질문에 실시간 센서·매뉴얼·정비 이력을 스스로 종합해 근거와 함께 답합니다.
 
 ## 프로젝트 소개
